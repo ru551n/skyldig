@@ -235,9 +235,10 @@ export const limiters = {
    *
    * The global cap below is what actually bounds brute force. A join is resolved by a single
    * blind-index lookup, so one guess is tested against every active group at once; with a
-   * 4-word phrase (44.5 bits) and 240 attempts an hour, even a million live groups take
-   * around a decade before one hit is expected, and ten thousand groups take over a
-   * millennium.
+   * legacy 4-word phrase (44.5 bits) and 240 attempts an hour, even a million live groups
+   * take around a decade before one hit is expected, and ten thousand groups take over a
+   * millennium; 5-word phrases (55.7 bits, the default since the hardening pass) multiply
+   * those figures by ~2250.
    */
   join: createRateLimiter([
     { name: "join-10m", limit: 20, windowMs: 10 * MINUTE },
@@ -250,8 +251,9 @@ export const limiters = {
    * let one client's flood of already-denied requests drain the shared budget and lock out
    * every other client, which is itself a denial-of-service.
    *
-   * At 480 attempts/hour against a 4-word phrase (44.5 bits), a million live groups are still
-   * roughly half a decade from an expected hit and ten thousand groups several centuries —
+   * At 480 attempts/hour against a legacy 4-word phrase (44.5 bits), a million live groups are
+   * still roughly half a decade from an expected hit and ten thousand groups several centuries
+   * (~2250x longer for 5-word phrases at 55.7 bits) —
    * this is a last-resort circuit breaker against a botnet spread across many client keys
    * (each individually bounded by the much tighter per-client cap above), not the primary
    * brute-force defense, so it is sized to comfortably absorb bursts of genuine multi-tenant
