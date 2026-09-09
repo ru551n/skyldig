@@ -1,3 +1,5 @@
+<img src="public/favicon.svg" width="40" height="40" alt="">
+
 # Skyldig
 
 Skyldig ("owing" in Swedish) is an account-less, self-hosted web app for splitting shared
@@ -16,7 +18,9 @@ How it works:
 - The group and all its data expire and are deleted 90 days after creation, whether or not anyone
   visits.
 
-The UI is Swedish only. See `docs/design.md` for the visual direction and `docs/architecture.md`
+The interface is available in Swedish and English (the access phrase itself is always Swedish
+words, regardless of interface language). See `docs/design.md` for the visual direction and
+`docs/architecture.md`
 for the full architecture decision record — this README summarizes and links to it rather than
 repeating it.
 
@@ -25,19 +29,21 @@ repeating it.
 The MVP is complete and verified end to end. What works today:
 
 - Create a group, share a four-word Swedish access phrase, join from another browser.
+- Invite people with a single-use QR code or link instead of dictating the phrase; the phrase
+  itself never travels in a URL.
 - A separate admin key unlocks rotating either key and deleting the group.
 - Participants, expenses and repayments with edit, delete and full revision history.
 - Multiple currencies with a user-entered exchange rate locked to each transaction.
 - Balances and a settlement plan that says who should pay whom.
 - Groups expire 90 days after creation, removed by a background job.
-- Swedish interface, mobile first, with an in-app usage guide at `/guide`.
+- Swedish and English interface, mobile first, with an in-app usage guide at `/guide`.
 
 Verification, all currently passing:
 
 | Check | Result |
 |---|---|
-| Unit and integration tests | 268 across 27 files |
-| End-to-end tests (Playwright) | 14, covering the full 12-step flow |
+| Unit and integration tests | 277 across 29 files |
+| End-to-end tests (Playwright) | 20, covering the full 12-step flow |
 | Accessibility (axe, serious/critical) | 0 violations across 11 pages |
 | Lint and type checking | clean |
 
