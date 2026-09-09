@@ -10,6 +10,10 @@ const envSchema = z.object({
   ACCESS_KEY_PEPPER: z.string().optional(),
   PUBLIC_ORIGIN: z.string().url().default("http://localhost:3000"),
   TRUST_PROXY: z.string().optional(),
+  COOKIE_SECURE: z
+    .enum(["true", "false"])
+    .optional()
+    .transform((v) => (v === undefined ? undefined : v === "true")),
   LOG_LEVEL: z
     .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
     .default("info"),
@@ -56,6 +60,7 @@ export const config = {
   accessKeyPepper,
   publicOrigin: parsed.PUBLIC_ORIGIN,
   trustProxy: parsed.TRUST_PROXY,
+  cookieSecure: parsed.COOKIE_SECURE ?? isProduction,
   logLevel: parsed.LOG_LEVEL,
 } as const;
 
