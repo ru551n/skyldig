@@ -1,8 +1,11 @@
+import { scryptSync } from "node:crypto";
+
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { config } from "../../server/config.ts";
 import { participants, sessions } from "../../server/db/schema.ts";
+import { normalizePhrase } from "../../server/modules/auth/crypto.ts";
 import {
   adminElevationExpiry,
   createBrowserSession,
@@ -218,6 +221,78 @@ describe("createSession / joinSession", () => {
         expect(row.admin_key_hash.toString("hex")).not.toContain(Buffer.from(adminKey).toString("hex"));
         expect(row.admin_key_hash.toString("latin1")).not.toContain(adminKey);
       }
+    },
+    SLOW_TEST_TIMEOUT,
+  );
+});
+
+/** Builds a v1 (`scrypt$…`, unpeppered) verifier exactly as the pre-v2 hashVerifier did. */
+function legacyVerifier(value: string): string {
+  const salt = Buffer.alloc(16, 5);
+  const hash = scryptSync(value, salt, 32, { N: 32768, r: 8, p: 1, maxmem: 64 * 1024 * 1024 });
+  return `scrypt$32768$8$1$${salt.toString("base64")}$${hash.toString("base64")}`;
+}
+
+describe("legacy (v1) verifier lazy upgrade", () => {
+  async function storedVerifier(id: bigint): Promise<string> {
+    const [row] = await db
+      .select({ v: sessions.accessKeyVerifier })
+      .from(sessions)
+      .where(eq(sessions.id, id));
+    return row.v;
+  }
+
+  it(
+    "a session stored with a v1 verifier joins, is re-hashed to v2 on that join, and keeps joining",
+    async () => {
+      const { session, phrase } = await makeSession();
+      const [{ id }] = await db.select({ id: sessions.id }).from(sessions);
+      expect(await storedVerifier(id)).toMatch(/^scrypt2\$/);
+
+      const v1 = legacyVerifier(normalizePhrase(phrase));
+      await db.update(sessions).set({ accessKeyVerifier: v1 }).where(eq(sessions.id, id));
+      expect(await storedVerifier(id)).toBe(v1);
+
+      const joined = await joinSession(db, config, phrase);
+      expect(joined?.publicId).toBe(session.publicId);
+
+      const upgraded = await storedVerifier(id);
+      expect(upgraded).toMatch(/^scrypt2\$32768\$8\$1\$/);
+      expect(upgraded).not.toBe(v1);
+
+      // The upgraded verifier is stable across further joins and still gates the phrase.
+      expect((await joinSession(db, config, phrase))?.publicId).toBe(session.publicId);
+      expect(await storedVerifier(id)).toBe(upgraded);
+      expect(await joinSession(db, config, `${phrase}-extra`)).toBeNull();
+    },
+    SLOW_TEST_TIMEOUT,
+  );
+
+  it(
+    "a failed verifier check against a v1 row never upgrades it",
+    async () => {
+      const { phrase } = await makeSession();
+      const [{ id }] = await db.select({ id: sessions.id }).from(sessions);
+      // Index still matches the real phrase, but the v1 verifier was made for another value.
+      const v1 = legacyVerifier("not-the-phrase");
+      await db.update(sessions).set({ accessKeyVerifier: v1 }).where(eq(sessions.id, id));
+
+      expect(await joinSession(db, config, phrase)).toBeNull();
+      expect(await storedVerifier(id)).toBe(v1);
+    },
+    SLOW_TEST_TIMEOUT,
+  );
+
+  it(
+    "a malformed stored verifier is rejected, not upgraded, and does not throw",
+    async () => {
+      const { phrase } = await makeSession();
+      const [{ id }] = await db.select({ id: sessions.id }).from(sessions);
+      const bad = "scrypt$1073741824$8$1000$AAAAAAAAAAAAAAAAAAAAAA==$" + "A".repeat(43) + "=";
+      await db.update(sessions).set({ accessKeyVerifier: bad }).where(eq(sessions.id, id));
+
+      expect(await joinSession(db, config, phrase)).toBeNull();
+      expect(await storedVerifier(id)).toBe(bad);
     },
     SLOW_TEST_TIMEOUT,
   );

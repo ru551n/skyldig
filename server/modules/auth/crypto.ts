@@ -14,7 +14,7 @@ const PUBLIC_ID_ALPHABET = "abcdefghijkmnpqrstuvwxyz23456789";
 // configured parameters actually work.
 const SCRYPT_MAXMEM = 64 * 1024 * 1024;
 
-function scryptAsync(password: string, salt: Buffer, keylen: number, n: number, r: number, p: number): Promise<Buffer> {
+function scryptAsync(password: string | Buffer, salt: Buffer, keylen: number, n: number, r: number, p: number): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     scryptCallback(password, salt, keylen, { N: n, r, p, maxmem: SCRYPT_MAXMEM }, (err, derivedKey) => {
       if (err) reject(err);
@@ -36,16 +36,28 @@ export function hmacIndex(pepper: string, value: string): Buffer {
   return createHmac("sha256", pepper).update(value).digest();
 }
 
-const VERIFIER_VERSION = "scrypt";
-// Bounds for a stored verifier string. A valid one is exactly 86 chars
-// (`scrypt$32768$8$1$` + 24-char salt + `$` + 44-char hash); the cap just needs to be above that.
+/**
+ * Verifier format versions. `scrypt` (v1) hashed the bare normalized phrase, so a database dump
+ * alone allowed an offline scrypt-cost brute force of each row without the pepper. `scrypt2`
+ * hashes HMAC-SHA256(pepper, "verifier:" || phrase) instead, so the verifier is useless without
+ * the pepper (which already gates the lookup index and admin-key hash). v1 rows keep verifying
+ * and are re-hashed to v2 on the next successful join (see `joinSession`).
+ */
+const VERIFIER_VERSION_LEGACY = "scrypt";
+const VERIFIER_VERSION = "scrypt2";
+type VerifierVersion = typeof VERIFIER_VERSION_LEGACY | typeof VERIFIER_VERSION;
+// Domain-separates the verifier input from the lookup index (HMAC(pepper, phrase)) under the same
+// key. A generated phrase is [a-z-] only and can never start with this prefix.
+const VERIFIER_DOMAIN = "verifier:";
+// Bounds for a stored verifier string. A valid one is exactly 86 (v1) or 87 (v2) chars
+// (`scrypt2$32768$8$1$` + 24-char salt + `$` + 44-char hash); the cap just needs to be above that.
 const VERIFIER_MAX_LENGTH = 128;
 // Canonical standard base64 (with padding) for exactly 16 and exactly 32 bytes.
 const SALT_B64_RE = /^[A-Za-z0-9+/]{22}==$/;
 const HASH_B64_RE = /^[A-Za-z0-9+/]{43}=$/;
 
 export interface ParsedVerifier {
-  version: typeof VERIFIER_VERSION;
+  version: VerifierVersion;
   salt: Buffer;
   hash: Buffer;
 }
@@ -65,10 +77,10 @@ function decodeBase64Exact(field: string, shape: RegExp, bytes: number): Buffer 
 
 /**
  * Strictly parses a stored verifier string, or returns `null` for anything that is not exactly
- * the shape `hashVerifier` produces: known version tag, N/r/p equal (as decimal strings, no
- * `Number()` coercion) to the pinned generating parameters, canonical base64 salt of exactly
- * `SCRYPT_SALT_BYTES` and hash of exactly `SCRYPT_KEYLEN`. Never throws. Because the
- * parameters are pinned, a corrupt or hostile row can neither pick the scrypt cost nor force
+ * the shape `hashVerifier` produces (or produced, for v1): known version tag, N/r/p equal (as
+ * decimal strings, no `Number()` coercion) to the pinned generating parameters, canonical base64
+ * salt of exactly `SCRYPT_SALT_BYTES` and hash of exactly `SCRYPT_KEYLEN`. Never throws. Because
+ * the parameters are pinned, a corrupt or hostile row can neither pick the scrypt cost nor force
  * an allocation beyond the fixed 128*N*r = 32 MiB (`SCRYPT_MAXMEM` bounds it regardless).
  */
 export function parseVerifier(stored: unknown): ParsedVerifier | null {
@@ -77,7 +89,7 @@ export function parseVerifier(stored: unknown): ParsedVerifier | null {
   const parts = stored.split("$");
   if (parts.length !== 6) return null;
   const [version, nStr, rStr, pStr, saltB64, hashB64] = parts;
-  if (version !== VERIFIER_VERSION) return null;
+  if (version !== VERIFIER_VERSION && version !== VERIFIER_VERSION_LEGACY) return null;
   if (nStr !== String(SCRYPT_N) || rStr !== String(SCRYPT_R) || pStr !== String(SCRYPT_P)) return null;
   const salt = decodeBase64Exact(saltB64, SALT_B64_RE, SCRYPT_SALT_BYTES);
   const hash = decodeBase64Exact(hashB64, HASH_B64_RE, SCRYPT_KEYLEN);
@@ -85,23 +97,40 @@ export function parseVerifier(stored: unknown): ParsedVerifier | null {
   return { version, salt, hash };
 }
 
-/** Derives a scrypt hash of `value`, encoded as `scrypt$N$r$p$saltB64$hashB64`. */
-export async function hashVerifier(value: string): Promise<string> {
+/** True when `stored` is a valid legacy (v1, unpeppered) verifier that should be re-hashed. */
+export function verifierNeedsUpgrade(stored: string): boolean {
+  return parseVerifier(stored)?.version === VERIFIER_VERSION_LEGACY;
+}
+
+/** The scrypt password for a given verifier version: bare value (v1) or peppered HMAC (v2). */
+function verifierInput(pepper: string, version: VerifierVersion, value: string): string | Buffer {
+  if (version === VERIFIER_VERSION_LEGACY) return value;
+  return createHmac("sha256", pepper).update(VERIFIER_DOMAIN).update(value).digest();
+}
+
+/**
+ * Derives the current-version verifier of `value`, encoded as `scrypt2$N$r$p$saltB64$hashB64`,
+ * where the scrypt password is HMAC-SHA256(pepper, "verifier:" || value).
+ */
+export async function hashVerifier(pepper: string, value: string): Promise<string> {
   const salt = randomBytes(SCRYPT_SALT_BYTES);
-  const derived = await scryptAsync(value, salt, SCRYPT_KEYLEN, SCRYPT_N, SCRYPT_R, SCRYPT_P);
+  const input = verifierInput(pepper, VERIFIER_VERSION, value);
+  const derived = await scryptAsync(input, salt, SCRYPT_KEYLEN, SCRYPT_N, SCRYPT_R, SCRYPT_P);
   return `${VERIFIER_VERSION}$${SCRYPT_N}$${SCRYPT_R}$${SCRYPT_P}$${salt.toString("base64")}$${derived.toString("base64")}`;
 }
 
 /**
- * Verifies `value` against a `hashVerifier`-produced string in constant time. Malformed or
- * unsupported stored strings yield `false` without running scrypt and without throwing.
+ * Verifies `value` against a `hashVerifier`-produced string (any supported version) in constant
+ * time. Malformed or unsupported stored strings yield `false` without running scrypt and
+ * without throwing.
  */
-export async function verifyVerifier(value: string, stored: string): Promise<boolean> {
+export async function verifyVerifier(pepper: string, value: string, stored: string): Promise<boolean> {
   const parsed = parseVerifier(stored);
   if (!parsed) return false;
   let derived: Buffer;
   try {
-    derived = await scryptAsync(value, parsed.salt, parsed.hash.length, SCRYPT_N, SCRYPT_R, SCRYPT_P);
+    const input = verifierInput(pepper, parsed.version, value);
+    derived = await scryptAsync(input, parsed.salt, parsed.hash.length, SCRYPT_N, SCRYPT_R, SCRYPT_P);
   } catch {
     return false;
   }

@@ -3,6 +3,7 @@ import { eq, sql } from "drizzle-orm";
 import type { Database } from "../../db/client.ts";
 import { currencies, sessions } from "../../db/schema.ts";
 import type { Config } from "../../config.ts";
+import { logger } from "../../logger.ts";
 import {
   generateAdminKey,
   generatePublicId,
@@ -10,6 +11,7 @@ import {
   hmacIndex,
   normalizeAdminKey,
   normalizePhrase,
+  verifierNeedsUpgrade,
   verifyVerifier,
 } from "../auth/crypto.ts";
 import type { DbOrTx, Tx } from "../auth/browser-session.ts";
@@ -105,7 +107,7 @@ async function generateSessionCredentials(config: Config, deps: CreateSessionDep
   const normalizedPhrase = normalizePhrase(phrase);
 
   const accessKeyIndex = hmacIndex(config.accessKeyPepper, normalizedPhrase);
-  const accessKeyVerifier = await hashVerifier(normalizedPhrase);
+  const accessKeyVerifier = await hashVerifier(config.accessKeyPepper, normalizedPhrase);
   const adminKeyHash = hmacIndex(config.accessKeyPepper, normalizeAdminKey(adminKey));
   const publicId = generatePublicId();
 
@@ -202,10 +204,39 @@ export async function joinSession(
     .limit(1);
   if (!row) return null;
 
-  const ok = await verifyVerifier(normalized, row.accessKeyVerifier);
+  const ok = await verifyVerifier(config.accessKeyPepper, normalized, row.accessKeyVerifier);
   if (!ok) return null;
 
+  if (verifierNeedsUpgrade(row.accessKeyVerifier)) {
+    await upgradeVerifier(db, config, row.id, normalized, row.accessKeyVerifier);
+  }
+
   return { sessionId: row.id, publicId: row.publicId, name: row.name };
+}
+
+/**
+ * Lazily re-hashes a legacy (v1, unpeppered) verifier to the current peppered format after a
+ * successful join — the only moment the plaintext phrase is available. Best-effort and
+ * non-transactional: the UPDATE is guarded on the old verifier value so it is a no-op if the
+ * phrase was rotated (or another join upgraded it) in the meantime, and any failure is logged
+ * and swallowed — the join already succeeded and the v1 verifier keeps working until next time.
+ */
+async function upgradeVerifier(
+  db: DbOrTx,
+  config: Config,
+  sessionId: bigint,
+  normalizedPhrase: string,
+  oldVerifier: string,
+): Promise<void> {
+  try {
+    const upgraded = await hashVerifier(config.accessKeyPepper, normalizedPhrase);
+    await db
+      .update(sessions)
+      .set({ accessKeyVerifier: upgraded })
+      .where(sql`${sessions.id} = ${sessionId} and ${sessions.accessKeyVerifier} = ${oldVerifier}`);
+  } catch (err) {
+    logger.warn({ err, sessionId: String(sessionId) }, "session: lazy verifier upgrade failed");
+  }
 }
 
 /** Verifies an admin key, scoped to `sessionId` — never a global lookup. */
@@ -263,7 +294,7 @@ export async function rotateAccessPhrase(
     const phrase = generatePhrase();
     const normalized = normalizePhrase(phrase);
     const accessKeyIndex = hmacIndex(config.accessKeyPepper, normalized);
-    const accessKeyVerifier = await hashVerifier(normalized);
+    const accessKeyVerifier = await hashVerifier(config.accessKeyPepper, normalized);
 
     try {
       const updated = await tx.transaction(async (savepoint) => {
