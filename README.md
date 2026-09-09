@@ -280,6 +280,12 @@ doesn't match the `NODE_ENV`-based default. Make sure that proxy overwrites or a
 `X-Forwarded-For` (all mainstream ones do) — never trust more hops than you actually run, or
 clients can pick their own rate-limit identity.
 
+Rate limits live in the app process's memory, not in the database. Run a single instance: every
+replica you add multiplies every limit (join, invite, group creation, admin elevation) by the
+replica count and lets a client spread attempts across replicas. If you must run replicas, add a
+coarse limit at the reverse proxy as well (e.g. nginx `limit_req` on the `POST` routes) so the
+aggregate stays bounded — see docs/architecture.md §4.4.
+
 For backups, dump the Postgres database (session, participant, expense, payment, and revision
 data all live there) on your normal schedule. `ACCESS_KEY_PEPPER` must **not** be included in
 that dump or stored alongside it — it lives only in the environment. Keep it in a separate secret

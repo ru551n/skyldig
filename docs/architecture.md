@@ -177,6 +177,30 @@ from the client bundle). Path aliases: `~/*` → `app/*`, `@domain/*`, `@server/
   (docs/todo.md) before cleanup. Failures return one generic message after a fixed
   ≥ 250 ms response floor for join/invite/elevate; group creation returns its 429 immediately,
   since there is no credential being guessed and so no timing side-channel to defend against.
+  Admin elevation composes its two limiters the same way via `checkClientThenSession`:
+  per-client first, and the per-group bucket (whose trip arms the 15-minute lock) is charged
+  only by a request that passed the per-client check — otherwise one member already denied by
+  their own 5/10 min cap could reach the group-wide lock in seconds and shut that group's real
+  admins out. The per-group lock remains reachable by any *member* (a grant is required before
+  either limiter is touched; an outsider gets a 404 for free) who sustains wrong guesses for
+  about 40 minutes from one client key — an accepted in-group nuisance, since the alternative
+  is an unbounded admin-key guess rate for a member behind rotating client keys (§4.3).
+  Global buckets are circuit breakers, not per-user budgets: because a client can only charge a
+  global bucket through requests its own per-client cap allowed, tripping one takes the hourly
+  budget of at least 8 distinct client keys for join (480/60), 4 for invite (240/60) and 11
+  for group creation (500/45) — a handful of malicious requests from one address can never
+  lock anyone else out, and the map bound (50k keys) denies only *new* keys, never tracked ones.
+
+  **Known limitation: rate limiting is per process.** Every limiter above is an in-memory map
+  in the Node process; nothing is shared through Postgres or anything else. Running N replicas
+  of the app therefore multiplies every limit — per-client and global alike — by N, and a
+  client whose requests are spread across replicas gets N independent budgets. A single
+  instance is the supported deployment. If replicas are unavoidable, put a coarse limit at the
+  reverse proxy in front of them (e.g. nginx `limit_req` on `POST /join`, `/i/*`, `/new` and
+  `/s/*/admin`) so the aggregate is still bounded; sticky sessions by client IP also work but
+  are easier to get wrong. A database-backed limiter was considered and deliberately not
+  built: it adds a round trip to every guarded request for a deployment shape the app does not
+  target.
 - Anti-bot on group creation (`app/routes/new.tsx`), on top of rate limiting (rate limiting
   alone is not a substitute for it): a honeypot field (`website`, visually hidden and excluded
   from tab order via `.sr-only` — not `display:none`/`opacity:0`, which some bots skip — so
