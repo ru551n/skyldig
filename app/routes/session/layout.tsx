@@ -6,6 +6,7 @@ import { getSessionBalances } from "@server/modules/balances/balances.ts";
 import { listParticipants } from "@server/modules/participants/participants.ts";
 
 import { ActionBar, ButtonLink, ConfirmDialog, Pill } from "~/components/ui/index.ts";
+import { InviteDialog } from "~/components/session/InviteDialog.tsx";
 import { SessionRail, type NavItem } from "~/components/session/SessionRail.tsx";
 import { isExpiringSoon, type SessionLayoutData } from "~/components/session/types.ts";
 import { getConfig, getDb } from "~/lib/session-context.server.ts";
@@ -63,6 +64,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
   return [{ title: loaderData ? `${loaderData.session.name} — Skyldig` : "Skyldig" }];
 }
 
+
 /** True on the expense/payment form sub-routes, where the bottom action bar is redundant. */
 function isFormRoute(pathname: string): boolean {
   return /\/(ny|andra)$/.test(pathname);
@@ -73,6 +75,7 @@ export default function SessionLayout({ loaderData }: Route.ComponentProps) {
   const location = useLocation();
   const navigation = useNavigation();
   const [leaveOpen, setLeaveOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
 
   const { session, role, participants, balances } = loaderData;
   const expiringSoon = isExpiringSoon(session.expiresAt);
@@ -117,6 +120,65 @@ export default function SessionLayout({ loaderData }: Route.ComponentProps) {
           >
             {session.name}
           </Link>
+          <button
+            type="button"
+            onClick={() => setInviteOpen(true)}
+            aria-label={t("invite.action")}
+            className="rounded-control text-pine hover:bg-frost focus-visible:outline-pine flex h-11 w-11 shrink-0 items-center justify-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+          >
+            <svg viewBox="0 0 20 20" width="18" height="18" fill="none" aria-hidden="true">
+              <rect
+                x="3"
+                y="3"
+                width="6"
+                height="6"
+                rx="1"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              />
+              <rect
+                x="11"
+                y="3"
+                width="6"
+                height="6"
+                rx="1"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              />
+              <rect
+                x="3"
+                y="11"
+                width="6"
+                height="6"
+                rx="1"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              />
+              <rect x="13" y="13" width="2" height="2" fill="currentColor" />
+              <rect
+                x="17"
+                y="13"
+                width="0.01"
+                height="0.01"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              />
+              <rect
+                x="13"
+                y="17"
+                width="0.01"
+                height="0.01"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              />
+              <path
+                d="M15 11v2M17 15h2M11 15h2"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
           <Pill variant={expiringSoon ? "warning" : "neutral"} className="shrink-0">
             {t("admin.expiresLabel", { date: formatExpiryShort(session.expiresAt) })}
           </Pill>
@@ -135,6 +197,7 @@ export default function SessionLayout({ loaderData }: Route.ComponentProps) {
             balances={balances.balances}
             baseCurrency={balances.baseCurrency}
             navItems={navItems}
+            onInviteClick={() => setInviteOpen(true)}
             onLeaveClick={() => setLeaveOpen(true)}
           />
         </nav>
@@ -161,6 +224,12 @@ export default function SessionLayout({ loaderData }: Route.ComponentProps) {
           </ButtonLink>
         </ActionBar>
       )}
+
+      <InviteDialog
+        open={inviteOpen}
+        onOpenChange={setInviteOpen}
+        action={`/s/${session.publicId}/bjud-in`}
+      />
 
       <ConfirmDialog
         open={leaveOpen}

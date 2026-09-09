@@ -133,7 +133,10 @@ from the client bundle). Path aliases: `~/*` → `app/*`, `@domain/*`, `@server/
   `X-Forwarded-For` is honoured only when `TRUST_PROXY` is set. Limits: join 20/10 min and
   60/h per client, 240/h global. The per-client cap is deliberately loose because a whole
   group normally joins from one shared network; the global cap is what bounds brute force,
-  and at 44.5 bits it leaves even a million live groups about a decade from an expected hit; admin elevation 5/10 min per client **and** 20/h per session
+  and at 44.5 bits it leaves even a million live groups about a decade from an expected hit;
+  invite-token redemption (§4.1, docs/todo.md) has its own identically sized limiter, kept
+  separate from phrase joins because a token is single-use and short-lived and must not share
+  a budget with a reusable credential; admin elevation 5/10 min per client **and** 20/h per session
   public id followed by a 15-minute lock. Failures return one generic message after a fixed
   ≥ 250 ms response floor.
 - helmet: CSP `default-src 'self'` with a per-request nonce for the hydration script,

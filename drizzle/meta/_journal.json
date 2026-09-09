@@ -22,6 +22,13 @@
       "when": 1788951797929,
       "tag": "0002_tighten_money_checks",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1788963580218,
+      "tag": "0003_powerful_mantis",
+      "breakpoints": true
     }
   ]
 }

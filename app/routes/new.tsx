@@ -154,7 +154,7 @@ function errorMessage(t: ReturnType<typeof useT>, code: string): string {
   }
 }
 
-function CopyButton({ value, label }: { value: string; label: string }) {
+function CopyButton({ value, label, copiedLabel }: { value: string; label: string; copiedLabel: string }) {
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
@@ -180,7 +180,7 @@ function CopyButton({ value, label }: { value: string; label: string }) {
 
   return (
     <Button type="button" variant="secondary" onClick={handleCopy}>
-      {copied ? "Kopierad!" : label}
+      {copied ? copiedLabel : label}
     </Button>
   );
 }
@@ -226,7 +226,7 @@ function ResultView({ result }: { result: CreateSuccess }) {
           {result.phrase}
         </p>
         <div className="flex gap-3">
-          <CopyButton value={result.phrase} label="Kopiera" />
+          <CopyButton value={result.phrase} label={t("common.copy")} copiedLabel={t("common.copied")} />
         </div>
       </div>
 
@@ -237,7 +237,7 @@ function ResultView({ result }: { result: CreateSuccess }) {
         </p>
         <p className="text-meta text-rust">Spara den här — den visas bara en gång.</p>
         <div className="flex gap-3">
-          <CopyButton value={result.adminKey} label="Kopiera" />
+          <CopyButton value={result.adminKey} label={t("common.copy")} copiedLabel={t("common.copied")} />
         </div>
       </div>
 

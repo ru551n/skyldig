@@ -161,6 +161,19 @@ export const limiters = {
   ]),
   /** Global join attempts across all clients: 240 per hour. Always keyed 'global'. */
   joinGlobal: createRateLimiter([{ name: "join-global-1h", limit: 240, windowMs: HOUR }]),
+  /**
+   * Invite-token redemption is a separate credential surface from the reusable access
+   * phrase (see docs/todo.md "Share a group by QR code or link"): a token is single-use,
+   * short-lived and revocable, so it does not need — and must not share — the phrase's
+   * budget. Sharing one budget between them means an attack (or, in testing, a deliberate
+   * exhaustion of the join limiter) on one surface wrongly blocks the other for the same
+   * client. Sized the same as `join`/`joinGlobal` for now, since the risk profile is similar.
+   */
+  invite: createRateLimiter([
+    { name: "invite-10m", limit: 20, windowMs: 10 * MINUTE },
+    { name: "invite-1h", limit: 60, windowMs: HOUR },
+  ]),
+  inviteGlobal: createRateLimiter([{ name: "invite-global-1h", limit: 240, windowMs: HOUR }]),
   /** Per-client admin elevation attempts: 5 per 10 minutes. */
   elevate: createRateLimiter([{ name: "elevate-10m", limit: 5, windowMs: 10 * MINUTE }]),
   /**

@@ -265,3 +265,39 @@ export const sessionGrants = pgTable(
     check("session_grants_role_check", sql`${t.role} in ('member', 'admin')`),
   ],
 );
+
+/**
+ * A single-use link/QR invite for a session. The bearer phrase itself never travels in a
+ * URL (docs/architecture.md §4, docs/todo.md "Share a group by QR code or link"); an invite
+ * is a separate, short-lived, revocable credential that grants the same role a phrase join
+ * would. Only the hash of the token is stored, the same pattern as the access phrase.
+ */
+export const sessionInvites = pgTable(
+  "session_invites",
+  {
+    id: bigserial("id", { mode: "bigint" }).primaryKey(),
+    publicId: text("public_id").notNull(),
+    sessionId: bigint("session_id", { mode: "bigint" })
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    tokenHash: bytea("token_hash").notNull(),
+    role: text("role").notNull().default("member"),
+    createdByBrowserSessionId: bigint("created_by_browser_session_id", { mode: "bigint" })
+      .notNull()
+      .references(() => browserSessions.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    usedByBrowserSessionId: bigint("used_by_browser_session_id", { mode: "bigint" }).references(
+      () => browserSessions.id,
+      { onDelete: "set null" },
+    ),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (t) => [
+    unique("session_invites_public_id_key").on(t.publicId),
+    unique("session_invites_token_hash_key").on(t.tokenHash),
+    index("session_invites_session_id_idx").on(t.sessionId),
+    check("session_invites_role_check", sql`${t.role} in ('member', 'admin')`),
+  ],
+);

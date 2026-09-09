@@ -21,6 +21,7 @@ export interface SessionRailProps {
   balances: LayoutBalanceEntry[];
   baseCurrency: string;
   navItems: NavItem[];
+  onInviteClick: () => void;
   onLeaveClick: () => void;
 }
 
@@ -33,6 +34,7 @@ export function SessionRail({
   balances,
   baseCurrency,
   navItems,
+  onInviteClick,
   onLeaveClick,
 }: SessionRailProps) {
   const t = useT();
@@ -73,6 +75,14 @@ export function SessionRail({
           })}
         </ul>
       )}
+
+      <button
+        type="button"
+        onClick={onInviteClick}
+        className="rounded-control bg-pine text-body text-paper min-h-11 px-3 py-2 text-left font-medium"
+      >
+        {t("invite.action")}
+      </button>
 
       <nav aria-label={sessionName} className="flex flex-col gap-1">
         {navItems.map((item) => (

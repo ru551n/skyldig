@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 
 import type { Database } from "../../db/client.ts";
 import { purgeExpiredBrowserSessions } from "../auth/browser-session.ts";
+import { purgeExpiredInvites } from "../session/invite.ts";
 import { logger } from "../../logger.ts";
 
 const expirationLogger = logger.child({ module: "expiration" });
@@ -16,6 +17,7 @@ const MAX_BATCHES = 10_000;
 interface CleanupResult {
   sessionsDeleted: number;
   browserSessionsDeleted: number;
+  invitesDeleted: number;
   skipped: boolean;
 }
 
@@ -75,7 +77,7 @@ export async function runCleanup(db: Database): Promise<CleanupResult> {
 
     if (!outcome.locked) {
       if (firstBatch) {
-        return { sessionsDeleted: 0, browserSessionsDeleted: 0, skipped: true };
+        return { sessionsDeleted: 0, browserSessionsDeleted: 0, invitesDeleted: 0, skipped: true };
       }
       // Contended mid-run (rare: another instance grabbed the lock between our batches).
       // Stop here rather than block; the next scheduled run will pick up any remainder.
@@ -96,15 +98,18 @@ export async function runCleanup(db: Database): Promise<CleanupResult> {
   }
 
   const browserSessionsDeleted = await purgeExpiredBrowserSessions(db);
+  // Invites already cascade-delete with their session, so this only ever removes invites
+  // whose group is still live: ones that expired, were used, or were revoked.
+  const invitesDeleted = await purgeExpiredInvites(db);
 
-  if (sessionsDeleted > 0 || browserSessionsDeleted > 0) {
+  if (sessionsDeleted > 0 || browserSessionsDeleted > 0 || invitesDeleted > 0) {
     expirationLogger.info(
-      { sessionsDeleted, browserSessionsDeleted, skipped: false },
+      { sessionsDeleted, browserSessionsDeleted, invitesDeleted, skipped: false },
       "cleanup completed",
     );
   }
 
-  return { sessionsDeleted, browserSessionsDeleted, skipped: false };
+  return { sessionsDeleted, browserSessionsDeleted, invitesDeleted, skipped: false };
 }
 
 interface SchedulerOptions {

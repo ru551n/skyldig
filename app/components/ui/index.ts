@@ -11,5 +11,6 @@ export * from "./Input.tsx";
 export * from "./Money.tsx";
 export * from "./MoneyInput.tsx";
 export * from "./PageHeader.tsx";
+export * from "./QrCode.tsx";
 export * from "./Pill.tsx";
 export * from "./Toast.tsx";

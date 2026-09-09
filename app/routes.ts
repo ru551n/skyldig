@@ -5,6 +5,7 @@ export default [
   route("new", "routes/new.tsx"),
   route("join", "routes/join.tsx"),
   route("guide", "routes/guide.tsx"),
+  route("i/:iid", "routes/invite.tsx"),
 
   ...prefix("s/:sid", [
     layout("routes/session/layout.tsx", [
@@ -21,6 +22,7 @@ export default [
       route("betalningar/:pid/andra", "routes/session/payment-edit.tsx"),
     ]),
     route("lamna", "routes/session/leave.tsx"),
+    route("bjud-in", "routes/session/invite-create.tsx"),
   ]),
 
   route("dev/styleguide", "routes/dev.styleguide.tsx"),
