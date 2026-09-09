@@ -112,7 +112,7 @@ Read and validated in `server/config.ts`.
 | Variable | Required? | Default | Purpose |
 |---|---|---|---|
 | `DATABASE_URL` | Yes | — | Postgres connection string. |
-| `ACCESS_KEY_PEPPER` | Yes in production (≥ 32 chars); optional in dev/test | Fixed dev-only value (dev/test only) | Server-side secret mixed into every access-phrase and admin-key hash (HMAC index + input to the verifier). Never store this in the database or in a database backup — a backup taken without it is fine, but if the pepper itself is lost, every existing access phrase and admin key becomes unverifiable and every group becomes permanently inaccessible. |
+| `ACCESS_KEY_PEPPER` | Yes in production (≥ 32 chars); optional in dev/test | Fixed dev-only value (dev/test only) | Server-side secret keying every access-phrase and admin-key hash: the HMAC-SHA256 lookup index, the admin-key HMAC, and the scrypt verifier input (`scrypt2` format; verifiers from before that format hashed the bare phrase and are re-hashed on the next successful join). Never store this in the database or in a database backup — a backup taken without it is fine, but if the pepper itself is lost, every existing access phrase and admin key becomes unverifiable and every group becomes permanently inaccessible. |
 | `PORT` | No | `3000` | HTTP port the server listens on. |
 | `PUBLIC_ORIGIN` | No | `http://localhost:3000` | The externally-visible origin, used for CSRF origin checks. Must exactly match what users' browsers see in production. |
 | `TRUST_PROXY` | No | unset (not trusted) | How many reverse proxies in front of the app to trust for `X-Forwarded-For` (client IP for rate limiting). `1` (or `true`) for one proxy, `2` for e.g. CDN → nginx → app; or a comma-separated list of `loopback`, `linklocal`, `uniquelocal`, IPs or CIDRs (`loopback,10.0.0.0/8`). Never trusts every hop; an invalid value fails startup. |
@@ -231,7 +231,10 @@ see and change everything in that group. It is five words from a curated Swedish
 words have four-word phrases, ~44 bits, and keep working until they expire or the phrase is
 rotated — verification never checks the word count). It is never stored in plaintext: the database
 holds an HMAC-SHA256 blind index (keyed by `ACCESS_KEY_PEPPER`) for lookup, plus a separate
-scrypt verifier hash checked with a timing-safe comparison. The admin key is a second, higher
+scrypt verifier (also keyed by the pepper, so a database dump alone reveals nothing) checked with
+a timing-safe comparison. A dump *together with* the pepper does let an attacker guess phrases
+offline at HMAC speed (a 5-word phrase is on the order of a GPU-month), which is why the pepper
+must live only in the environment — see docs/architecture.md §4.1. The admin key is a second, higher
 privilege credential (20 random bytes, base32-encoded) needed for destructive actions (deleting
 the session, rotating keys); it is shown once, only in the response to the create action, and
 never logged or put in a URL.
@@ -293,7 +296,8 @@ For backups, dump the Postgres database (session, participant, expense, payment,
 data all live there) on your normal schedule. `ACCESS_KEY_PEPPER` must **not** be included in
 that dump or stored alongside it — it lives only in the environment. Keep it in a separate secret
 store with its own backup/rotation process; if it is lost, every access phrase and admin key in
-every existing group becomes unverifiable, which is equivalent to losing every group.
+every existing group becomes unverifiable, which is equivalent to losing every group. If it leaks
+together with a dump, treat every access phrase as compromised (see docs/architecture.md §4.1).
 
 Logs are structured JSON (pino), pretty-printed in development, and already redact cookies,
 authorization headers, and any field named `phrase`, `adminKey`, `token`, or `password`. Ship them

@@ -92,11 +92,36 @@ from the client bundle). Path aliases: `~/*` → `app/*`, `@domain/*`, `@server/
   whitespace/`,`/`.`/`_`/`-`/`/` with a single hyphen, strip leading/trailing hyphens.
 - Storage (two-stage): `sessions.access_key_index bytea UNIQUE` =
   HMAC-SHA256(`ACCESS_KEY_PEPPER`, normalized) for the indexed lookup, and
-  `sessions.access_key_verifier text` = scrypt(normalized, 16-byte random salt, N=2^15, r=8,
-  p=1, 32 bytes) stored as `scrypt$N$r$p$salt$hash`, verified with `timingSafeEqual`.
-  A join is: normalize → index lookup → verifier check. The plaintext is never stored.
-  The pepper is ≥ 32 bytes, lives in the environment (not the DB), and must be excluded from DB
-  backups. `pepper_version smallint` is stored to allow future rotation.
+  `sessions.access_key_verifier text` = scrypt(HMAC-SHA256(pepper, `"verifier:"` ‖ normalized),
+  16-byte random salt, N=2^15, r=8, p=1, 32 bytes) stored as `scrypt2$N$r$p$salt$hash`, verified
+  with `timingSafeEqual`. The `"verifier:"` prefix domain-separates the verifier input from the
+  lookup index under the same key (a generated phrase is `[a-z-]` only and can never start with
+  it). A join is: normalize → index lookup → verifier check. The plaintext is never stored.
+  - Legacy `scrypt$…` (v1) verifiers hashed the bare normalized phrase without the pepper. They
+    keep verifying and are re-hashed to `scrypt2` on the next successful join (best-effort
+    `UPDATE … WHERE access_key_verifier = <old>` in `joinSession`, so a concurrent rotation
+    wins). Stored verifiers are parsed strictly before scrypt runs (`parseVerifier`): exact
+    field count, known version tag, N/r/p equal to the pinned generating parameters, canonical
+    base64 salt/hash of exactly 16/32 bytes, bounded total length; anything else is rejected
+    without running scrypt, so a corrupt row can neither choose the scrypt cost nor its memory.
+  - The pepper is ≥ 32 bytes, lives in the environment (not the DB), and must be excluded from
+    DB backups. `pepper_version smallint` is stored to allow future rotation (no rotation
+    procedure exists yet).
+- Threat model for a leaked database dump, honestly stated:
+  - **Without the pepper**: the index and admin-key hash are HMAC-SHA256 under a ≥ 256-bit
+    secret key and reveal nothing. A `scrypt2` verifier also reveals nothing (its input is the
+    same HMAC). A not-yet-upgraded v1 verifier can be brute-forced offline per group at scrypt
+    cost (32 MiB per guess; on the order of a few thousand guesses/s per high-end GPU): roughly
+    10^5 GPU-years expected for a 5-word phrase (infeasible), roughly 10^2 GPU-years for a
+    legacy 4-word phrase (feasible only for a well-funded, targeted attacker). Rotating the
+    phrase or simply joining once moves a group out of this bucket.
+  - **With the pepper** (dump plus environment/secret store): the blind index is HMAC-SHA256,
+    so phrases can be guessed at hash speed — on the order of 10^10 guesses/s per GPU: about a
+    GPU-month expected for a 5-word phrase, under an hour for a 4-word one. The verifier's
+    scrypt cost does not help here because the index is checked first. The pepper is therefore
+    the single secret separating a dump from every group; keep it out of the dump and treat a
+    pepper leak as a full compromise requiring every phrase to be rotated. The admin key (160
+    random bits) stays infeasible to brute-force with or without the pepper.
 - Uniqueness among active sessions: the UNIQUE index; on collision regenerate (never observed
   at 44 bits, still less so at 55, but handled).
 
