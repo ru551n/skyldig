@@ -36,39 +36,79 @@ export function hmacIndex(pepper: string, value: string): Buffer {
   return createHmac("sha256", pepper).update(value).digest();
 }
 
+const VERIFIER_VERSION = "scrypt";
+// Bounds for a stored verifier string. A valid one is exactly 86 chars
+// (`scrypt$32768$8$1$` + 24-char salt + `$` + 44-char hash); the cap just needs to be above that.
+const VERIFIER_MAX_LENGTH = 128;
+// Canonical standard base64 (with padding) for exactly 16 and exactly 32 bytes.
+const SALT_B64_RE = /^[A-Za-z0-9+/]{22}==$/;
+const HASH_B64_RE = /^[A-Za-z0-9+/]{43}=$/;
+
+export interface ParsedVerifier {
+  version: typeof VERIFIER_VERSION;
+  salt: Buffer;
+  hash: Buffer;
+}
+
+/**
+ * Decodes a base64 field that must be canonical and decode to exactly `bytes` bytes. Node's
+ * base64 decoder is lenient (skips invalid chars, tolerates missing padding), so the charset is
+ * checked up front and the decoded value is re-encoded and compared to the input.
+ */
+function decodeBase64Exact(field: string, shape: RegExp, bytes: number): Buffer | null {
+  if (!shape.test(field)) return null;
+  const buf = Buffer.from(field, "base64");
+  if (buf.length !== bytes) return null;
+  if (buf.toString("base64") !== field) return null;
+  return buf;
+}
+
+/**
+ * Strictly parses a stored verifier string, or returns `null` for anything that is not exactly
+ * the shape `hashVerifier` produces: known version tag, N/r/p equal (as decimal strings, no
+ * `Number()` coercion) to the pinned generating parameters, canonical base64 salt of exactly
+ * `SCRYPT_SALT_BYTES` and hash of exactly `SCRYPT_KEYLEN`. Never throws. Because the
+ * parameters are pinned, a corrupt or hostile row can neither pick the scrypt cost nor force
+ * an allocation beyond the fixed 128*N*r = 32 MiB (`SCRYPT_MAXMEM` bounds it regardless).
+ */
+export function parseVerifier(stored: unknown): ParsedVerifier | null {
+  if (typeof stored !== "string") return null;
+  if (stored.length === 0 || stored.length > VERIFIER_MAX_LENGTH) return null;
+  const parts = stored.split("$");
+  if (parts.length !== 6) return null;
+  const [version, nStr, rStr, pStr, saltB64, hashB64] = parts;
+  if (version !== VERIFIER_VERSION) return null;
+  if (nStr !== String(SCRYPT_N) || rStr !== String(SCRYPT_R) || pStr !== String(SCRYPT_P)) return null;
+  const salt = decodeBase64Exact(saltB64, SALT_B64_RE, SCRYPT_SALT_BYTES);
+  const hash = decodeBase64Exact(hashB64, HASH_B64_RE, SCRYPT_KEYLEN);
+  if (!salt || !hash) return null;
+  return { version, salt, hash };
+}
+
 /** Derives a scrypt hash of `value`, encoded as `scrypt$N$r$p$saltB64$hashB64`. */
 export async function hashVerifier(value: string): Promise<string> {
   const salt = randomBytes(SCRYPT_SALT_BYTES);
   const derived = await scryptAsync(value, salt, SCRYPT_KEYLEN, SCRYPT_N, SCRYPT_R, SCRYPT_P);
-  return `scrypt$${SCRYPT_N}$${SCRYPT_R}$${SCRYPT_P}$${salt.toString("base64")}$${derived.toString("base64")}`;
+  return `${VERIFIER_VERSION}$${SCRYPT_N}$${SCRYPT_R}$${SCRYPT_P}$${salt.toString("base64")}$${derived.toString("base64")}`;
 }
 
-/** Verifies `value` against a `hashVerifier`-produced string in constant time. */
+/**
+ * Verifies `value` against a `hashVerifier`-produced string in constant time. Malformed or
+ * unsupported stored strings yield `false` without running scrypt and without throwing.
+ */
 export async function verifyVerifier(value: string, stored: string): Promise<boolean> {
-  const parts = stored.split("$");
-  if (parts.length !== 6 || parts[0] !== "scrypt") return false;
-  const [, nStr, rStr, pStr, saltB64, hashB64] = parts;
-  const n = Number(nStr);
-  const r = Number(rStr);
-  const p = Number(pStr);
-  if (!Number.isFinite(n) || !Number.isFinite(r) || !Number.isFinite(p)) return false;
-  let salt: Buffer;
-  let expected: Buffer;
-  try {
-    salt = Buffer.from(saltB64, "base64");
-    expected = Buffer.from(hashB64, "base64");
-  } catch {
-    return false;
-  }
-  if (salt.length === 0 || expected.length === 0) return false;
+  const parsed = parseVerifier(stored);
+  if (!parsed) return false;
   let derived: Buffer;
   try {
-    derived = await scryptAsync(value, salt, expected.length, n, r, p);
+    derived = await scryptAsync(value, parsed.salt, parsed.hash.length, SCRYPT_N, SCRYPT_R, SCRYPT_P);
   } catch {
     return false;
   }
-  if (derived.length !== expected.length) return false;
-  return timingSafeEqual(derived, expected);
+  // Both are fixed at SCRYPT_KEYLEN by construction; the length check keeps timingSafeEqual
+  // from throwing should that ever change.
+  if (derived.length !== parsed.hash.length) return false;
+  return timingSafeEqual(derived, parsed.hash);
 }
 
 /** Maps a random byte to a char in a 32-entry alphabet exactly (256 / 32 = 8, no bias). */

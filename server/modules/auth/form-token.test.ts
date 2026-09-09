@@ -53,6 +53,16 @@ describe("form-token", () => {
     expect(verifyFormToken(token, "a-completely-different-pepper-value", now + 2_000)).toBe(false);
   });
 
+  it("rejects a MAC of a different length (truncated or extended) without throwing", () => {
+    const now = 1_700_000_000_000;
+    const token = issueFormToken(SECRET, now);
+    const [ts, mac] = token.split(".");
+    expect(verifyFormToken(`${ts}.${mac.slice(0, -1)}`, SECRET, now + 5_000)).toBe(false);
+    expect(verifyFormToken(`${ts}.${mac}A`, SECRET, now + 5_000)).toBe(false);
+    expect(verifyFormToken(`${ts}.${mac.slice(0, 10)}`, SECRET, now + 5_000)).toBe(false);
+    expect(verifyFormToken(`${ts}.`, SECRET, now + 5_000)).toBe(false);
+  });
+
   it("rejects malformed tokens", () => {
     const now = 1_700_000_000_000;
     expect(verifyFormToken("", SECRET, now)).toBe(false);

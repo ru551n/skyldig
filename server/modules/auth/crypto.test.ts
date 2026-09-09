@@ -7,6 +7,7 @@ import {
   hmacIndex,
   normalizeAdminKey,
   normalizePhrase,
+  parseVerifier,
   randomToken,
   sha256,
   verifyVerifier,
@@ -54,6 +55,7 @@ describe("hashVerifier / verifyVerifier", () => {
   it("verifies a matching value and rejects a non-matching one", async () => {
     const stored = await hashVerifier("correct-horse");
     expect(stored).toMatch(/^scrypt\$32768\$8\$1\$/);
+    expect(stored).toHaveLength(86);
     await expect(verifyVerifier("correct-horse", stored)).resolves.toBe(true);
     await expect(verifyVerifier("wrong", stored)).resolves.toBe(false);
   });
@@ -67,6 +69,131 @@ describe("hashVerifier / verifyVerifier", () => {
   it("rejects malformed stored strings without throwing", async () => {
     await expect(verifyVerifier("x", "not-a-valid-format")).resolves.toBe(false);
     await expect(verifyVerifier("x", "scrypt$32768$8$1$")).resolves.toBe(false);
+  });
+});
+
+describe("parseVerifier (strict stored-verifier validation)", () => {
+  const SALT = Buffer.alloc(16, 1).toString("base64"); // 24 chars, "==" padded
+  const HASH = Buffer.alloc(32, 2).toString("base64"); // 44 chars, "=" padded
+
+  function build(
+    overrides: Partial<{ version: string; n: string; r: string; p: string; salt: string; hash: string }> = {},
+  ): string {
+    const f = { version: "scrypt", n: "32768", r: "8", p: "1", salt: SALT, hash: HASH, ...overrides };
+    return [f.version, f.n, f.r, f.p, f.salt, f.hash].join("$");
+  }
+
+  it("round-trips a freshly generated verifier", async () => {
+    const stored = await hashVerifier("phrase");
+    const parsed = parseVerifier(stored);
+    expect(parsed).not.toBeNull();
+    expect(parsed?.version).toBe("scrypt");
+    expect(parsed?.salt).toHaveLength(16);
+    expect(parsed?.hash).toHaveLength(32);
+  });
+
+  it("accepts a well-formed synthetic verifier", () => {
+    expect(parseVerifier(build())).not.toBeNull();
+  });
+
+  it("rejects non-string and empty input", () => {
+    for (const garbage of [undefined, null, 123, 0, true, {}, [], () => "x", Symbol("s"), 10n, ""]) {
+      expect(parseVerifier(garbage)).toBeNull();
+    }
+  });
+
+  it("rejects wrong field counts", () => {
+    expect(parseVerifier("scrypt$32768$8$1$" + SALT)).toBeNull(); // 5 fields
+    expect(parseVerifier(build() + "$extra")).toBeNull(); // 7 fields
+    expect(parseVerifier(build() + "$")).toBeNull(); // trailing separator
+    expect(parseVerifier("$" + build())).toBeNull(); // leading separator
+    expect(parseVerifier("not-a-valid-format")).toBeNull();
+  });
+
+  it("rejects unknown or differently-cased version tags", () => {
+    for (const version of ["argon2id", "bcrypt", "SCRYPT", "scrypt1", "scrypt2", "", " scrypt"]) {
+      expect(parseVerifier(build({ version }))).toBeNull();
+    }
+  });
+
+  it("rejects any N/r/p other than the pinned generating parameters", () => {
+    for (const n of ["16384", "65536", "131072", String(2 ** 30), "0", "1", "-32768", "32767"]) {
+      expect(parseVerifier(build({ n }))).toBeNull();
+    }
+    for (const r of ["1", "4", "16", "1000", "0"]) {
+      expect(parseVerifier(build({ r }))).toBeNull();
+    }
+    for (const p of ["2", "1000", "0", "-1"]) {
+      expect(parseVerifier(build({ p }))).toBeNull();
+    }
+  });
+
+  it("rejects numerically-equal but non-canonical parameter spellings (no Number() coercion)", () => {
+    for (const n of ["32768.0", "0x8000", "3.2768e4", " 32768", "032768", "32768 ", "+32768"]) {
+      expect(parseVerifier(build({ n }))).toBeNull();
+    }
+    expect(parseVerifier(build({ r: "8.0" }))).toBeNull();
+    expect(parseVerifier(build({ p: "1e0" }))).toBeNull();
+  });
+
+  it("rejects salts that are truncated, oversized, or not canonical base64", () => {
+    expect(parseVerifier(build({ salt: "" }))).toBeNull();
+    expect(parseVerifier(build({ salt: SALT.slice(0, 20) }))).toBeNull(); // truncated
+    expect(parseVerifier(build({ salt: Buffer.alloc(8).toString("base64") }))).toBeNull(); // 8 bytes
+    expect(parseVerifier(build({ salt: Buffer.alloc(24).toString("base64") }))).toBeNull(); // 24 bytes
+    expect(parseVerifier(build({ salt: SALT.replace("==", "") }))).toBeNull(); // unpadded
+    expect(parseVerifier(build({ salt: SALT.replace("==", "=") }))).toBeNull(); // mis-padded
+    // Non-canonical: decodes to 16 bytes but does not re-encode to itself.
+    expect(parseVerifier(build({ salt: "AAAAAAAAAAAAAAAAAAAAAB==" }))).toBeNull();
+    // base64url alphabet is not accepted.
+    expect(parseVerifier(build({ salt: "-_-_-_-_-_-_-_-_-_-_-_==" }))).toBeNull();
+    expect(parseVerifier(build({ salt: SALT.slice(0, 21) + "!==" }))).toBeNull();
+  });
+
+  it("rejects hashes that are truncated, oversized, or not canonical base64", () => {
+    expect(parseVerifier(build({ hash: "" }))).toBeNull();
+    expect(parseVerifier(build({ hash: HASH.slice(0, 40) }))).toBeNull(); // truncated
+    expect(parseVerifier(build({ hash: Buffer.alloc(16).toString("base64") }))).toBeNull(); // 16 bytes
+    expect(parseVerifier(build({ hash: Buffer.alloc(64).toString("base64") }))).toBeNull(); // 64 bytes
+    expect(parseVerifier(build({ hash: HASH.replace("=", "") }))).toBeNull(); // unpadded
+    expect(parseVerifier(build({ hash: "A".repeat(43) + "B=" }))).toBeNull(); // wrong length (45)
+    expect(parseVerifier(build({ hash: "A".repeat(42) + "B=" }))).toBeNull(); // non-canonical
+  });
+
+  it("rejects strings over the length cap even when they start well-formed", () => {
+    expect(parseVerifier(build({ hash: HASH + "A".repeat(100) }))).toBeNull();
+    expect(parseVerifier(build() + "x".repeat(200))).toBeNull();
+    expect(parseVerifier("scrypt$" + "9".repeat(1000))).toBeNull();
+  });
+
+  it("verifyVerifier returns false (never throws) for every rejected shape", async () => {
+    const bad = [
+      "",
+      build({ n: String(2 ** 30) }),
+      build({ p: "1000" }),
+      build({ r: "1000" }),
+      build({ version: "argon2id" }),
+      build({ salt: SALT.slice(0, 20) }),
+      build({ hash: HASH.slice(0, 40) }),
+      build() + "x".repeat(200),
+      "scrypt$32768$8$1$$",
+      "$$$$$",
+    ];
+    for (const stored of bad) {
+      await expect(verifyVerifier("x", stored)).resolves.toBe(false);
+    }
+    for (const garbage of [undefined, null, 42, {}, []]) {
+      await expect(verifyVerifier("x", garbage as unknown as string)).resolves.toBe(false);
+    }
+  });
+
+  it("a stored hash of a different length than the derived key is rejected, not compared", async () => {
+    // Can only be reached with a well-formed salt and a 32-byte hash, so a different-length
+    // hash never reaches timingSafeEqual (which would throw): it is rejected at parse time.
+    const stored = await hashVerifier("phrase");
+    const [v, n, r, p, salt] = stored.split("$");
+    const short = [v, n, r, p, salt, Buffer.alloc(31, 7).toString("base64")].join("$");
+    await expect(verifyVerifier("phrase", short)).resolves.toBe(false);
   });
 });
 
