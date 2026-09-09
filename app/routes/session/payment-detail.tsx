@@ -8,9 +8,23 @@ import { deletePayment, getPayment, type PaymentDto } from "@server/modules/paym
 
 import { describeRate } from "~/components/expense/historyDiff.ts";
 import { RevisionHistory } from "~/components/payment/RevisionHistory.tsx";
-import { Arrow, Button, ButtonLink, Card, ConfirmDialog, Money, PageHeader } from "~/components/ui/index.ts";
+import {
+  Arrow,
+  Button,
+  ButtonLink,
+  Card,
+  ConfirmDialog,
+  Money,
+  PageHeader,
+} from "~/components/ui/index.ts";
 import { formatExpiryLong } from "~/lib/format.ts";
-import { getConfig, getDb, mutationGuard, toActionError, type ActionError } from "~/lib/session-context.server.ts";
+import {
+  getConfig,
+  getDb,
+  mutationGuard,
+  toActionError,
+  type ActionError,
+} from "~/lib/session-context.server.ts";
 import { useT } from "~/i18n";
 
 import type { Route } from "./+types/payment-detail";
@@ -53,11 +67,18 @@ export async function action({ request, params }: Route.ActionArgs) {
 
   try {
     await db.transaction(async (tx) => {
-      await deletePayment(tx, { id: access.session.id, baseCurrency: access.session.baseCurrency }, params.pid, expectedRevision);
+      await deletePayment(
+        tx,
+        { id: access.session.id, baseCurrency: access.session.baseCurrency },
+        params.pid,
+        expectedRevision,
+      );
     });
   } catch (error) {
     const actionError = toActionError(error);
-    return data<ActionResult>(actionError, { status: actionError.code === "UNEXPECTED" ? 500 : 422 });
+    return data<ActionResult>(actionError, {
+      status: actionError.code === "UNEXPECTED" ? 500 : 422,
+    });
   }
 
   return redirect(`/s/${params.sid}`);
@@ -84,37 +105,58 @@ export default function PaymentDetailPage({ loaderData, params }: Route.Componen
 
   if (!payment) {
     return (
-      <main id="main" className="mx-auto flex max-w-[65ch] flex-col gap-6 p-4 pb-16">
+      <div className="mx-auto flex max-w-[65ch] flex-col gap-6 p-4 pb-16">
         <PageHeader title={t("payment.detailTitle")} />
-        <p role="status" className="rounded-card border border-line bg-paper p-4 text-body text-pine-soft">
+        <p
+          role="status"
+          className="rounded-card border-line bg-paper text-body text-pine-soft border p-4"
+        >
           {t("payment.deletedNotice")}
         </p>
         <section className="flex flex-col gap-3">
-          <h2 className="text-h2 font-semibold text-pine">{t("expense.history")}</h2>
+          <h2 className="text-h2 text-pine font-semibold">{t("expense.history")}</h2>
           <RevisionHistory revisions={revisions} />
         </section>
-      </main>
+      </div>
     );
   }
 
   const isForeign = payment.currencyCode !== baseCurrency;
-  const rateWords = describeRate(payment.rateText, payment.rateDirection, payment.currencyCode, baseCurrency);
+  const rateWords = describeRate(
+    payment.rateText,
+    payment.rateDirection,
+    payment.currencyCode,
+    baseCurrency,
+  );
 
   return (
-    <main id="main" className="mx-auto flex max-w-[65ch] flex-col gap-6 p-4 pb-16">
+    <div className="mx-auto flex max-w-[65ch] flex-col gap-6 p-4 pb-16">
       <PageHeader
         title={t("payment.detailTitle")}
-        right={<ButtonLink to={`/s/${params.sid}/betalningar/${params.pid}/andra`}>{t("common.edit")}</ButtonLink>}
+        right={
+          <ButtonLink to={`/s/${params.sid}/betalningar/${params.pid}/andra`}>
+            {t("common.edit")}
+          </ButtonLink>
+        }
       />
 
       <Card tinted className="flex flex-col items-center gap-2 py-6">
-        <div className="flex items-center gap-3 text-body font-medium text-pine">
+        <div className="text-body text-pine flex items-center gap-3 font-medium">
           <span>{payment.payer.displayName}</span>
           <Arrow aria-hidden="true" />
           <span>{payment.recipient.displayName}</span>
         </div>
-        <span className="sr-only">{t("payment.directionSr", { from: payment.payer.displayName, to: payment.recipient.displayName })}</span>
-        <Money amountMinor={BigInt(payment.amountMinor)} currency={payment.currencyCode} size="hero" />
+        <span className="sr-only">
+          {t("payment.directionSr", {
+            from: payment.payer.displayName,
+            to: payment.recipient.displayName,
+          })}
+        </span>
+        <Money
+          amountMinor={BigInt(payment.amountMinor)}
+          currency={payment.currencyCode}
+          size="hero"
+        />
         {isForeign && (
           <>
             <p className="text-body text-pine-soft">
@@ -127,10 +169,15 @@ export default function PaymentDetailPage({ loaderData, params }: Route.Componen
 
       <Card>
         <p className="text-meta text-pine-soft">{formatExpiryLong(payment.paymentDate)}</p>
-        {payment.note && <p className="mt-2 text-body text-pine-soft">{payment.note}</p>}
+        {payment.note && <p className="text-body text-pine-soft mt-2">{payment.note}</p>}
       </Card>
 
-      <Button type="button" variant="danger" onClick={() => setDeleteOpen(true)} className="self-start">
+      <Button
+        type="button"
+        variant="danger"
+        onClick={() => setDeleteOpen(true)}
+        className="self-start"
+      >
         {t("payment.delete")}
       </Button>
       {deleteFetcher.data && !deleteFetcher.data.ok && (
@@ -154,9 +201,9 @@ export default function PaymentDetailPage({ loaderData, params }: Route.Componen
       />
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-h2 font-semibold text-pine">{t("expense.history")}</h2>
+        <h2 className="text-h2 text-pine font-semibold">{t("expense.history")}</h2>
         <RevisionHistory revisions={revisions} />
       </section>
-    </main>
+    </div>
   );
 }

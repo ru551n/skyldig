@@ -280,3 +280,15 @@ to your normal log pipeline; nothing else in the app writes credentials to stdou
 ## License
 
 MIT. See `LICENSE`.
+
+## Screenshots
+
+Captured from a running instance with `node scripts/screenshots.mjs` (requires a running
+server and database). Images live in `docs/screenshots/`.
+
+| | |
+|---|---|
+| ![Landing](docs/screenshots/01-landing.png) | ![Keys shown once](docs/screenshots/03-keys.png) |
+| ![Dashboard](docs/screenshots/05-dashboard.png) | ![Settle up](docs/screenshots/06-settle.png) |
+
+![Desktop dashboard](docs/screenshots/09-dashboard-desktop.png)

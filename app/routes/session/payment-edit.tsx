@@ -6,12 +6,23 @@ import { formatMinorAsDecimal, formatMoney } from "@domain/money/money.ts";
 import type { CurrencyDecimals } from "@domain/currency/registry.ts";
 import { requireSessionAccess } from "@server/modules/auth/session-auth.ts";
 import { suggestRate, type RateDirection } from "@server/modules/expenses/expenses.ts";
-import { deletePayment, getPayment, updatePayment, type PaymentDto } from "@server/modules/payments/payments.ts";
+import {
+  deletePayment,
+  getPayment,
+  updatePayment,
+  type PaymentDto,
+} from "@server/modules/payments/payments.ts";
 import { listParticipants } from "@server/modules/participants/participants.ts";
 
 import { PaymentForm, type PaymentFormDefaults } from "~/components/payment/PaymentForm.tsx";
 import { Button, ConfirmDialog, PageHeader } from "~/components/ui/index.ts";
-import { getConfig, getDb, mutationGuard, toActionError, type ActionError } from "~/lib/session-context.server.ts";
+import {
+  getConfig,
+  getDb,
+  mutationGuard,
+  toActionError,
+  type ActionError,
+} from "~/lib/session-context.server.ts";
 import { useT } from "~/i18n";
 
 import type { Route } from "./+types/payment-edit";
@@ -57,11 +68,19 @@ export async function action({ request, params }: Route.ActionArgs) {
   if (intent === "delete") {
     try {
       await db.transaction(async (tx) => {
-        await deletePayment(tx, { id: access.session.id, baseCurrency: access.session.baseCurrency }, params.pid, expectedRevision);
+        await deletePayment(
+          tx,
+          { id: access.session.id, baseCurrency: access.session.baseCurrency },
+          params.pid,
+          expectedRevision,
+        );
       });
     } catch (error) {
       const actionError = toActionError(error);
-      return data<ActionResult>({ ...actionError, intent: "delete" }, { status: actionError.code === "UNEXPECTED" ? 500 : 422 });
+      return data<ActionResult>(
+        { ...actionError, intent: "delete" },
+        { status: actionError.code === "UNEXPECTED" ? 500 : 422 },
+      );
     }
     return redirect(`/s/${params.sid}`);
   }
@@ -70,7 +89,9 @@ export async function action({ request, params }: Route.ActionArgs) {
     amountText: String(formData.get("amountText") ?? ""),
     currencyCode: String(formData.get("currencyCode") ?? access.session.baseCurrency),
     rateText: formData.get("rateText") ? String(formData.get("rateText")) : undefined,
-    rateDirection: formData.get("rateDirection") ? (String(formData.get("rateDirection")) as RateDirection) : undefined,
+    rateDirection: formData.get("rateDirection")
+      ? (String(formData.get("rateDirection")) as RateDirection)
+      : undefined,
     payerPublicId: String(formData.get("payerPublicId") ?? ""),
     recipientPublicId: String(formData.get("recipientPublicId") ?? ""),
     paymentDate: String(formData.get("paymentDate") ?? ""),
@@ -89,7 +110,10 @@ export async function action({ request, params }: Route.ActionArgs) {
     });
   } catch (error) {
     const actionError = toActionError(error);
-    return data<ActionResult>({ ...actionError, intent: "update" }, { status: actionError.code === "UNEXPECTED" ? 500 : 422 });
+    return data<ActionResult>(
+      { ...actionError, intent: "update" },
+      { status: actionError.code === "UNEXPECTED" ? 500 : 422 },
+    );
   }
 
   return redirect(`/s/${params.sid}/betalningar/${params.pid}`);
@@ -110,10 +134,13 @@ function errorMessage(t: ReturnType<typeof useT>, code: string): string {
 function ConflictBanner({ current }: { current: PaymentDto }) {
   const t = useT();
   return (
-    <div role="alert" className="flex flex-col gap-3 rounded-card border-2 border-rust bg-rust/5 p-4">
-      <p className="text-body font-semibold text-rust">{t("payment.conflictTitle")}</p>
+    <div
+      role="alert"
+      className="rounded-card border-rust bg-rust/5 flex flex-col gap-3 border-2 p-4"
+    >
+      <p className="text-body text-rust font-semibold">{t("payment.conflictTitle")}</p>
       <p className="text-meta text-pine-soft">{t("payment.conflictBody")}</p>
-      <dl className="flex flex-col gap-1 text-meta text-pine">
+      <dl className="text-meta text-pine flex flex-col gap-1">
         <div className="flex justify-between">
           <dt>{t("expense.fieldAmount")}</dt>
           <dd>{formatMoney(BigInt(current.amountMinor), current.currencyCode)}</dd>
@@ -131,7 +158,12 @@ function ConflictBanner({ current }: { current: PaymentDto }) {
           <dd>{current.paymentDate}</dd>
         </div>
       </dl>
-      <Button type="button" variant="secondary" onClick={() => window.location.reload()} className="self-start">
+      <Button
+        type="button"
+        variant="secondary"
+        onClick={() => window.location.reload()}
+        className="self-start"
+      >
         {t("common.reload")}
       </Button>
     </div>
@@ -148,10 +180,12 @@ export default function PaymentEditPage({ loaderData, actionData, params }: Rout
 
   const error = actionData?.intent === "update" ? actionData : undefined;
   const deleteError = deleteFetcher.data?.intent === "delete" ? deleteFetcher.data : undefined;
-  const conflict = error?.code === "CONFLICT" ? (error.current as unknown as PaymentDto) : undefined;
+  const conflict =
+    error?.code === "CONFLICT" ? (error.current as unknown as PaymentDto) : undefined;
 
   const payment = loaderData.payment;
-  const decimals = loaderData.currencies.find((c) => c.code === payment.currencyCode)?.decimals ?? 2;
+  const decimals =
+    loaderData.currencies.find((c) => c.code === payment.currencyCode)?.decimals ?? 2;
   const defaults: PaymentFormDefaults = {
     amountText: formatMinorAsDecimal(BigInt(payment.amountMinor), decimals as CurrencyDecimals),
     currencyCode: payment.currencyCode,
@@ -164,7 +198,7 @@ export default function PaymentEditPage({ loaderData, actionData, params }: Rout
   };
 
   return (
-    <main id="main" className="mx-auto flex max-w-[65ch] flex-col gap-6 p-4 pb-16">
+    <div className="mx-auto flex max-w-[65ch] flex-col gap-6 p-4 pb-16">
       <PageHeader title={t("payment.editTitle")} />
 
       {conflict && <ConflictBanner current={conflict} />}
@@ -181,13 +215,18 @@ export default function PaymentEditPage({ loaderData, actionData, params }: Rout
         submitLabel={t("payment.submit")}
       />
 
-      <div className="flex flex-col gap-2 border-t border-line pt-4">
+      <div className="border-line flex flex-col gap-2 border-t pt-4">
         {deleteError && !deleteError.field && (
           <p role="alert" className="text-body text-rust">
             {errorMessage(t, deleteError.code)}
           </p>
         )}
-        <Button type="button" variant="danger" onClick={() => setDeleteOpen(true)} className="self-start">
+        <Button
+          type="button"
+          variant="danger"
+          onClick={() => setDeleteOpen(true)}
+          className="self-start"
+        >
           {t("payment.delete")}
         </Button>
       </div>
@@ -208,6 +247,6 @@ export default function PaymentEditPage({ loaderData, actionData, params }: Rout
           );
         }}
       />
-    </main>
+    </div>
   );
 }

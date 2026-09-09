@@ -2,12 +2,22 @@ import { data, redirect, useNavigation } from "react-router";
 
 import { listCurrencies } from "@domain/currency/registry.ts";
 import { requireSessionAccess } from "@server/modules/auth/session-auth.ts";
-import { createExpense, suggestRate, type RateDirection } from "@server/modules/expenses/expenses.ts";
+import {
+  createExpense,
+  suggestRate,
+  type RateDirection,
+} from "@server/modules/expenses/expenses.ts";
 import { listParticipants } from "@server/modules/participants/participants.ts";
 
 import { ExpenseForm, type ExpenseFormDefaults } from "~/components/expense/ExpenseForm.tsx";
 import { PageHeader } from "~/components/ui/index.ts";
-import { getConfig, getDb, mutationGuard, toActionError, type ActionError } from "~/lib/session-context.server.ts";
+import {
+  getConfig,
+  getDb,
+  mutationGuard,
+  toActionError,
+  type ActionError,
+} from "~/lib/session-context.server.ts";
 import { useT } from "~/i18n";
 
 import type { Route } from "./+types/expense-new";
@@ -52,7 +62,9 @@ export async function action({ request, params }: Route.ActionArgs) {
     amountText: String(formData.get("amountText") ?? ""),
     currencyCode: String(formData.get("currencyCode") ?? access.session.baseCurrency),
     rateText: formData.get("rateText") ? String(formData.get("rateText")) : undefined,
-    rateDirection: formData.get("rateDirection") ? (String(formData.get("rateDirection")) as RateDirection) : undefined,
+    rateDirection: formData.get("rateDirection")
+      ? (String(formData.get("rateDirection")) as RateDirection)
+      : undefined,
     payerPublicId: String(formData.get("payerPublicId") ?? ""),
     participantPublicIds: formData.getAll("participantPublicIds").map((v) => String(v)),
     expenseDate: String(formData.get("expenseDate") ?? ""),
@@ -61,11 +73,17 @@ export async function action({ request, params }: Route.ActionArgs) {
 
   try {
     await db.transaction(async (tx) => {
-      await createExpense(tx, { id: access.session.id, baseCurrency: access.session.baseCurrency }, input);
+      await createExpense(
+        tx,
+        { id: access.session.id, baseCurrency: access.session.baseCurrency },
+        input,
+      );
     });
   } catch (error) {
     const actionError = toActionError(error);
-    return data<ActionResult>(actionError, { status: actionError.code === "UNEXPECTED" ? 500 : 422 });
+    return data<ActionResult>(actionError, {
+      status: actionError.code === "UNEXPECTED" ? 500 : 422,
+    });
   }
 
   return redirect(`/s/${params.sid}`);
@@ -102,7 +120,7 @@ export default function ExpenseNewPage({ loaderData, actionData }: Route.Compone
   };
 
   return (
-    <main id="main" className="mx-auto flex max-w-[65ch] flex-col gap-6 p-4 pb-16">
+    <div className="mx-auto flex max-w-[65ch] flex-col gap-6 p-4 pb-16">
       <PageHeader title={t("expense.newTitle")} />
       <ExpenseForm
         participants={loaderData.participants}
@@ -114,6 +132,6 @@ export default function ExpenseNewPage({ loaderData, actionData }: Route.Compone
         submitting={submitting}
         submitLabel={t("expense.submit")}
       />
-    </main>
+    </div>
   );
 }

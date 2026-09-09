@@ -3,8 +3,16 @@ import { data, Form, redirect, useNavigation, useSubmit } from "react-router";
 import { z } from "zod";
 
 import { grantAccess, rotateBrowserSession } from "@server/modules/auth/browser-session.ts";
-import { ELEVATE_PER_SESSION_LOCK_MS, clientKey, limiters } from "@server/modules/auth/rate-limit.ts";
-import { requireAdmin, requireSessionAccess, withSetCookie } from "@server/modules/auth/session-auth.ts";
+import {
+  ELEVATE_PER_SESSION_LOCK_MS,
+  clientKey,
+  limiters,
+} from "@server/modules/auth/rate-limit.ts";
+import {
+  requireAdmin,
+  requireSessionAccess,
+  withSetCookie,
+} from "@server/modules/auth/session-auth.ts";
 import {
   deleteSession,
   rotateAccessPhrase,
@@ -94,11 +102,16 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       await enforceResponseFloor(startedAt);
       return data<ActionResult>(
         { ok: false, code: "RATE_LIMITED", message: "", intent },
-        { status: 429, headers: mergeHeaders(headers, new Headers({ "Retry-After": String(retryAfterSeconds) })) },
+        {
+          status: 429,
+          headers: mergeHeaders(headers, new Headers({ "Retry-After": String(retryAfterSeconds) })),
+        },
       );
     }
 
-    const parsed = z.object({ adminKey: z.string().trim().min(1) }).safeParse({ adminKey: formData.get("adminKey") });
+    const parsed = z
+      .object({ adminKey: z.string().trim().min(1) })
+      .safeParse({ adminKey: formData.get("adminKey") });
     if (!parsed.success) {
       await enforceResponseFloor(startedAt);
       return data<ActionResult>(
@@ -160,7 +173,9 @@ export async function action({ request, params, context }: Route.ActionArgs) {
 
   if (intent === "delete-session") {
     const access = await requireAdmin(db, request, config, params.sid);
-    const parsed = z.object({ confirmName: z.string() }).safeParse({ confirmName: formData.get("confirmName") });
+    const parsed = z
+      .object({ confirmName: z.string() })
+      .safeParse({ confirmName: formData.get("confirmName") });
     if (!parsed.success || parsed.data.confirmName !== access.session.name) {
       return data<ActionResult>(
         { ok: false, code: "NAME_MISMATCH", field: "confirmName", message: "", intent },
@@ -235,7 +250,9 @@ export default function AdminPage({ loaderData, actionData }: Route.ComponentPro
   const navigation = useNavigation();
   const submit = useSubmit();
   const pendingIntent =
-    navigation.state !== "idle" && navigation.formData ? String(navigation.formData.get("_intent") ?? "") : undefined;
+    navigation.state !== "idle" && navigation.formData
+      ? String(navigation.formData.get("_intent") ?? "")
+      : undefined;
 
   const elevateError: ActionFailure | undefined =
     actionData && !actionData.ok && actionData.intent === "elevate" ? actionData : undefined;
@@ -244,7 +261,9 @@ export default function AdminPage({ loaderData, actionData }: Route.ComponentPro
   const phraseResult: RotatePhraseSuccess | undefined =
     actionData && actionData.ok && actionData.intent === "rotate-phrase" ? actionData : undefined;
   const adminKeyResult: RotateAdminKeySuccess | undefined =
-    actionData && actionData.ok && actionData.intent === "rotate-admin-key" ? actionData : undefined;
+    actionData && actionData.ok && actionData.intent === "rotate-admin-key"
+      ? actionData
+      : undefined;
 
   const secretHeadingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
@@ -260,12 +279,17 @@ export default function AdminPage({ loaderData, actionData }: Route.ComponentPro
 
   if (!loaderData.isAdmin) {
     return (
-      <main id="main" className="mx-auto flex min-h-screen max-w-[65ch] flex-col gap-6 p-6 pb-16">
+      <div className="mx-auto flex min-h-screen max-w-[65ch] flex-col gap-6 p-6 pb-16">
         <PageHeader title={t("admin.title")} lead={t("admin.elevateLead")} />
 
         {elevateError && (
-          <p role="alert" className="rounded-control border border-rust/40 bg-rust/5 p-3 text-body text-rust">
-            {elevateError.code === "RATE_LIMITED" ? t("admin.tooManyAttempts") : t("errors.keyMismatch")}
+          <p
+            role="alert"
+            className="rounded-control border-rust/40 bg-rust/5 text-body text-rust border p-3"
+          >
+            {elevateError.code === "RATE_LIMITED"
+              ? t("admin.tooManyAttempts")
+              : t("errors.keyMismatch")}
           </p>
         )}
 
@@ -288,28 +312,34 @@ export default function AdminPage({ loaderData, actionData }: Route.ComponentPro
             {t("admin.unlock")}
           </Button>
         </Form>
-      </main>
+      </div>
     );
   }
 
   return (
-    <main id="main" className="mx-auto flex min-h-screen max-w-[65ch] flex-col gap-6 p-6 pb-16">
+    <div className="mx-auto flex min-h-screen max-w-[65ch] flex-col gap-6 p-6 pb-16">
       <PageHeader
         title={t("admin.title")}
         lead={t("admin.expiresLabel", { date: formatExpiryLong(loaderData.expiresAt) })}
       />
 
-      <p role="status" aria-live="polite" className="text-meta font-medium text-moss">
+      <p role="status" aria-live="polite" className="text-meta text-moss font-medium">
         {t("admin.grantedNotice")}
       </p>
 
       {phraseResult && (
-        <section className="flex flex-col gap-2 rounded-card border-2 border-sol bg-sol/20 p-5">
-          <h2 ref={secretHeadingRef} tabIndex={-1} className="text-lead font-semibold text-pine outline-none">
+        <section className="rounded-card border-sol bg-sol/20 flex flex-col gap-2 border-2 p-5">
+          <h2
+            ref={secretHeadingRef}
+            tabIndex={-1}
+            className="text-lead text-pine font-semibold outline-none"
+          >
             {t("admin.newPhraseTitle")}
           </h2>
           <p className="text-meta text-pine-soft">{t("admin.newPhraseNotice")}</p>
-          <p className="tabular select-all break-words text-lead font-semibold text-pine">{phraseResult.phrase}</p>
+          <p className="tabular text-lead text-pine font-semibold break-words select-all">
+            {phraseResult.phrase}
+          </p>
           <div>
             <CopyButton value={phraseResult.phrase} />
           </div>
@@ -317,20 +347,26 @@ export default function AdminPage({ loaderData, actionData }: Route.ComponentPro
       )}
 
       {adminKeyResult && (
-        <section className="flex flex-col gap-2 rounded-card border-2 border-rust bg-rust/5 p-5">
-          <h2 ref={secretHeadingRef} tabIndex={-1} className="text-lead font-semibold text-rust outline-none">
+        <section className="rounded-card border-rust bg-rust/5 flex flex-col gap-2 border-2 p-5">
+          <h2
+            ref={secretHeadingRef}
+            tabIndex={-1}
+            className="text-lead text-rust font-semibold outline-none"
+          >
             {t("admin.newAdminKeyTitle")}
           </h2>
           <p className="text-meta text-rust">{t("admin.newAdminKeyNotice")}</p>
-          <p className="tabular select-all break-words text-lead font-semibold text-pine">{adminKeyResult.adminKey}</p>
+          <p className="tabular text-lead text-pine font-semibold break-words select-all">
+            {adminKeyResult.adminKey}
+          </p>
           <div>
             <CopyButton value={adminKeyResult.adminKey} />
           </div>
         </section>
       )}
 
-      <section className="flex flex-col gap-5 rounded-card border border-line bg-paper p-5">
-        <h2 className="text-lead font-semibold text-pine">{t("admin.actionsTitle")}</h2>
+      <section className="rounded-card border-line bg-paper flex flex-col gap-5 border p-5">
+        <h2 className="text-lead text-pine font-semibold">{t("admin.actionsTitle")}</h2>
 
         <div className="flex flex-col gap-2">
           <Button
@@ -355,7 +391,7 @@ export default function AdminPage({ loaderData, actionData }: Route.ComponentPro
           </Button>
         </div>
 
-        <div className="flex flex-col gap-2 border-t border-line pt-4">
+        <div className="border-line flex flex-col gap-2 border-t pt-4">
           <Button
             type="button"
             variant="danger"
@@ -407,7 +443,10 @@ export default function AdminPage({ loaderData, actionData }: Route.ComponentPro
         description={t("admin.deleteConfirmBody")}
       >
         <div className="flex flex-col gap-4">
-          <Field htmlFor="confirmName" label={t("admin.deleteTypeToConfirm", { name: loaderData.sessionName })}>
+          <Field
+            htmlFor="confirmName"
+            label={t("admin.deleteTypeToConfirm", { name: loaderData.sessionName })}
+          >
             {(ids) => (
               <Input
                 {...ids}
@@ -419,8 +458,10 @@ export default function AdminPage({ loaderData, actionData }: Route.ComponentPro
             )}
           </Field>
           {deleteError && (
-            <p role="alert" className="text-meta font-medium text-rust">
-              {deleteError.code === "NAME_MISMATCH" ? t("admin.deleteNameMismatch") : errorMessage(t, deleteError.code)}
+            <p role="alert" className="text-meta text-rust font-medium">
+              {deleteError.code === "NAME_MISMATCH"
+                ? t("admin.deleteNameMismatch")
+                : errorMessage(t, deleteError.code)}
             </p>
           )}
           <div className="flex justify-end gap-3">
@@ -443,6 +484,6 @@ export default function AdminPage({ loaderData, actionData }: Route.ComponentPro
           </div>
         </div>
       </Dialog>
-    </main>
+    </div>
   );
 }

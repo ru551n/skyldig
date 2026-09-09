@@ -12,8 +12,24 @@ import {
   type ParticipantDto,
 } from "@server/modules/participants/participants.ts";
 
-import { Avatar, Button, ConfirmDialog, Dialog, EmptyState, Field, Input, Money, PageHeader } from "~/components/ui/index.ts";
-import { getConfig, getDb, mutationGuard, toActionError, type ActionError } from "~/lib/session-context.server.ts";
+import {
+  Avatar,
+  Button,
+  ConfirmDialog,
+  Dialog,
+  EmptyState,
+  Field,
+  Input,
+  Money,
+  PageHeader,
+} from "~/components/ui/index.ts";
+import {
+  getConfig,
+  getDb,
+  mutationGuard,
+  toActionError,
+  type ActionError,
+} from "~/lib/session-context.server.ts";
 import { useT } from "~/i18n";
 
 import type { Route } from "./+types/participants";
@@ -40,7 +56,8 @@ interface LoaderData {
   baseCurrency: string;
 }
 
-type ActionResult = (ActionError & { intent: string; participantId?: string }) | { ok: true; intent: string };
+type ActionResult =
+  (ActionError & { intent: string; participantId?: string }) | { ok: true; intent: string };
 
 export async function loader({ request, params }: Route.LoaderArgs) {
   const db = getDb();
@@ -80,7 +97,13 @@ export async function action({ request, params }: Route.ActionArgs) {
       const parsed = addSchema.safeParse({ displayName: formData.get("displayName") });
       if (!parsed.success) {
         return data<ActionResult>(
-          { ok: false, code: "NAME_REQUIRED", field: "displayName", message: "Namn krävs.", intent },
+          {
+            ok: false,
+            code: "NAME_REQUIRED",
+            field: "displayName",
+            message: "Namn krävs.",
+            intent,
+          },
           { status: 422 },
         );
       }
@@ -130,7 +153,12 @@ export async function action({ request, params }: Route.ActionArgs) {
         throw new Response("Bad Request", { status: 400 });
       }
       await db.transaction(async (tx) => {
-        await deleteParticipant(tx, access.session.id, parsed.data.participantId, parsed.data.revision);
+        await deleteParticipant(
+          tx,
+          access.session.id,
+          parsed.data.participantId,
+          parsed.data.revision,
+        );
       });
       return data<ActionResult>({ ok: true, intent });
     }
@@ -139,7 +167,8 @@ export async function action({ request, params }: Route.ActionArgs) {
   } catch (error) {
     const actionError = toActionError(error);
     const participantId = String(formData.get("participantId") ?? "") || undefined;
-    const status = actionError.code === "CONFLICT" ? 409 : actionError.code === "UNEXPECTED" ? 500 : 422;
+    const status =
+      actionError.code === "CONFLICT" ? 409 : actionError.code === "UNEXPECTED" ? 500 : 422;
     return data<ActionResult>({ ...actionError, intent, participantId }, { status });
   }
 }
@@ -168,23 +197,37 @@ function ParticipantRow({ participant, position, currency, balance }: RowProps) 
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   useEffect(() => {
-    if (renameFetcher.state === "idle" && renameFetcher.data && "ok" in renameFetcher.data && renameFetcher.data.ok) {
+    if (
+      renameFetcher.state === "idle" &&
+      renameFetcher.data &&
+      "ok" in renameFetcher.data &&
+      renameFetcher.data.ok
+    ) {
       setRenameOpen(false);
     }
   }, [renameFetcher.state, renameFetcher.data]);
 
   useEffect(() => {
-    if (deleteFetcher.state === "idle" && deleteFetcher.data && "ok" in deleteFetcher.data && deleteFetcher.data.ok) {
+    if (
+      deleteFetcher.state === "idle" &&
+      deleteFetcher.data &&
+      "ok" in deleteFetcher.data &&
+      deleteFetcher.data.ok
+    ) {
       setDeleteOpen(false);
     }
   }, [deleteFetcher.state, deleteFetcher.data]);
 
   const renameError =
-    renameFetcher.data && !renameFetcher.data.ok && renameFetcher.data.participantId === participant.publicId
+    renameFetcher.data &&
+    !renameFetcher.data.ok &&
+    renameFetcher.data.participantId === participant.publicId
       ? renameFetcher.data
       : undefined;
   const deleteError =
-    deleteFetcher.data && !deleteFetcher.data.ok && deleteFetcher.data.participantId === participant.publicId
+    deleteFetcher.data &&
+    !deleteFetcher.data.ok &&
+    deleteFetcher.data.participantId === participant.publicId
       ? deleteFetcher.data
       : undefined;
 
@@ -200,10 +243,12 @@ function ParticipantRow({ participant, position, currency, balance }: RowProps) 
   }
 
   return (
-    <li className="flex flex-col gap-2 border-b border-line py-3 last:border-b-0">
+    <li className="border-line flex flex-col gap-2 border-b py-3 last:border-b-0">
       <div className="flex items-center gap-3">
         <Avatar name={participant.displayName} position={position} />
-        <span className="flex-1 truncate text-body font-medium text-pine">{participant.displayName}</span>
+        <span className="text-body text-pine flex-1 truncate font-medium">
+          {participant.displayName}
+        </span>
         <Money amountMinor={net} currency={currency} signed size="body" />
       </div>
 
@@ -237,11 +282,18 @@ function ParticipantRow({ participant, position, currency, balance }: RowProps) 
             }
           >
             {(ids) => (
-              <Input {...ids} name="displayName" maxLength={40} required defaultValue={participant.displayName} autoFocus />
+              <Input
+                {...ids}
+                name="displayName"
+                maxLength={40}
+                required
+                defaultValue={participant.displayName}
+                autoFocus
+              />
             )}
           </Field>
           {renameError && renameError.code === "CONFLICT" && (
-            <p role="alert" className="text-meta font-medium text-rust">
+            <p role="alert" className="text-meta text-rust font-medium">
               {t("participants.conflict")}
             </p>
           )}
@@ -280,16 +332,23 @@ export default function ParticipantsPage({ loaderData, actionData }: Route.Compo
   const t = useT();
   const navigation = useNavigation();
   const submitting = navigation.state === "submitting";
-  const addError = actionData && !actionData.ok && actionData.intent === "add" ? actionData : undefined;
+  const addError =
+    actionData && !actionData.ok && actionData.intent === "add" ? actionData : undefined;
 
   return (
-    <main id="main" className="mx-auto flex min-h-screen max-w-[65ch] flex-col gap-6 p-6 pb-16">
-      <PageHeader title={t("participants.title")} lead={t("participants.count", { n: loaderData.participants.length })} />
+    <div className="mx-auto flex min-h-screen max-w-[65ch] flex-col gap-6 p-6 pb-16">
+      <PageHeader
+        title={t("participants.title")}
+        lead={t("participants.count", { n: loaderData.participants.length })}
+      />
 
       {loaderData.participants.length === 0 ? (
-        <EmptyState headline={t("participants.noParticipants")} body={t("participants.emptyBody")} />
+        <EmptyState
+          headline={t("participants.noParticipants")}
+          body={t("participants.emptyBody")}
+        />
       ) : (
-        <ul className="rounded-card border border-line bg-paper px-4">
+        <ul className="rounded-card border-line bg-paper border px-4">
           {loaderData.participants.map((p, index) => (
             <ParticipantRow
               key={p.publicId}
@@ -302,8 +361,8 @@ export default function ParticipantsPage({ loaderData, actionData }: Route.Compo
         </ul>
       )}
 
-      <section className="flex flex-col gap-3 rounded-card border border-line bg-paper p-5">
-        <h2 className="text-lead font-semibold text-pine">{t("participants.addTitle")}</h2>
+      <section className="rounded-card border-line bg-paper flex flex-col gap-3 border p-5">
+        <h2 className="text-lead text-pine font-semibold">{t("participants.addTitle")}</h2>
         <Form method="post" className="flex flex-col gap-4">
           <input type="hidden" name="_intent" value="add" />
           <Field
@@ -332,6 +391,6 @@ export default function ParticipantsPage({ loaderData, actionData }: Route.Compo
           </Button>
         </Form>
       </section>
-    </main>
+    </div>
   );
 }

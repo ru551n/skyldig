@@ -8,7 +8,13 @@ import { listParticipants } from "@server/modules/participants/participants.ts";
 
 import { PaymentForm, type PaymentFormDefaults } from "~/components/payment/PaymentForm.tsx";
 import { PageHeader } from "~/components/ui/index.ts";
-import { getConfig, getDb, mutationGuard, toActionError, type ActionError } from "~/lib/session-context.server.ts";
+import {
+  getConfig,
+  getDb,
+  mutationGuard,
+  toActionError,
+  type ActionError,
+} from "~/lib/session-context.server.ts";
 import { useT } from "~/i18n";
 
 import type { Route } from "./+types/payment-new";
@@ -58,7 +64,9 @@ export async function action({ request, params }: Route.ActionArgs) {
     amountText: String(formData.get("amountText") ?? ""),
     currencyCode: String(formData.get("currencyCode") ?? access.session.baseCurrency),
     rateText: formData.get("rateText") ? String(formData.get("rateText")) : undefined,
-    rateDirection: formData.get("rateDirection") ? (String(formData.get("rateDirection")) as RateDirection) : undefined,
+    rateDirection: formData.get("rateDirection")
+      ? (String(formData.get("rateDirection")) as RateDirection)
+      : undefined,
     payerPublicId: String(formData.get("payerPublicId") ?? ""),
     recipientPublicId: String(formData.get("recipientPublicId") ?? ""),
     paymentDate: String(formData.get("paymentDate") ?? ""),
@@ -67,11 +75,17 @@ export async function action({ request, params }: Route.ActionArgs) {
 
   try {
     await db.transaction(async (tx) => {
-      await createPayment(tx, { id: access.session.id, baseCurrency: access.session.baseCurrency }, input);
+      await createPayment(
+        tx,
+        { id: access.session.id, baseCurrency: access.session.baseCurrency },
+        input,
+      );
     });
   } catch (error) {
     const actionError = toActionError(error);
-    return data<ActionResult>(actionError, { status: actionError.code === "UNEXPECTED" ? 500 : 422 });
+    return data<ActionResult>(actionError, {
+      status: actionError.code === "UNEXPECTED" ? 500 : 422,
+    });
   }
 
   return redirect(`/s/${params.sid}`);
@@ -96,7 +110,9 @@ export default function PaymentNewPage({ loaderData, actionData }: Route.Compone
   const error = actionData;
 
   const byPublicId = new Set(loaderData.participants.map((p) => p.publicId));
-  const prefillFrom = byPublicId.has(loaderData.prefill.from) ? loaderData.prefill.from : loaderData.participants[0]?.publicId ?? "";
+  const prefillFrom = byPublicId.has(loaderData.prefill.from)
+    ? loaderData.prefill.from
+    : (loaderData.participants[0]?.publicId ?? "");
   const prefillTo = byPublicId.has(loaderData.prefill.to)
     ? loaderData.prefill.to
     : (loaderData.participants.find((p) => p.publicId !== prefillFrom)?.publicId ?? "");
@@ -113,7 +129,7 @@ export default function PaymentNewPage({ loaderData, actionData }: Route.Compone
   };
 
   return (
-    <main id="main" className="mx-auto flex max-w-[65ch] flex-col gap-6 p-4 pb-16">
+    <div className="mx-auto flex max-w-[65ch] flex-col gap-6 p-4 pb-16">
       <PageHeader title={t("payment.newTitle")} />
       <PaymentForm
         participants={loaderData.participants}
@@ -125,6 +141,6 @@ export default function PaymentNewPage({ loaderData, actionData }: Route.Compone
         submitting={submitting}
         submitLabel={t("payment.submit")}
       />
-    </main>
+    </div>
   );
 }

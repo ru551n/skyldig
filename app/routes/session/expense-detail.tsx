@@ -8,9 +8,22 @@ import { deleteExpense, getExpense, type ExpenseDto } from "@server/modules/expe
 
 import { describeRate } from "~/components/expense/historyDiff.ts";
 import { RevisionHistory } from "~/components/expense/RevisionHistory.tsx";
-import { Button, ButtonLink, Card, ConfirmDialog, Money, PageHeader } from "~/components/ui/index.ts";
+import {
+  Button,
+  ButtonLink,
+  Card,
+  ConfirmDialog,
+  Money,
+  PageHeader,
+} from "~/components/ui/index.ts";
 import { formatExpiryLong } from "~/lib/format.ts";
-import { getConfig, getDb, mutationGuard, toActionError, type ActionError } from "~/lib/session-context.server.ts";
+import {
+  getConfig,
+  getDb,
+  mutationGuard,
+  toActionError,
+  type ActionError,
+} from "~/lib/session-context.server.ts";
 import { useT } from "~/i18n";
 
 import type { Route } from "./+types/expense-detail";
@@ -53,11 +66,18 @@ export async function action({ request, params }: Route.ActionArgs) {
 
   try {
     await db.transaction(async (tx) => {
-      await deleteExpense(tx, { id: access.session.id, baseCurrency: access.session.baseCurrency }, params.eid, expectedRevision);
+      await deleteExpense(
+        tx,
+        { id: access.session.id, baseCurrency: access.session.baseCurrency },
+        params.eid,
+        expectedRevision,
+      );
     });
   } catch (error) {
     const actionError = toActionError(error);
-    return data<ActionResult>(actionError, { status: actionError.code === "UNEXPECTED" ? 500 : 422 });
+    return data<ActionResult>(actionError, {
+      status: actionError.code === "UNEXPECTED" ? 500 : 422,
+    });
   }
 
   return redirect(`/s/${params.sid}`);
@@ -84,28 +104,47 @@ export default function ExpenseDetailPage({ loaderData, params }: Route.Componen
 
   if (!expense) {
     return (
-      <main id="main" className="mx-auto flex max-w-[65ch] flex-col gap-6 p-4 pb-16">
+      <div className="mx-auto flex max-w-[65ch] flex-col gap-6 p-4 pb-16">
         <PageHeader title={t("expense.detailTitle")} />
-        <p role="status" className="rounded-card border border-line bg-paper p-4 text-body text-pine-soft">
+        <p
+          role="status"
+          className="rounded-card border-line bg-paper text-body text-pine-soft border p-4"
+        >
           {t("expense.deletedNotice")}
         </p>
         <section className="flex flex-col gap-3">
-          <h2 className="text-h2 font-semibold text-pine">{t("expense.history")}</h2>
+          <h2 className="text-h2 text-pine font-semibold">{t("expense.history")}</h2>
           <RevisionHistory revisions={revisions} />
         </section>
-      </main>
+      </div>
     );
   }
 
   const isForeign = expense.currencyCode !== baseCurrency;
-  const rateWords = describeRate(expense.rateText, expense.rateDirection, expense.currencyCode, baseCurrency);
+  const rateWords = describeRate(
+    expense.rateText,
+    expense.rateDirection,
+    expense.currencyCode,
+    baseCurrency,
+  );
 
   return (
-    <main id="main" className="mx-auto flex max-w-[65ch] flex-col gap-6 p-4 pb-16">
-      <PageHeader title={expense.description} right={<ButtonLink to={`/s/${params.sid}/utgifter/${params.eid}/andra`}>{t("common.edit")}</ButtonLink>} />
+    <div className="mx-auto flex max-w-[65ch] flex-col gap-6 p-4 pb-16">
+      <PageHeader
+        title={expense.description}
+        right={
+          <ButtonLink to={`/s/${params.sid}/utgifter/${params.eid}/andra`}>
+            {t("common.edit")}
+          </ButtonLink>
+        }
+      />
 
       <div className="flex flex-col gap-1">
-        <Money amountMinor={BigInt(expense.amountMinor)} currency={expense.currencyCode} size="hero" />
+        <Money
+          amountMinor={BigInt(expense.amountMinor)}
+          currency={expense.currencyCode}
+          size="hero"
+        />
         {isForeign && (
           <>
             <p className="text-body text-pine-soft">
@@ -117,14 +156,16 @@ export default function ExpenseDetailPage({ loaderData, params }: Route.Componen
       </div>
 
       <Card>
-        <p className="text-body text-pine">{t("expense.paidBy", { name: expense.payer.displayName })}</p>
-        <p className="mt-1 text-meta text-pine-soft">{formatExpiryLong(expense.expenseDate)}</p>
-        {expense.note && <p className="mt-2 text-body text-pine-soft">{expense.note}</p>}
+        <p className="text-body text-pine">
+          {t("expense.paidBy", { name: expense.payer.displayName })}
+        </p>
+        <p className="text-meta text-pine-soft mt-1">{formatExpiryLong(expense.expenseDate)}</p>
+        {expense.note && <p className="text-body text-pine-soft mt-2">{expense.note}</p>}
       </Card>
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-h2 font-semibold text-pine">{t("expense.sharesLabel")}</h2>
-        <Card className="flex flex-col divide-y divide-line p-0">
+        <h2 className="text-h2 text-pine font-semibold">{t("expense.sharesLabel")}</h2>
+        <Card className="divide-line flex flex-col divide-y p-0">
           {expense.participants.map((p) => (
             <div key={p.publicId} className="flex items-center justify-between px-4 py-3">
               <span className="text-body text-pine">{p.displayName}</span>
@@ -134,7 +175,12 @@ export default function ExpenseDetailPage({ loaderData, params }: Route.Componen
         </Card>
       </section>
 
-      <Button type="button" variant="danger" onClick={() => setDeleteOpen(true)} className="self-start">
+      <Button
+        type="button"
+        variant="danger"
+        onClick={() => setDeleteOpen(true)}
+        className="self-start"
+      >
         {t("expense.delete")}
       </Button>
       {deleteFetcher.data && !deleteFetcher.data.ok && (
@@ -158,9 +204,9 @@ export default function ExpenseDetailPage({ loaderData, params }: Route.Componen
       />
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-h2 font-semibold text-pine">{t("expense.history")}</h2>
+        <h2 className="text-h2 text-pine font-semibold">{t("expense.history")}</h2>
         <RevisionHistory revisions={revisions} />
       </section>
-    </main>
+    </div>
   );
 }

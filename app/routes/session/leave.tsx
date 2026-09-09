@@ -1,7 +1,15 @@
 import { redirect } from "react-router";
 
-import { deleteBrowserSessionIfEmpty, revokeGrant, rotateBrowserSession } from "@server/modules/auth/browser-session.ts";
-import { requireSessionAccess, withClearCookie, withSetCookie } from "@server/modules/auth/session-auth.ts";
+import {
+  deleteBrowserSessionIfEmpty,
+  revokeGrant,
+  rotateBrowserSession,
+} from "@server/modules/auth/browser-session.ts";
+import {
+  requireSessionAccess,
+  withClearCookie,
+  withSetCookie,
+} from "@server/modules/auth/session-auth.ts";
 
 import { getConfig, getDb, mutationGuard } from "~/lib/session-context.server.ts";
 

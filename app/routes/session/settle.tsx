@@ -36,9 +36,9 @@ function DetailsTable({
   const t = useT();
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[480px] border-collapse text-body">
+      <table className="text-body w-full min-w-[480px] border-collapse">
         <thead>
-          <tr className="border-b border-line text-left text-meta text-pine-soft">
+          <tr className="border-line text-meta text-pine-soft border-b text-left">
             <th className="py-2 pr-3 font-medium">{t("settle.detailName")}</th>
             <th className="py-2 pr-3 text-right font-medium">{t("settle.detailPaid")}</th>
             <th className="py-2 pr-3 text-right font-medium">{t("settle.detailShare")}</th>
@@ -49,8 +49,8 @@ function DetailsTable({
         </thead>
         <tbody>
           {balances.map((b) => (
-            <tr key={b.publicId} className="border-b border-line last:border-b-0">
-              <td className="py-2 pr-3 text-pine">{b.displayName}</td>
+            <tr key={b.publicId} className="border-line border-b last:border-b-0">
+              <td className="text-pine py-2 pr-3">{b.displayName}</td>
               <td className="py-2 pr-3 text-right">
                 <Money amountMinor={b.paid} currency={currency} />
               </td>
@@ -83,12 +83,15 @@ export default function Settle() {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-h1 font-semibold text-pine">{t("settle.title")}</h1>
-        <p className="mt-1 text-body text-pine-soft">{t("settle.lead")}</p>
+        <h1 className="text-h1 text-pine font-semibold">{t("settle.title")}</h1>
+        <p className="text-body text-pine-soft mt-1">{t("settle.lead")}</p>
       </div>
 
       {participants.length === 0 ? (
-        <EmptyState headline={t("common.noParticipantsHeadline")} body={t("common.noParticipantsBody")} />
+        <EmptyState
+          headline={t("common.noParticipantsHeadline")}
+          body={t("common.noParticipantsBody")}
+        />
       ) : balances.transfers.length === 0 ? (
         <EmptyState headline={t("common.allSettledHeadline")} body={t("settle.empty")} />
       ) : (

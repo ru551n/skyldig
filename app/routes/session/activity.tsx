@@ -5,7 +5,11 @@ import { listActivity } from "@server/modules/audit/audit.ts";
 
 import { Button, EmptyState } from "~/components/ui/index.ts";
 import { ActivityRow } from "~/components/session/ActivityRow.tsx";
-import { groupByDay, toDisplayItem, type SerializedActivityRow } from "~/components/session/activity.ts";
+import {
+  groupByDay,
+  toDisplayItem,
+  type SerializedActivityRow,
+} from "~/components/session/activity.ts";
 import { SESSION_LAYOUT_ROUTE_ID, type SessionLayoutData } from "~/components/session/types.ts";
 import { getConfig, getDb } from "~/lib/session-context.server.ts";
 import { useT } from "~/i18n";
@@ -53,13 +57,14 @@ export default function Activity({ loaderData }: Route.ComponentProps) {
 
   const displayItems = items.map((row, index) => toDisplayItem(row, index));
   const groups = groupByDay(displayItems);
-  const loadingMore = navigation.state === "loading" && navigation.location?.search.includes("before=");
+  const loadingMore =
+    navigation.state === "loading" && navigation.location?.search.includes("before=");
 
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-h1 font-semibold text-pine">{t("activity.title")}</h1>
-        <p className="mt-1 text-body text-pine-soft">{t("activity.lead")}</p>
+        <h1 className="text-h1 text-pine font-semibold">{t("activity.title")}</h1>
+        <p className="text-body text-pine-soft mt-1">{t("activity.lead")}</p>
       </div>
 
       {displayItems.length === 0 ? (
@@ -68,10 +73,16 @@ export default function Activity({ loaderData }: Route.ComponentProps) {
         <>
           {groups.map((group) => (
             <section key={group.heading} className="flex flex-col gap-2">
-              <h2 className="text-meta font-semibold uppercase tracking-wide text-pine-soft">{group.heading}</h2>
-              <div className="rounded-card border border-line bg-paper px-4">
+              <h2 className="text-meta text-pine-soft font-semibold tracking-wide uppercase">
+                {group.heading}
+              </h2>
+              <div className="rounded-card border-line bg-paper border px-4">
                 {group.items.map((item) => (
-                  <ActivityRow key={item.key} item={item} currency={layoutData.balances.baseCurrency} />
+                  <ActivityRow
+                    key={item.key}
+                    item={item}
+                    currency={layoutData.balances.baseCurrency}
+                  />
                 ))}
               </div>
             </section>

@@ -43,7 +43,10 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
   const { session, participants, balances } = layoutData;
   const { recent } = loaderData;
 
-  const totalToSettle = balances.transfers.reduce((sum, transfer) => sum + BigInt(transfer.amountMinor), 0n);
+  const totalToSettle = balances.transfers.reduce(
+    (sum, transfer) => sum + BigInt(transfer.amountMinor),
+    0n,
+  );
   const visibleTransfers = balances.transfers.slice(0, MAX_VISIBLE_TRANSFERS);
   const hasMoreTransfers = balances.transfers.length > MAX_VISIBLE_TRANSFERS;
 
@@ -52,12 +55,14 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
   if (participants.length === 0) {
     return (
       <div className="flex flex-col gap-6">
-        <h1 className="text-h1 font-semibold text-pine">{t("dashboard.title")}</h1>
+        <h1 className="text-h1 text-pine font-semibold">{t("dashboard.title")}</h1>
         <EmptyState
           headline={t("common.noParticipantsHeadline")}
           body={t("common.noParticipantsBody")}
           action={
-            <ButtonLink to={`/s/${session.publicId}/deltagare`}>{t("common.addParticipantCta")}</ButtonLink>
+            <ButtonLink to={`/s/${session.publicId}/deltagare`}>
+              {t("common.addParticipantCta")}
+            </ButtonLink>
           }
         />
       </div>
@@ -67,11 +72,15 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
   if (balances.transfers.length === 0 && recentItems.length === 0) {
     return (
       <div className="flex flex-col gap-6">
-        <h1 className="text-h1 font-semibold text-pine">{t("dashboard.title")}</h1>
+        <h1 className="text-h1 text-pine font-semibold">{t("dashboard.title")}</h1>
         <EmptyState
           headline={t("dashboard.noExpensesHeadline")}
           body={t("dashboard.noExpenses")}
-          action={<ButtonLink to={`/s/${session.publicId}/utgifter/ny`}>{t("dashboard.actions.newExpense")}</ButtonLink>}
+          action={
+            <ButtonLink to={`/s/${session.publicId}/utgifter/ny`}>
+              {t("dashboard.actions.newExpense")}
+            </ButtonLink>
+          }
         />
       </div>
     );
@@ -79,7 +88,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="flex flex-col gap-8">
-      <h1 className="text-h1 font-semibold text-pine">{t("dashboard.title")}</h1>
+      <h1 className="text-h1 text-pine font-semibold">{t("dashboard.title")}</h1>
 
       {balances.transfers.length === 0 ? (
         <EmptyState headline={t("common.allSettledHeadline")} body={t("dashboard.allSettled")} />
@@ -106,7 +115,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
           {hasMoreTransfers && (
             <Link
               to={`/s/${session.publicId}/gor-upp`}
-              className="self-start text-body font-medium text-pine underline underline-offset-2"
+              className="text-body text-pine self-start font-medium underline underline-offset-2"
             >
               {t("dashboard.showAllSettle")}
             </Link>
@@ -116,8 +125,8 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
 
       {recentItems.length > 0 && (
         <section className="flex flex-col gap-2">
-          <h2 className="text-h2 font-semibold text-pine">{t("dashboard.recent")}</h2>
-          <div className="rounded-card border border-line bg-paper px-4">
+          <h2 className="text-h2 text-pine font-semibold">{t("dashboard.recent")}</h2>
+          <div className="rounded-card border-line bg-paper border px-4">
             {recentItems.map((item) => (
               <ActivityRow key={item.key} item={item} currency={balances.baseCurrency} />
             ))}

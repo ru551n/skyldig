@@ -17,7 +17,13 @@ import { listParticipants } from "@server/modules/participants/participants.ts";
 
 import { ExpenseForm, type ExpenseFormDefaults } from "~/components/expense/ExpenseForm.tsx";
 import { Button, ConfirmDialog, PageHeader } from "~/components/ui/index.ts";
-import { getConfig, getDb, mutationGuard, toActionError, type ActionError } from "~/lib/session-context.server.ts";
+import {
+  getConfig,
+  getDb,
+  mutationGuard,
+  toActionError,
+  type ActionError,
+} from "~/lib/session-context.server.ts";
 import { useT } from "~/i18n";
 
 import type { Route } from "./+types/expense-edit";
@@ -63,11 +69,19 @@ export async function action({ request, params }: Route.ActionArgs) {
   if (intent === "delete") {
     try {
       await db.transaction(async (tx) => {
-        await deleteExpense(tx, { id: access.session.id, baseCurrency: access.session.baseCurrency }, params.eid, expectedRevision);
+        await deleteExpense(
+          tx,
+          { id: access.session.id, baseCurrency: access.session.baseCurrency },
+          params.eid,
+          expectedRevision,
+        );
       });
     } catch (error) {
       const actionError = toActionError(error);
-      return data<ActionResult>({ ...actionError, intent: "delete" }, { status: actionError.code === "UNEXPECTED" ? 500 : 422 });
+      return data<ActionResult>(
+        { ...actionError, intent: "delete" },
+        { status: actionError.code === "UNEXPECTED" ? 500 : 422 },
+      );
     }
     return redirect(`/s/${params.sid}`);
   }
@@ -77,7 +91,9 @@ export async function action({ request, params }: Route.ActionArgs) {
     amountText: String(formData.get("amountText") ?? ""),
     currencyCode: String(formData.get("currencyCode") ?? access.session.baseCurrency),
     rateText: formData.get("rateText") ? String(formData.get("rateText")) : undefined,
-    rateDirection: formData.get("rateDirection") ? (String(formData.get("rateDirection")) as RateDirection) : undefined,
+    rateDirection: formData.get("rateDirection")
+      ? (String(formData.get("rateDirection")) as RateDirection)
+      : undefined,
     payerPublicId: String(formData.get("payerPublicId") ?? ""),
     participantPublicIds: formData.getAll("participantPublicIds").map((v) => String(v)),
     expenseDate: String(formData.get("expenseDate") ?? ""),
@@ -96,7 +112,10 @@ export async function action({ request, params }: Route.ActionArgs) {
     });
   } catch (error) {
     const actionError = toActionError(error);
-    return data<ActionResult>({ ...actionError, intent: "update" }, { status: actionError.code === "UNEXPECTED" ? 500 : 422 });
+    return data<ActionResult>(
+      { ...actionError, intent: "update" },
+      { status: actionError.code === "UNEXPECTED" ? 500 : 422 },
+    );
   }
 
   return redirect(`/s/${params.sid}/utgifter/${params.eid}`);
@@ -117,10 +136,13 @@ function errorMessage(t: ReturnType<typeof useT>, code: string): string {
 function ConflictBanner({ current }: { current: ExpenseDto }) {
   const t = useT();
   return (
-    <div role="alert" className="flex flex-col gap-3 rounded-card border-2 border-rust bg-rust/5 p-4">
-      <p className="text-body font-semibold text-rust">{t("expense.conflictTitle")}</p>
+    <div
+      role="alert"
+      className="rounded-card border-rust bg-rust/5 flex flex-col gap-3 border-2 p-4"
+    >
+      <p className="text-body text-rust font-semibold">{t("expense.conflictTitle")}</p>
       <p className="text-meta text-pine-soft">{t("expense.conflictBody")}</p>
-      <dl className="flex flex-col gap-1 text-meta text-pine">
+      <dl className="text-meta text-pine flex flex-col gap-1">
         <div className="flex justify-between">
           <dt>{t("expense.fieldDescription")}</dt>
           <dd>{current.description}</dd>
@@ -138,7 +160,12 @@ function ConflictBanner({ current }: { current: ExpenseDto }) {
           <dd>{current.expenseDate}</dd>
         </div>
       </dl>
-      <Button type="button" variant="secondary" onClick={() => window.location.reload()} className="self-start">
+      <Button
+        type="button"
+        variant="secondary"
+        onClick={() => window.location.reload()}
+        className="self-start"
+      >
         {t("common.reload")}
       </Button>
     </div>
@@ -155,7 +182,8 @@ export default function ExpenseEditPage({ loaderData, actionData, params }: Rout
 
   const error = actionData?.intent === "update" ? actionData : undefined;
   const deleteError = deleteFetcher.data?.intent === "delete" ? deleteFetcher.data : undefined;
-  const conflict = error?.code === "CONFLICT" ? (error.current as unknown as ExpenseDto) : undefined;
+  const conflict =
+    error?.code === "CONFLICT" ? (error.current as unknown as ExpenseDto) : undefined;
 
   const expense = loaderData.expense;
   const defaults: ExpenseFormDefaults = {
@@ -174,7 +202,7 @@ export default function ExpenseEditPage({ loaderData, actionData, params }: Rout
   };
 
   return (
-    <main id="main" className="mx-auto flex max-w-[65ch] flex-col gap-6 p-4 pb-16">
+    <div className="mx-auto flex max-w-[65ch] flex-col gap-6 p-4 pb-16">
       <PageHeader title={t("expense.editTitle")} />
 
       {conflict && <ConflictBanner current={conflict} />}
@@ -191,13 +219,18 @@ export default function ExpenseEditPage({ loaderData, actionData, params }: Rout
         submitLabel={t("expense.submit")}
       />
 
-      <div className="flex flex-col gap-2 border-t border-line pt-4">
+      <div className="border-line flex flex-col gap-2 border-t pt-4">
         {deleteError && !deleteError.field && (
           <p role="alert" className="text-body text-rust">
             {errorMessage(t, deleteError.code)}
           </p>
         )}
-        <Button type="button" variant="danger" onClick={() => setDeleteOpen(true)} className="self-start">
+        <Button
+          type="button"
+          variant="danger"
+          onClick={() => setDeleteOpen(true)}
+          className="self-start"
+        >
           {t("expense.delete")}
         </Button>
       </div>
@@ -218,7 +251,7 @@ export default function ExpenseEditPage({ loaderData, actionData, params }: Rout
           );
         }}
       />
-    </main>
+    </div>
   );
 }
 

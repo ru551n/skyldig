@@ -85,18 +85,20 @@ export default function SessionLayout({ loaderData }: Route.ComponentProps) {
     { to: `/s/${session.publicId}/aktivitet`, label: t("dashboard.nav.activity") },
     { to: `/s/${session.publicId}/gor-upp`, label: t("dashboard.nav.settle") },
     { to: `/s/${session.publicId}/deltagare`, label: t("dashboard.nav.participants") },
-    ...(role === "admin" ? [{ to: `/s/${session.publicId}/admin`, label: t("dashboard.nav.admin") }] : []),
+    ...(role === "admin"
+      ? [{ to: `/s/${session.publicId}/admin`, label: t("dashboard.nav.admin") }]
+      : []),
   ];
 
   return (
-    <div className="min-h-screen bg-frost">
+    <div className="bg-frost min-h-screen">
       <div className="flex flex-col min-[880px]:mx-auto min-[880px]:max-w-[1100px] min-[880px]:flex-row">
-        <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-line bg-frost/95 p-4 backdrop-blur min-[880px]:hidden">
+        <header className="border-line bg-frost/95 sticky top-0 z-20 flex items-center gap-3 border-b p-4 backdrop-blur min-[880px]:hidden">
           {isSubRoute && (
             <Link
               to={`/s/${session.publicId}`}
               aria-label={t("common.back")}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-control text-pine hover:bg-frost focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine"
+              className="rounded-control text-pine hover:bg-frost focus-visible:outline-pine flex h-11 w-11 shrink-0 items-center justify-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
             >
               <svg viewBox="0 0 20 20" width="18" height="18" fill="none" aria-hidden="true">
                 <path
@@ -109,7 +111,10 @@ export default function SessionLayout({ loaderData }: Route.ComponentProps) {
               </svg>
             </Link>
           )}
-          <Link to={`/s/${session.publicId}`} className="min-w-0 flex-1 truncate text-lead font-semibold text-pine">
+          <Link
+            to={`/s/${session.publicId}`}
+            className="text-lead text-pine min-w-0 flex-1 truncate font-semibold"
+          >
             {session.name}
           </Link>
           <Pill variant={expiringSoon ? "warning" : "neutral"} className="shrink-0">
@@ -119,7 +124,7 @@ export default function SessionLayout({ loaderData }: Route.ComponentProps) {
 
         <nav
           aria-label={session.name}
-          className="hidden min-[880px]:sticky min-[880px]:top-0 min-[880px]:block min-[880px]:h-screen min-[880px]:w-[300px] min-[880px]:shrink-0 min-[880px]:overflow-y-auto min-[880px]:border-r min-[880px]:border-line"
+          className="min-[880px]:border-line hidden min-[880px]:sticky min-[880px]:top-0 min-[880px]:block min-[880px]:h-screen min-[880px]:w-[300px] min-[880px]:shrink-0 min-[880px]:overflow-y-auto min-[880px]:border-r"
         >
           <SessionRail
             sessionName={session.name}
@@ -134,7 +139,10 @@ export default function SessionLayout({ loaderData }: Route.ComponentProps) {
           />
         </nav>
 
-        <main id="main" className="min-w-0 flex-1 px-4 pb-8 pt-4 min-[880px]:max-w-[720px] min-[880px]:px-8 min-[880px]:pt-8">
+        <main
+          id="main"
+          className="min-w-0 flex-1 px-4 pt-4 pb-8 min-[880px]:max-w-[720px] min-[880px]:px-8 min-[880px]:pt-8"
+        >
           <Outlet />
         </main>
       </div>
@@ -166,7 +174,13 @@ export default function SessionLayout({ loaderData }: Route.ComponentProps) {
           form?.requestSubmit();
         }}
       />
-      <Form id="leave-form" method="post" action={`/s/${session.publicId}/lamna`} className="hidden" aria-hidden />
+      <Form
+        id="leave-form"
+        method="post"
+        action={`/s/${session.publicId}/lamna`}
+        className="hidden"
+        aria-hidden
+      />
     </div>
   );
 }
@@ -175,14 +189,17 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   const notFound = isRouteErrorResponse(error) && error.status === 404;
 
   return (
-    <main id="main" className="mx-auto flex min-h-screen max-w-[65ch] flex-col items-start justify-center gap-4 bg-frost p-6 text-pine">
+    <main
+      id="main"
+      className="bg-frost text-pine mx-auto flex min-h-screen max-w-[65ch] flex-col items-start justify-center gap-4 p-6"
+    >
       <h1 className="text-h1 font-semibold">Något gick fel</h1>
       <p className="text-body text-pine-soft">
         {notFound
           ? "Gruppen finns inte, eller så har du inte tillgång till den."
           : "Ett oväntat fel inträffade. Försök igen om en stund."}
       </p>
-      <Link to="/" className="rounded-control bg-pine px-4 py-2 text-body font-medium text-paper">
+      <Link to="/" className="rounded-control bg-pine text-body text-paper px-4 py-2 font-medium">
         Till startsidan
       </Link>
     </main>
