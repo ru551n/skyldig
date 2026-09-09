@@ -343,6 +343,7 @@ export const sv = {
     shareTitle: "Gå med i gruppen på Skyldig",
     hint: "Länken kan bara användas en gång och slutar fungera efter 30 minuter.",
     creating: "Skapar en engångslänk…",
+    rateLimited: "För många länkar har skapats. Vänta en stund och försök igen.",
     redeemTitle: "Går med i gruppen…",
     redeemBody: "Ett ögonblick.",
     invalidTitle: "Länken fungerar inte längre",

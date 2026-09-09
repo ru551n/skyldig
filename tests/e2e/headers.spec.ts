@@ -36,6 +36,8 @@ test("group dashboard and admin page carry Cache-Control: no-store", async ({ pa
     const participantInputs = page.locator('input[name="participant"]');
     await participantInputs.nth(0).fill("Ada");
     await participantInputs.nth(1).fill("Bo");
+    // Past the anti-bot minimum-time-on-page threshold (server/modules/auth/form-token.ts).
+    await page.waitForTimeout(1_600);
     await page.getByRole("button", { name: "Skapa grupp" }).click();
     await expect(page.getByText("Gruppen är skapad")).toBeVisible();
     const href = await page.getByRole("link", { name: "Till gruppen" }).getAttribute("href");

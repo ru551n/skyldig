@@ -31,6 +31,8 @@ test("admin: elevate, wrong key, rotate phrase, delete group", async ({ browser 
     const participantInputs = creatorPage.locator('input[name="participant"]');
     await participantInputs.nth(0).fill("Sven");
     await participantInputs.nth(1).fill("Lisa");
+    // Past the anti-bot minimum-time-on-page threshold (server/modules/auth/form-token.ts).
+    await creatorPage.waitForTimeout(1_600);
     await creatorPage.getByRole("button", { name: "Skapa grupp" }).click();
     await expect(creatorPage.getByText("Gruppen är skapad")).toBeVisible();
 

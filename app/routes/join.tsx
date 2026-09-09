@@ -6,7 +6,7 @@ import {
   rotateBrowserSession,
 } from "@server/modules/auth/browser-session.ts";
 import { resolveBrowserSession, withSetCookie } from "@server/modules/auth/session-auth.ts";
-import { limiters, clientKey } from "@server/modules/auth/rate-limit.ts";
+import { limiters, clientKey, checkThenGlobal } from "@server/modules/auth/rate-limit.ts";
 import { joinSession } from "@server/modules/session/index.ts";
 
 import { Button, Field, Input, PageHeader } from "~/components/ui/index.ts";
@@ -49,10 +49,9 @@ export async function action({ request, context }: Route.ActionArgs) {
   const clientIp = context.get(requestContext)?.clientIp;
   const key = clientKey({ ip: clientIp, headers: headersOf(request) }, config);
 
-  const joinCheck = limiters.join.check(key);
-  const globalCheck = limiters.joinGlobal.check("global");
-  if (!joinCheck.allowed || !globalCheck.allowed) {
-    const retryAfterMs = Math.max(joinCheck.retryAfterMs, globalCheck.retryAfterMs);
+  const rateResult = checkThenGlobal(limiters.join, limiters.joinGlobal, key);
+  if (!rateResult.allowed) {
+    const retryAfterMs = rateResult.retryAfterMs;
     await enforceResponseFloor(startedAt);
     return data<JoinFailure>(
       {

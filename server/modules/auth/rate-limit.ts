@@ -136,6 +136,44 @@ export function createRateLimiter(rules: Rule[]): RateLimiter {
   return { check, recordFailure, recordSuccess, lock, size };
 }
 
+export interface CombinedRateLimitResult {
+  allowed: boolean;
+  retryAfterMs: number;
+}
+
+/**
+ * Checks a per-client limiter and a global (all-clients) limiter together, the way every
+ * route that has both must: check the per-client limiter FIRST, and only check (and thereby
+ * record a hit against) the global limiter if the per-client check already passed.
+ *
+ * `check()` records a hit on every call, including denied ones (see its doc comment) — that
+ * is correct and intentional for the per-client budget, but checking the global limiter
+ * unconditionally means a single client denied by its own per-client cap still spends a hit
+ * out of the shared global budget on every one of its rejected requests. A flood from one
+ * client can then drain the entire global budget through denied requests alone, locking out
+ * every *other* client even though none of the flood's requests ever succeeded — the global
+ * limiter, meant as a last-resort circuit breaker against a botnet spread across many client
+ * keys, becomes itself the denial-of-service. A request that never passes the per-client
+ * check must consume none of the global budget.
+ */
+export function checkThenGlobal(
+  perClient: RateLimiter,
+  global: RateLimiter,
+  key: string,
+  globalKey = "global",
+  now?: number,
+): CombinedRateLimitResult {
+  const clientResult = perClient.check(key, now);
+  if (!clientResult.allowed) {
+    return { allowed: false, retryAfterMs: clientResult.retryAfterMs };
+  }
+  const globalResult = global.check(globalKey, now);
+  if (!globalResult.allowed) {
+    return { allowed: false, retryAfterMs: globalResult.retryAfterMs };
+  }
+  return { allowed: true, retryAfterMs: 0 };
+}
+
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 
@@ -159,8 +197,21 @@ export const limiters = {
     { name: "join-10m", limit: 20, windowMs: 10 * MINUTE },
     { name: "join-1h", limit: 60, windowMs: HOUR },
   ]),
-  /** Global join attempts across all clients: 240 per hour. Always keyed 'global'. */
-  joinGlobal: createRateLimiter([{ name: "join-global-1h", limit: 240, windowMs: HOUR }]),
+  /**
+   * Global join attempts across all clients: 480 per hour. Always keyed 'global', and only
+   * ever checked (via `checkThenGlobal`) for a request that already passed the per-client
+   * `join` check — see that function's doc comment for why checking it unconditionally would
+   * let one client's flood of already-denied requests drain the shared budget and lock out
+   * every other client, which is itself a denial-of-service.
+   *
+   * At 480 attempts/hour against a 4-word phrase (44.5 bits), a million live groups are still
+   * roughly half a decade from an expected hit and ten thousand groups several centuries —
+   * this is a last-resort circuit breaker against a botnet spread across many client keys
+   * (each individually bounded by the much tighter per-client cap above), not the primary
+   * brute-force defense, so it is sized to comfortably absorb bursts of genuine multi-tenant
+   * traffic rather than to be the tightest number that still "works" mathematically.
+   */
+  joinGlobal: createRateLimiter([{ name: "join-global-1h", limit: 480, windowMs: HOUR }]),
   /**
    * Invite-token redemption is a separate credential surface from the reusable access
    * phrase (see docs/todo.md "Share a group by QR code or link"): a token is single-use,
@@ -173,6 +224,13 @@ export const limiters = {
     { name: "invite-10m", limit: 20, windowMs: 10 * MINUTE },
     { name: "invite-1h", limit: 60, windowMs: HOUR },
   ]),
+  /**
+   * Global invite-token attempts across all clients: 240 per hour. Always keyed 'global', and,
+   * like `joinGlobal`/`createSessionGlobal`, only ever checked (via `checkThenGlobal`) for a
+   * request that already passed the per-client `invite` check — see `checkThenGlobal`'s doc
+   * comment for why checking it unconditionally would let one client's already-denied
+   * requests alone drain the shared budget.
+   */
   inviteGlobal: createRateLimiter([{ name: "invite-global-1h", limit: 240, windowMs: HOUR }]),
   /**
    * Per-client live exchange-rate lookups (server/modules/fx/rate-provider.ts): 30 per minute.
@@ -190,31 +248,45 @@ export const limiters = {
    */
   elevatePerSession: createRateLimiter([{ name: "elevate-session-1h", limit: 20, windowMs: HOUR }]),
   /**
-   * Per-client group (session) creation: 15 per 10 minutes and 40 per hour.
+   * Per-client group (session) creation: 18 per 10 minutes and 45 per hour.
    *
    * Unlike `join`, where a whole real group legitimately shares one client key, creating a
    * group is a one-person, one-time action — nobody legitimately spins up a dozen groups from
    * the same network in a short window. So this is sized meaningfully tighter than
-   * `join`/`joinGlobal` (20/10min, 60/h): well under half the per-client budget. It is not as
-   * tight as a first pass might suggest, though, because this app's own e2e suite creates
-   * roughly a dozen groups from a single client key (one shared loopback IP, workers: 1) in
-   * one run; the numbers here leave deliberate headroom above that real, measured usage so a
-   * legitimate burst (including this app's own tests, or a small team spinning up a few
-   * groups back to back) never trips it, while still cutting a scripted flood down hard
-   * compared to `join`.
+   * `join`/`joinGlobal` (20/10min, 60/h) in both windows. It is not as tight as a first pass
+   * might suggest, though, because this app's own e2e suite creates around fifteen groups from
+   * a single client key (one shared loopback IP, workers: 1) in one run — several spec files
+   * each create one as setup, and the accessibility spec's `beforeEach` creates a fresh one for
+   * every one of its four tests; the anti-bot spec (`tests/e2e/new-anti-bot.spec.ts`) and the
+   * invite-creation rate-limit regression (`tests/e2e/invitecreate-rate-limit.spec.ts`) each add
+   * one more. The numbers here leave deliberate headroom above that real, measured usage so a
+   * legitimate burst (including this app's own tests, or a small team spinning up a few groups
+   * back to back) never trips it, while still cutting a scripted flood down hard compared to
+   * `join`.
    */
   createSession: createRateLimiter([
-    { name: "create-session-10m", limit: 15, windowMs: 10 * MINUTE },
-    { name: "create-session-1h", limit: 40, windowMs: HOUR },
+    { name: "create-session-10m", limit: 18, windowMs: 10 * MINUTE },
+    { name: "create-session-1h", limit: 45, windowMs: HOUR },
   ]),
   /**
-   * Global group-creation attempts across all clients: 60 per hour. Always keyed 'global'.
-   * Generous enough that a real multi-tenant self-hosted instance with several active teams
-   * won't notice it, but tight enough to blunt a flood of junk groups, each of which persists
-   * for 90 days (see docs/todo.md) and burdens storage and every admin/backup operation that
-   * touches the `sessions` table until cleanup catches up.
+   * Global group-creation attempts across all clients: 500 per hour. Always keyed 'global',
+   * and only ever checked (via `checkThenGlobal`) for a request that already passed the
+   * per-client `createSession` check — checking it unconditionally, as an earlier version of
+   * this code did, let one client's flood of already-denied requests (each still hitting this
+   * global bucket) exhaust the entire hour's budget while none of them actually created
+   * anything, locking out every real user's first group creation. See `checkThenGlobal`'s doc
+   * comment.
+   *
+   * This is a last-resort circuit breaker against a botnet spreading load across many client
+   * keys (each individually bounded by the much tighter 15/10min, 40/h per-client cap above),
+   * not a tight budget meant to constrain ordinary traffic — a self-hosted instance with
+   * several active teams creating groups back-to-back must never notice it. 500/h comfortably
+   * absorbs that (500 is more than 12x the per-client hourly cap, i.e. room for a dozen busy
+   * clients at once) while still cutting off a determined flood well short of the point where
+   * junk groups (each persisting 90 days, see docs/todo.md) start burdening storage and every
+   * admin/backup operation that touches the `sessions` table before cleanup catches up.
    */
-  createSessionGlobal: createRateLimiter([{ name: "create-session-global-1h", limit: 60, windowMs: HOUR }]),
+  createSessionGlobal: createRateLimiter([{ name: "create-session-global-1h", limit: 500, windowMs: HOUR }]),
 };
 
 export const ELEVATE_PER_SESSION_LOCK_MS = 15 * MINUTE;

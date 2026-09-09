@@ -339,6 +339,7 @@ export const en: typeof sv = {
     shareTitle: "Join the group on Skyldig",
     hint: "The link can only be used once and stops working after 30 minutes.",
     creating: "Creating a one-time link…",
+    rateLimited: "Too many links created. Wait a moment and try again.",
     redeemTitle: "Joining the group…",
     redeemBody: "One moment.",
     invalidTitle: "This link no longer works",

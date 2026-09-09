@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { clientKey, createRateLimiter } from "./rate-limit.ts";
+import { checkThenGlobal, clientKey, createRateLimiter } from "./rate-limit.ts";
 
 describe("createRateLimiter", () => {
   it("allows requests under the limit and denies once the limit is hit", () => {
@@ -132,6 +132,62 @@ describe("createRateLimiter", () => {
     limiter.check("a", now);
     limiter.check("b", now);
     expect(limiter.size()).toBe(2);
+  });
+});
+
+describe("checkThenGlobal", () => {
+  it("does not touch the global bucket for a request denied by the per-client check", () => {
+    const perClient = createRateLimiter([{ name: "pc", limit: 1, windowMs: 60_000 }]);
+    const global = createRateLimiter([{ name: "g", limit: 100, windowMs: 60_000 }]);
+    const now = 1_000_000;
+
+    // Client "attacker" spends its own budget, then floods far past it.
+    expect(checkThenGlobal(perClient, global, "attacker", "global", now).allowed).toBe(true);
+    for (let i = 0; i < 50; i += 1) {
+      const result = checkThenGlobal(perClient, global, "attacker", "global", now + 1 + i);
+      expect(result.allowed).toBe(false);
+    }
+
+    // The global bucket must have recorded only the one request that actually passed the
+    // per-client check — none of the 50 rejected floods should have touched it.
+    expect(global.size()).toBe(1);
+    const globalDirect = global.check("global", now + 100);
+    expect(globalDirect.allowed).toBe(true);
+  });
+
+  it("reproduces the auditor's scenario: one client's flood never blocks a second, different client", () => {
+    // Mirrors limiters.createSession / createSessionGlobal shape: tight per-client, more
+    // generous global.
+    const perClient = createRateLimiter([{ name: "pc", limit: 15, windowMs: 10 * 60_000 }]);
+    const global = createRateLimiter([{ name: "g", limit: 500, windowMs: 60 * 60_000 }]);
+    const now = 1_000_000;
+
+    let succeeded = 0;
+    // One attacker fires 60 rapid requests, exactly the auditor's scenario.
+    for (let i = 0; i < 60; i += 1) {
+      const result = checkThenGlobal(perClient, global, "attacker-ip", "global", now + i);
+      if (result.allowed) succeeded += 1;
+    }
+    // Only the per-client cap's worth actually succeeded.
+    expect(succeeded).toBe(15);
+
+    // A second, different client must still be able to succeed afterward — the flood must not
+    // have measurably depleted the global bucket (it only recorded the 15 that passed).
+    const secondClient = checkThenGlobal(perClient, global, "innocent-ip", "global", now + 1000);
+    expect(secondClient.allowed).toBe(true);
+    expect(global.size()).toBe(1); // still just the "global" key, far under its 500 limit
+  });
+
+  it("still enforces the global cap once it is genuinely exhausted by passing requests", () => {
+    const perClient = createRateLimiter([{ name: "pc", limit: 1000, windowMs: 60_000 }]);
+    const global = createRateLimiter([{ name: "g", limit: 2, windowMs: 60_000 }]);
+    const now = 1_000_000;
+
+    expect(checkThenGlobal(perClient, global, "a", "global", now).allowed).toBe(true);
+    expect(checkThenGlobal(perClient, global, "b", "global", now + 1).allowed).toBe(true);
+    const third = checkThenGlobal(perClient, global, "c", "global", now + 2);
+    expect(third.allowed).toBe(false);
+    expect(third.retryAfterMs).toBeGreaterThan(0);
   });
 });
 

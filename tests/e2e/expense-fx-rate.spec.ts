@@ -24,6 +24,8 @@ async function createGroup(page: import("@playwright/test").Page) {
   await participantInputs.nth(0).fill("Anna");
   await participantInputs.nth(1).fill("Johan");
 
+  // Past the anti-bot minimum-time-on-page threshold (server/modules/auth/form-token.ts).
+  await page.waitForTimeout(1_600);
   await page.getByRole("button", { name: "Skapa grupp" }).click();
   await expect(page.getByText("Gruppen är skapad")).toBeVisible();
 

@@ -6,7 +6,8 @@ import { z } from "zod";
 import { sessions } from "@server/db/schema.ts";
 import { createBrowserSession, grantAccess } from "@server/modules/auth/browser-session.ts";
 import { withSetCookie } from "@server/modules/auth/session-auth.ts";
-import { limiters, clientKey } from "@server/modules/auth/rate-limit.ts";
+import { limiters, clientKey, checkThenGlobal } from "@server/modules/auth/rate-limit.ts";
+import { issueFormToken, verifyFormToken } from "@server/modules/auth/form-token.ts";
 import { createSession } from "@server/modules/session/index.ts";
 import { listCurrencies } from "@domain/currency/registry.ts";
 
@@ -43,7 +44,8 @@ type ActionResult =
   CreateSuccess | (ActionError & { name?: string; baseCurrency?: string; participants?: string[] });
 
 export function loader(_args: Route.LoaderArgs) {
-  return { currencies: listCurrencies() };
+  const config = getConfig();
+  return { currencies: listCurrencies(), formToken: issueFormToken(config.accessKeyPepper) };
 }
 
 /**
@@ -65,36 +67,13 @@ export async function action({ request, context }: Route.ActionArgs) {
   const config = getConfig();
   const db = getDb();
 
-  const clientIp = context.get(requestContext)?.clientIp;
-  const key = clientKey({ ip: clientIp, headers: headersOf(request) }, config);
-
-  const createCheck = limiters.createSession.check(key);
-  const globalCheck = limiters.createSessionGlobal.check("global");
-  if (!createCheck.allowed || !globalCheck.allowed) {
-    const retryAfterMs = Math.max(createCheck.retryAfterMs, globalCheck.retryAfterMs);
-    const retryAfterSeconds = Math.max(1, Math.ceil(retryAfterMs / 1000));
-    return data<ActionResult>(
-      { ok: false, code: "RATE_LIMITED", message: "Too many attempts." },
-      {
-        status: 429,
-        headers: { "Retry-After": String(retryAfterSeconds) },
-      },
-    );
-  }
-
   const formData = await request.formData();
-
-  const parsed = formSchema.safeParse({
-    name: formData.get("name"),
-    baseCurrency: formData.get("baseCurrency"),
-    participant: formData.getAll("participant").map((v) => String(v)),
-  });
 
   const rawName = String(formData.get("name") ?? "");
   const rawCurrency = String(formData.get("baseCurrency") ?? "SEK");
   const rawParticipants = formData.getAll("participant").map((v) => String(v));
 
-  if (!parsed.success) {
+  function genericValidationFailure() {
     return data<ActionResult>(
       {
         ok: false,
@@ -107,6 +86,50 @@ export async function action({ request, context }: Route.ActionArgs) {
       },
       { status: 422 },
     );
+  }
+
+  // Anti-bot checks come first, before the formData is validated for real and before any
+  // rate-limit budget is spent — a caught bot must not drain the rate limiter either, and it
+  // must see exactly the same generic validation-failure response a normal form error would
+  // produce, so it gets no signal that it was specifically caught (see docs/architecture.md
+  // §4.4 and the finding this fixes).
+  //
+  // Honeypot: `website` is a real form field, hidden from sighted users, screen readers and
+  // tab order alike (see the `aria-hidden` wrapper below — not `.sr-only`, which deliberately
+  // keeps content in the accessibility tree). No legitimate browser fills it in; any value at
+  // all means a bot that fills every field it finds.
+  const honeypot = String(formData.get("website") ?? "");
+  // Minimum time-on-page: a signed, timestamped token stamped when the form rendered (see
+  // server/modules/auth/form-token.ts). Rejects a submission that arrives implausibly fast
+  // (< 1.5s after render) or with a missing/invalid/stale token.
+  const formToken = String(formData.get("formToken") ?? "");
+  if (honeypot.length > 0 || !verifyFormToken(formToken, config.accessKeyPepper)) {
+    return genericValidationFailure();
+  }
+
+  const clientIp = context.get(requestContext)?.clientIp;
+  const key = clientKey({ ip: clientIp, headers: headersOf(request) }, config);
+
+  const rateResult = checkThenGlobal(limiters.createSession, limiters.createSessionGlobal, key);
+  if (!rateResult.allowed) {
+    const retryAfterSeconds = Math.max(1, Math.ceil(rateResult.retryAfterMs / 1000));
+    return data<ActionResult>(
+      { ok: false, code: "RATE_LIMITED", message: "Too many attempts." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(retryAfterSeconds) },
+      },
+    );
+  }
+
+  const parsed = formSchema.safeParse({
+    name: formData.get("name"),
+    baseCurrency: formData.get("baseCurrency"),
+    participant: formData.getAll("participant").map((v) => String(v)),
+  });
+
+  if (!parsed.success) {
+    return genericValidationFailure();
   }
 
   const participantNames = (
@@ -337,6 +360,20 @@ export default function NewSessionPage({ loaderData, actionData }: Route.Compone
       )}
 
       <Form method="post" className="flex flex-col gap-6">
+        {/*
+          Honeypot: a decoy field no legitimate user ever fills in. Hidden from screen readers
+          too (`aria-hidden`, not `.sr-only` — `.sr-only` deliberately keeps content in the
+          accessibility tree for assistive tech, which is backwards here: a screen-reader user
+          browsing by form field would otherwise hear a "website" field with no visual
+          counterpart). Kept out of the visual layout via absolute positioning rather than
+          `display:none`/`opacity:0`, which some bots skip, and out of tab order. Any value here
+          means something filled every field it found — see the action's anti-bot check above.
+        */}
+        <div aria-hidden="true" className="pointer-events-none absolute h-px w-px overflow-hidden opacity-0">
+          <input id="website" type="text" name="website" tabIndex={-1} autoComplete="off" />
+        </div>
+        <input type="hidden" name="formToken" value={loaderData.formToken} />
+
         <Field htmlFor="name" label={t("create.nameLabel")} error={fieldError("name")}>
           {(ids) => (
             <Input

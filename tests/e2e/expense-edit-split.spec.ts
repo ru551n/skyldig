@@ -25,6 +25,8 @@ test("expense edit split preview orders the rounding remainder by position, matc
   await page.getByRole("button", { name: "Lägg till deltagare" }).click();
   await page.locator('input[name="participant"]').nth(2).fill("Peter");
 
+  // Past the anti-bot minimum-time-on-page threshold (server/modules/auth/form-token.ts).
+  await page.waitForTimeout(1_600);
   await page.getByRole("button", { name: "Skapa grupp" }).click();
   await expect(page.getByText("Gruppen är skapad")).toBeVisible();
 

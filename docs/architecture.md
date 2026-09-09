@@ -130,23 +130,50 @@ from the client bundle). Path aliases: `~/*` → `app/*`, `@domain/*`, `@server/
   exactly; if neither is present → 403. There are no mutating GET routes.
 - Rate limiting (`server/modules/auth/rate-limit.ts`): sliding-window counters in a bounded
   LRU (50k keys, fail-closed under eviction pressure). Client key = IPv4 address or IPv6 /64;
-  `X-Forwarded-For` is honoured only when `TRUST_PROXY` is set. Limits: join 20/10 min and
-  60/h per client, 240/h global. The per-client cap is deliberately loose because a whole
-  group normally joins from one shared network; the global cap is what bounds brute force,
-  and at 44.5 bits it leaves even a million live groups about a decade from an expected hit;
-  invite-token redemption (§4.1, docs/todo.md) has its own identically sized limiter, kept
-  separate from phrase joins because a token is single-use and short-lived and must not share
-  a budget with a reusable credential; admin elevation 5/10 min per client **and** 20/h per session
-  public id followed by a 15-minute lock. Group creation (`POST /new`) has its own limiter,
-  sized meaningfully tighter than join's per-client budget since creating a group is a
-  one-person, one-time action rather than something a whole group legitimately shares a
-  client key for: 15/10 min and 40/h per client, 60/h global — the per-client numbers leave
-  headroom above the e2e suite's own measured usage (roughly a dozen creations from one
-  client key in a single run) so the suite itself never trips it, while the global cap still
+  `X-Forwarded-For` is honoured only when `TRUST_PROXY` is set. Every route with both a
+  per-client and a global limiter MUST check them via `checkThenGlobal`: per-client first, and
+  the global bucket only checked (and thereby only charged a hit) when the per-client check
+  already passed. Checking both unconditionally — as an earlier version of this code did —
+  lets a single client denied by its own per-client cap still spend a hit out of the *shared*
+  global budget on every one of its rejected requests, so a flood from one client alone can
+  drain the entire global budget through denied requests and lock out every other client even
+  though none of the flood's requests ever succeeded; the global limiter, meant as a
+  last-resort circuit breaker against a botnet spread across many client keys, becomes itself
+  the denial-of-service. This is not optional per-route judgment — it is the one correct way
+  to compose a per-client and a global limiter, so a future limiter added the naive way (call
+  `.check()` on both, unconditionally) reintroduces exactly this bug.
+  Limits: join 20/10 min and 60/h per client, 480/h global. The per-client cap is deliberately
+  loose because a whole group normally joins from one shared network; the global cap is what
+  bounds brute force, and at 44.5 bits it leaves even a million live groups roughly half a
+  decade from an expected hit, and ten thousand groups several centuries — comfortably safe
+  while still sized as a genuine circuit breaker (not a tight budget) against a botnet spread
+  across many client keys; invite-token redemption (§4.1, docs/todo.md) has its own
+  identically sized limiter (`invite`/`inviteGlobal`, 20/10min & 60/h per client, 240/h
+  global), kept separate from phrase joins because a token is single-use and short-lived and
+  must not share a budget with a reusable credential — this covers both invite *creation*
+  (`POST /s/:sid/bjud-in`) and invite *redemption* (`POST /i/:iid`), so a single member cannot
+  insert unbounded `session_invites` rows between cleanup runs either; admin elevation 5/10 min
+  per client **and** 20/h per session public id followed by a 15-minute lock. Group creation
+  (`POST /new`) has its own limiter, sized meaningfully tighter than join's per-client budget
+  since creating a group is a one-person, one-time action rather than something a whole group
+  legitimately shares a client key for: 18/10 min and 45/h per client, 500/h global — the
+  per-client numbers leave headroom above the e2e suite's own measured usage (around fifteen
+  creations from one client key in a single run) so the suite itself never trips it, while the
+  global cap (a circuit breaker, not a tight budget — over 11x the per-client hourly cap) still
   meaningfully blunts a flood of junk groups, each of which otherwise persists for 90 days
   (docs/todo.md) before cleanup. Failures return one generic message after a fixed
   ≥ 250 ms response floor for join/invite/elevate; group creation returns its 429 immediately,
   since there is no credential being guessed and so no timing side-channel to defend against.
+- Anti-bot on group creation (`app/routes/new.tsx`), on top of rate limiting (rate limiting
+  alone is not a substitute for it): a honeypot field (`website`, visually hidden and excluded
+  from tab order via `.sr-only` — not `display:none`/`opacity:0`, which some bots skip — so
+  only an automated filler of every field trips it) and a signed, timestamped minimum-time-on-
+  page token (`server/modules/auth/form-token.ts`, HMAC-SHA256 over a timestamp using
+  `ACCESS_KEY_PEPPER`, rejecting a submission under 1.5s old or over 1 hour old). Both checks
+  run at the very top of the action, before the rate-limit check, so a caught bot spends no
+  rate-limit budget either; a caught bot gets back the exact same generic validation-failure
+  response a normal form error produces, never a distinct signal that it was specifically
+  caught.
 - helmet: CSP `default-src 'self'` with a per-request nonce for the hydration script,
   `frame-ancestors 'none'`, HSTS in production, `Referrer-Policy:
   strict-origin-when-cross-origin`, nosniff. Body limit 64 KB.

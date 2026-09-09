@@ -4,12 +4,9 @@ import { useFetcher } from "react-router";
 import { Button, Dialog, QrCode } from "~/components/ui/index.ts";
 import { useT } from "~/i18n";
 
-interface InviteActionData {
-  ok: true;
-  url: string;
-  expiresAt: string;
-  ttlMs: number;
-}
+type InviteActionData =
+  | { ok: true; url: string; expiresAt: string; ttlMs: number }
+  | { ok: false; code: "RATE_LIMITED"; retryAfterSeconds: number };
 
 export interface InviteDialogProps {
   open: boolean;
@@ -41,7 +38,9 @@ export function InviteDialog({ open, onOpenChange, action }: InviteDialogProps) 
     if (!open) setCopied(false);
   }, [open]);
 
-  const url = fetcher.data?.url;
+  const result = fetcher.data;
+  const url = result?.ok ? result.url : undefined;
+  const rateLimited = result && !result.ok && result.code === "RATE_LIMITED";
 
   async function handleCopy() {
     if (!url) return;
@@ -91,6 +90,10 @@ export function InviteDialog({ open, onOpenChange, action }: InviteDialogProps) 
             </div>
             <p className="text-meta text-pine-soft text-center">{t("invite.hint")}</p>
           </>
+        ) : rateLimited ? (
+          <p role="alert" className="text-body text-rust" aria-live="polite">
+            {t("invite.rateLimited")}
+          </p>
         ) : (
           <p className="text-body text-pine-soft" aria-live="polite">
             {t("invite.creating")}

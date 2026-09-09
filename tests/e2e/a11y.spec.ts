@@ -22,6 +22,11 @@ async function assertAllControlsLabeled(page: Page) {
     const controls = Array.from(document.querySelectorAll("input:not([type=hidden]), select, textarea"));
     return controls
       .filter((el) => {
+        // A control inside an aria-hidden ancestor (e.g. the anti-bot honeypot field in
+        // new.tsx) is never exposed to assistive tech at all, so it genuinely needs no
+        // accessible name — axe itself excludes aria-hidden nodes from this same check, which
+        // is why only this hand-rolled check needs to learn the same exemption.
+        if (el.closest('[aria-hidden="true"]')) return false;
         const hasAriaLabel = !!el.getAttribute("aria-label")?.trim();
         const hasAriaLabelledby = !!el.getAttribute("aria-labelledby")?.trim();
         const labels = (el as HTMLInputElement).labels;
@@ -65,6 +70,8 @@ test.describe("accessibility floor", () => {
     const participantInputs = page.locator('input[name="participant"]');
     await participantInputs.nth(0).fill("Ada");
     await participantInputs.nth(1).fill("Bo");
+    // Past the anti-bot minimum-time-on-page threshold (server/modules/auth/form-token.ts).
+    await page.waitForTimeout(1_600);
     await page.getByRole("button", { name: "Skapa grupp" }).click();
     await expect(page.getByText("Gruppen är skapad")).toBeVisible();
     const href = await page.getByRole("link", { name: "Till gruppen" }).getAttribute("href");

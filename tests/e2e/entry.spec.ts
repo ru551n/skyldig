@@ -20,6 +20,8 @@ test.describe("create a group", () => {
     await page.getByRole("button", { name: "Lägg till deltagare" }).click();
     await page.locator('input[name="participant"]').nth(2).fill("Anna");
 
+    // Past the anti-bot minimum-time-on-page threshold (server/modules/auth/form-token.ts).
+    await page.waitForTimeout(1_600);
     await page.getByRole("button", { name: "Skapa grupp" }).click();
 
     await expect(page.getByText("Gruppen är skapad")).toBeVisible();
@@ -69,6 +71,8 @@ test.describe("join a group", () => {
     const participantInputs = page.locator('input[name="participant"]');
     await participantInputs.nth(0).fill("Sara");
     await participantInputs.nth(1).fill("Nils");
+    // Past the anti-bot minimum-time-on-page threshold (server/modules/auth/form-token.ts).
+    await page.waitForTimeout(1_600);
     await page.getByRole("button", { name: "Skapa grupp" }).click();
     await expect(page.getByText("Gruppen är skapad")).toBeVisible();
 

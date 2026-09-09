@@ -7,7 +7,7 @@ import {
   rotateBrowserSession,
 } from "@server/modules/auth/browser-session.ts";
 import { resolveBrowserSession, withSetCookie } from "@server/modules/auth/session-auth.ts";
-import { limiters, clientKey } from "@server/modules/auth/rate-limit.ts";
+import { limiters, clientKey, checkThenGlobal } from "@server/modules/auth/rate-limit.ts";
 import { burnInvite, findRedeemableInvite } from "@server/modules/session/invite.ts";
 import { sessions } from "@server/db/schema.ts";
 import { eq } from "drizzle-orm";
@@ -67,10 +67,9 @@ export async function action({ request, params, context }: Route.ActionArgs) {
   const clientIp = context.get(requestContext)?.clientIp;
   const key = clientKey({ ip: clientIp, headers: headersOf(request) }, config);
 
-  const joinCheck = limiters.invite.check(key);
-  const globalCheck = limiters.inviteGlobal.check("global");
-  if (!joinCheck.allowed || !globalCheck.allowed) {
-    const retryAfterMs = Math.max(joinCheck.retryAfterMs, globalCheck.retryAfterMs);
+  const rateResult = checkThenGlobal(limiters.invite, limiters.inviteGlobal, key);
+  if (!rateResult.allowed) {
+    const retryAfterMs = rateResult.retryAfterMs;
     await enforceResponseFloor(startedAt);
     return data<RedeemFailure>(
       {
