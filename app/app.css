@@ -1,20 +1,104 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
-  --color-brand-50: #eef2ff;
-  --color-brand-500: #6366f1;
-  --color-brand-600: #4f46e5;
-  --color-brand-900: #312e81;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
+  --font-sans:
+    "Familjen Grotesk Variable", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
+    "Segoe UI Emoji";
+
+  /* Colors — see docs/design.md "Tokens" */
+  --color-frost: #f2f5f4;
+  --color-paper: #ffffff;
+  --color-pine: #0f2a24;
+  --color-pine-soft: #5b6e69;
+  --color-sol: #ffd23f;
+  --color-moss: #1d8a4e;
+  --color-rust: #d4462a;
+  --color-line: rgb(15 42 36 / 0.12);
+
+  /* Radius hierarchy */
+  --radius-row: 20px;
+  --radius-card: 14px;
+  --radius-control: 10px;
+  --radius-chip: 999px;
+
+  /* Type scale (rem) */
+  --text-meta: 0.8125rem;
+  --text-meta--line-height: 1.5;
+  --text-body: 0.9375rem;
+  --text-body--line-height: 1.5;
+  --text-lead: 1.125rem;
+  --text-lead--line-height: 1.5;
+  --text-h2: 1.5rem;
+  --text-h2--line-height: 1.15;
+  --text-h1: 2rem;
+  --text-h1--line-height: 1.15;
+  --text-money-hero: 3rem;
+  --text-money-hero--line-height: 1.15;
+
+  /* Spacing scale */
+  --spacing-4: 4px;
+  --spacing-8: 8px;
+  --spacing-12: 12px;
+  --spacing-16: 16px;
+  --spacing-24: 24px;
+  --spacing-32: 32px;
+  --spacing-48: 48px;
 }
 
-html,
-body {
-  @apply bg-white text-gray-900 dark:bg-gray-950 dark:text-gray-100;
+html {
+  background: var(--color-frost);
+  color: var(--color-pine);
+}
 
-  @media (prefers-color-scheme: dark) {
-    color-scheme: dark;
+body {
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.15;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-pine);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 8px;
+  z-index: 100;
+  background: var(--color-paper);
+  color: var(--color-pine);
+  padding: 8px 16px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--color-line);
+  font-weight: 600;
+  transition: top 0.15s ease-out;
+}
+
+.skip-link:focus {
+  top: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
   }
 }

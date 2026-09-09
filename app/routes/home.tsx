@@ -12,7 +12,7 @@ export default function Home() {
   return (
     <main className="container mx-auto flex min-h-screen flex-col items-center justify-center gap-4 p-4 text-center">
       <h1 className="text-4xl font-bold">{t("appName")}</h1>
-      <p className="text-gray-600 dark:text-gray-400">{t("home.placeholder")}</p>
+      <p className="text-gray-600 dark:text-gray-400">{t("landing.lead")}</p>
     </main>
   );
 }
