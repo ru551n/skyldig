@@ -36,6 +36,13 @@
       "when": 1788991260335,
       "tag": "0004_invite_access_generation",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788992220513,
+      "tag": "0005_admin_elevation_ttl",
+      "breakpoints": true
     }
   ]
 }

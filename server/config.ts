@@ -20,6 +20,7 @@ const envSchema = z.object({
     .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
     .default("info"),
   FX_RATE_LOOKUP_ENABLED: z.enum(["true", "false"]).default("true"),
+  ADMIN_ELEVATION_TTL_MINUTES: z.coerce.number().int().min(1).max(1440).default(30),
 });
 
 function parseEnv(env: NodeJS.ProcessEnv) {
@@ -73,6 +74,14 @@ export const config = {
    * manual rate entry always works either way (see docs/architecture.md §5.1).
    */
   fxRateLookupEnabled: parsed.FX_RATE_LOOKUP_ENABLED === "true",
+  /**
+   * How long an admin elevation (admin key entered on `/s/:sid/admin`, or the initial grant
+   * to the group's creator) stays effective, in milliseconds. Elevation is time-boxed and
+   * independent of membership: once it lapses the browser session is a plain member again
+   * and must re-enter the admin key (see docs/architecture.md §4.3). 1–1440 minutes,
+   * default 30.
+   */
+  adminElevationTtlMs: parsed.ADMIN_ELEVATION_TTL_MINUTES * 60 * 1000,
 } as const;
 
 export type Config = typeof config;

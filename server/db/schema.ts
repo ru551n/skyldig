@@ -263,6 +263,13 @@ export const sessionGrants = pgTable(
       .notNull()
       .references(() => sessions.id, { onDelete: "cascade" }),
     role: text("role").notNull(),
+    /**
+     * When the 'admin' role stops being effective. Set on every elevation (now + TTL); a grant
+     * with role 'admin' whose admin_until is NULL or not in the future is treated as a plain
+     * member by `isActiveAdmin` — the row (membership) is kept. NULL only occurs on rows
+     * elevated before this column existed.
+     */
+    adminUntil: timestamp("admin_until", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     lastUsedAt: timestamp("last_used_at", { withTimezone: true }).notNull().defaultNow(),
   },
