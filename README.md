@@ -281,6 +281,27 @@ Logs are structured JSON (pino), pretty-printed in development, and already reda
 authorization headers, and any field named `phrase`, `adminKey`, `token`, or `password`. Ship them
 to your normal log pipeline; nothing else in the app writes credentials to stdout.
 
+### Publishing a release image
+
+`.github/workflows/docker-release.yml` builds the production image (`linux/amd64` and
+`linux/arm64`) and pushes it to Docker Hub as `ru551n/skyldig` whenever a GitHub Release is
+published. A release tagged `v1.4.2` produces the image tags `1.4.2`, `1.4`, `1`, `latest`,
+and `sha-<short commit>`; a pre-release tag produces only the exact-version and `sha-` tags,
+never `latest`. It can also be run by hand from the Actions tab (`workflow_dispatch`) to
+republish an existing tag, e.g. after a registry outage.
+
+The workflow needs two repository secrets, under Settings → Secrets and variables → Actions:
+
+| Secret | Value |
+|---|---|
+| `DOCKERHUB_USERNAME` | `ru551n` |
+| `DOCKERHUB_TOKEN` | A Docker Hub [access token](https://docs.docker.com/security/for-developers/access-tokens/) with read/write scope, not the account password |
+
+This workflow has not been run, since publishing a release is a repository-owner action; the
+Dockerfile itself has been reviewed and its runtime file set verified to boot (see Status
+above), but the actual `docker buildx build --platform linux/amd64,linux/arm64` has not been
+executed on this machine, which has no Docker installed.
+
 ## License
 
 MIT. See `LICENSE`.

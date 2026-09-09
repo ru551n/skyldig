@@ -61,6 +61,13 @@ the `depends_on: condition: service_healthy` timing between the two containers.
 Do this first on any machine that has Docker. It is the only part of the definition of done
 that rests on reading rather than running.
 
+There is now also `.github/workflows/docker-release.yml`, which builds and pushes the image
+to Docker Hub as `ru551n/skyldig` on every published GitHub Release. It has never run either
+— it needs the `DOCKERHUB_USERNAME`/`DOCKERHUB_TOKEN` repository secrets set (see the README
+"Publishing a release image" section) and a real release to trigger it. Cutting a real
+release, even a `v0.0.1` pre-release, is the fastest way to verify both this workflow and the
+image build together.
+
 ## Style sources still allow inline CSS
 
 The Content Security Policy is nonce-based for scripts, but `style-src` includes
