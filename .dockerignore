@@ -1,0 +1,12 @@
+node_modules
+build
+.react-router
+.pg-embedded
+coverage
+playwright-report
+test-results
+.git
+.env
+.env.*.local
+README.md
+docs

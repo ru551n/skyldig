@@ -1,0 +1,20 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  --color-brand-50: #eef2ff;
+  --color-brand-500: #6366f1;
+  --color-brand-600: #4f46e5;
+  --color-brand-900: #312e81;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+}
+
+html,
+body {
+  @apply bg-white text-gray-900 dark:bg-gray-950 dark:text-gray-100;
+
+  @media (prefers-color-scheme: dark) {
+    color-scheme: dark;
+  }
+}

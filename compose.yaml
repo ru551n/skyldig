@@ -1,0 +1,31 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-skyldig}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-skyldig}
+      POSTGRES_DB: ${POSTGRES_DB:-skyldig}
+    volumes:
+      - skyldig-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  app:
+    build: .
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-skyldig}:${POSTGRES_PASSWORD:-skyldig}@db:5432/${POSTGRES_DB:-skyldig}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${PORT:-3000}:3000"
+    restart: unless-stopped
+
+volumes:
+  skyldig-pgdata:

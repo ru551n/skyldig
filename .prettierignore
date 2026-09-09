@@ -1,0 +1,8 @@
+build
+.react-router
+drizzle
+node_modules
+.pg-embedded
+coverage
+playwright-report
+pnpm-lock.yaml
