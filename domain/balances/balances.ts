@@ -1,4 +1,5 @@
 import { DomainError } from "../errors.ts";
+import { assertNoDuplicateIds } from "../split/split.ts";
 
 /** An expense, already converted to base currency, with its per-participant shares. */
 export interface ExpenseForBalance {
@@ -36,31 +37,44 @@ function ensureKnown(participantIds: Set<string>, id: string, context: string): 
  *
  * Participants with no activity get all-zero balances. Any expense share or
  * payment referencing a participant id not present in `participantIds`
- * throws. Asserts (and returns only if) the total balance across all
- * participants is exactly zero.
+ * throws, as does a duplicate id in `participantIds`
+ * (`DUPLICATE_PARTICIPANT`) or an expense whose shares don't sum to its
+ * `baseAmountMinor` (`EXPENSE_SHARES_MISMATCH`). Asserts (and returns only
+ * if) the total balance across all participants is exactly zero.
  */
 export function computeBalances(
   participantIds: string[],
   expenses: ExpenseForBalance[],
   payments: PaymentForBalance[],
 ): Map<string, ParticipantBalance> {
+  assertNoDuplicateIds(participantIds);
+
   const known = new Set(participantIds);
   const balances = new Map<string, ParticipantBalance>();
   for (const id of participantIds) {
     balances.set(id, { participantId: id, paid: 0n, share: 0n, repaid: 0n, received: 0n, net: 0n });
   }
 
-  for (const expense of expenses) {
+  expenses.forEach((expense, index) => {
     ensureKnown(known, expense.payerId, "an expense payer");
     const payerBalance = balances.get(expense.payerId)!;
     payerBalance.paid += expense.baseAmountMinor;
 
+    let shareSum = 0n;
     for (const s of expense.shares) {
       ensureKnown(known, s.participantId, "an expense share");
       const shareBalance = balances.get(s.participantId)!;
       shareBalance.share += s.shareBaseMinor;
+      shareSum += s.shareBaseMinor;
     }
-  }
+
+    if (shareSum !== expense.baseAmountMinor) {
+      throw new DomainError(
+        "EXPENSE_SHARES_MISMATCH",
+        `Expense ${index} (payer "${expense.payerId}"): shares sum to ${shareSum}, expected ${expense.baseAmountMinor}`,
+      );
+    }
+  });
 
   for (const payment of payments) {
     ensureKnown(known, payment.payerId, "a payment payer");

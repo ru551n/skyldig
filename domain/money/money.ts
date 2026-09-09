@@ -1,5 +1,6 @@
 import { getCurrencyDecimals, type CurrencyCode, type CurrencyDecimals } from "../currency/registry.ts";
 import { DomainError } from "../errors.ts";
+import { MAX_AMOUNT_MINOR } from "./constants.ts";
 
 /** A monetary amount as integer minor units plus its currency. */
 export interface Money {
@@ -8,7 +9,7 @@ export interface Money {
 }
 
 /** Hard cap on any amount_minor value, kept within Postgres int8 range with headroom. */
-export const MAX_AMOUNT_MINOR = 1_000_000_000_000_000n;
+export { MAX_AMOUNT_MINOR };
 
 /**
  * Whitespace accepted as thousands separators or padding: the regular
@@ -62,13 +63,22 @@ export function parseAmount(input: string, currency: CurrencyCode): bigint {
   let normalized: string;
   if (commaPositions.length > 0 && dotPositions.length > 0) {
     const decimalIndex = Math.max(commaPositions[commaPositions.length - 1]!, dotPositions[dotPositions.length - 1]!);
-    let intPart = "";
-    for (let i = 0; i < decimalIndex; i++) {
-      const c = stripped[i]!;
-      if (c === "," || c === ".") continue;
-      intPart += c;
-    }
+    const decimalChar = stripped[decimalIndex]!;
+    const groupChar = decimalChar === "," ? "." : ",";
+    const prefix = stripped.slice(0, decimalIndex);
     const fracPart = stripped.slice(decimalIndex + 1);
+
+    // The decimal separator must occur exactly once (as the char at
+    // decimalIndex); if it also appears earlier in the prefix, the
+    // character was used inconsistently as both a group and a decimal
+    // separator (e.g. "1,2.34,5"), which is malformed.
+    if (prefix.includes(decimalChar) || !/^[0-9]+$/.test(fracPart)) {
+      throw new DomainError("INVALID_AMOUNT", `Invalid amount: ${input}`);
+    }
+    if (!isValidGrouping(prefix, groupChar)) {
+      throw new DomainError("INVALID_AMOUNT", `Invalid amount: ${input}`);
+    }
+    const intPart = prefix.split(groupChar).join("");
     normalized = `${intPart}.${fracPart}`;
   } else if (commaPositions.length === 0 && dotPositions.length === 0) {
     normalized = stripped;
@@ -79,6 +89,9 @@ export function parseAmount(input: string, currency: CurrencyCode): bigint {
       const idx = positions[0]!;
       normalized = `${stripped.slice(0, idx)}.${stripped.slice(idx + 1)}`;
     } else {
+      if (!isValidGrouping(stripped, sepChar)) {
+        throw new DomainError("INVALID_AMOUNT", `Invalid amount: ${input}`);
+      }
       normalized = stripped.split(sepChar).join("");
     }
   }
@@ -104,6 +117,22 @@ export function parseAmount(input: string, currency: CurrencyCode): bigint {
     throw new DomainError("AMOUNT_TOO_LARGE", `Amount exceeds maximum of ${MAX_AMOUNT_MINOR}`);
   }
   return amountMinor;
+}
+
+/**
+ * Validates that `str`, split on `groupChar` (a thousands separator),
+ * forms a sane grouping: no empty groups (rules out adjacent, leading, or
+ * trailing separators), a first group of 1-3 digits, and every subsequent
+ * group of exactly 3 digits.
+ */
+function isValidGrouping(str: string, groupChar: string): boolean {
+  const groups = str.split(groupChar);
+  if (groups.some((g) => g.length === 0)) return false;
+  if (!/^[0-9]{1,3}$/.test(groups[0]!)) return false;
+  for (let i = 1; i < groups.length; i++) {
+    if (!/^[0-9]{3}$/.test(groups[i]!)) return false;
+  }
+  return true;
 }
 
 function allIndicesOf(s: string, char: string): number[] {

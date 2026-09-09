@@ -133,6 +133,37 @@ describe("settle", () => {
     expect(settle(shuffled)).toEqual(settle(nets));
   });
 
+  it("rejects duplicate participant ids", () => {
+    const nets: NetPosition[] = [
+      { participantId: "a", position: 0, net: -100n },
+      { participantId: "a", position: 1, net: 100n },
+    ];
+    expectDomainError(() => settle(nets), "DUPLICATE_PARTICIPANT");
+  });
+
+  it("applyTransfers rejects duplicate participant ids", () => {
+    const nets: NetPosition[] = [
+      { participantId: "a", position: 0, net: -100n },
+      { participantId: "a", position: 1, net: 100n },
+    ];
+    expectDomainError(() => applyTransfers(nets, []), "DUPLICATE_PARTICIPANT");
+  });
+
+  it("is deterministic when two participants share a position, regardless of input order", () => {
+    const netsOrderA: NetPosition[] = [
+      { participantId: "B", position: 0, net: 50n },
+      { participantId: "A", position: 0, net: -50n },
+    ];
+    const netsOrderB: NetPosition[] = [
+      { participantId: "A", position: 0, net: -50n },
+      { participantId: "B", position: 0, net: 50n },
+    ];
+    const resultA = settle(netsOrderA);
+    const resultB = settle(netsOrderB);
+    expect(resultA).toEqual(resultB);
+    expect(resultA).toEqual([{ from: "A", to: "B", amountMinor: 50n }]);
+  });
+
   it("property: 500 random zero-sum vectors (n <= 20) fully settle deterministically", () => {
     const rand = mulberry32(99);
     for (let scenario = 0; scenario < 500; scenario++) {

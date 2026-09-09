@@ -138,6 +138,31 @@ describe("splitAmount", () => {
     }
   });
 
+  it("rejects duplicate participant ids", () => {
+    expectDomainError(
+      () =>
+        splitAmount(4n, [
+          { id: "a", position: 0 },
+          { id: "a", position: 1 },
+          { id: "b", position: 2 },
+        ]),
+      "DUPLICATE_PARTICIPANT",
+    );
+  });
+
+  it("sums to total exactly with extreme weight disparity (1 vs 10^18), all shares >= 0", () => {
+    const participants: SplitParticipant[] = [
+      { id: "a", position: 0, weight: 1n },
+      { id: "b", position: 1, weight: 10n ** 18n },
+      { id: "c", position: 2, weight: 1n },
+    ];
+    const total = 1_000_000n;
+    const shares = splitAmount(total, participants);
+    const sum = shares.reduce((acc, s) => acc + s.share, 0n);
+    expect(sum).toBe(total);
+    for (const s of shares) expect(s.share >= 0n).toBe(true);
+  });
+
   it("sums to total over 1000 random cases with random weights", () => {
     const rand = mulberry32(7);
     for (let i = 0; i < 1000; i++) {

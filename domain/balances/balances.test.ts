@@ -105,6 +105,24 @@ describe("computeBalances", () => {
     expectDomainError(() => computeBalances(["a"], [], payments), "INVALID_AMOUNT");
   });
 
+  it("throws EXPENSE_SHARES_MISMATCH when an expense's shares don't sum to its base amount", () => {
+    const expenses: ExpenseForBalance[] = [
+      {
+        payerId: "a",
+        baseAmountMinor: 100n,
+        shares: [
+          { participantId: "a", shareBaseMinor: 40n },
+          { participantId: "b", shareBaseMinor: 50n },
+        ],
+      },
+    ];
+    expectDomainError(() => computeBalances(["a", "b"], expenses, []), "EXPENSE_SHARES_MISMATCH");
+  });
+
+  it("rejects duplicate participant ids in the participant list", () => {
+    expectDomainError(() => computeBalances(["a", "a", "b"], [], []), "DUPLICATE_PARTICIPANT");
+  });
+
   it("end-to-end: 500 random mixed-currency sessions always sum to zero net", () => {
     const rand = mulberry32(1234);
     const baseCurrency = "SEK";

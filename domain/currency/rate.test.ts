@@ -109,4 +109,16 @@ describe("convertToBase", () => {
       }
     }
   });
+
+  it("throws AMOUNT_TOO_LARGE when the converted result exceeds MAX_AMOUNT_MINOR", () => {
+    const rate = parseRate("1000000000", "base_per_unit");
+    const money: Money = { amountMinor: 10n ** 15n, currency: "JPY" };
+    expectDomainError(() => convertToBase(money, "KWD", rate), "AMOUNT_TOO_LARGE");
+  });
+
+  it("throws INVALID_AMOUNT for a non-positive amountMinor", () => {
+    const rate = parseRate("5", "base_per_unit");
+    expectDomainError(() => convertToBase({ amountMinor: -1000n, currency: "EUR" }, "SEK", rate), "INVALID_AMOUNT");
+    expectDomainError(() => convertToBase({ amountMinor: 0n, currency: "EUR" }, "SEK", rate), "INVALID_AMOUNT");
+  });
 });

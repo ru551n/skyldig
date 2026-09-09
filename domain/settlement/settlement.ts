@@ -1,4 +1,5 @@
 import { DomainError } from "../errors.ts";
+import { assertNoDuplicateIds } from "../split/split.ts";
 
 /** A participant's net balance to be settled (positive = owed money). */
 export interface NetPosition {
@@ -20,12 +21,29 @@ interface Node {
   amount: bigint; // always positive: |debt| for debtors, credit for creditors
 }
 
-/** Sorts in place: largest amount first, ties broken by position ascending. */
+/**
+ * Sorts in place: largest amount first, ties broken by position ascending,
+ * then by participantId ascending (final tie-break so the plan is
+ * deterministic even when two participants share a position).
+ */
 function sortDesc(nodes: Node[]): void {
   nodes.sort((a, b) => {
     if (a.amount !== b.amount) return a.amount > b.amount ? -1 : 1;
-    return a.position - b.position;
+    if (a.position !== b.position) return a.position - b.position;
+    return a.participantId < b.participantId ? -1 : a.participantId > b.participantId ? 1 : 0;
   });
+}
+
+/**
+ * Builds a `Transfer`, defensively rejecting a self-transfer (`from === to`)
+ * with `SELF_TRANSFER`. This should be unreachable given `settle`'s upfront
+ * `DUPLICATE_PARTICIPANT` check, but guards against future refactors.
+ */
+function makeTransfer(from: string, to: string, amountMinor: bigint): Transfer {
+  if (from === to) {
+    throw new DomainError("SELF_TRANSFER", `Refusing to emit a transfer from ${from} to itself`);
+  }
+  return { from, to, amountMinor };
 }
 
 /**
@@ -45,6 +63,8 @@ function sortDesc(nodes: Node[]): void {
  * Output order is the order transfers were produced in.
  */
 export function settle(nets: NetPosition[]): Transfer[] {
+  assertNoDuplicateIds(nets.map((n) => n.participantId));
+
   const sum = nets.reduce((acc, n) => acc + n.net, 0n);
   if (sum !== 0n) {
     throw new DomainError("UNBALANCED", `Net positions do not sum to zero (sum = ${sum})`);
@@ -70,7 +90,7 @@ export function settle(nets: NetPosition[]): Transfer[] {
       const creditorIndex = creditors.findIndex((c) => c.amount === debtor.amount);
       if (creditorIndex === -1) continue;
       const creditor = creditors[creditorIndex]!;
-      transfers.push({ from: debtor.participantId, to: creditor.participantId, amountMinor: debtor.amount });
+      transfers.push(makeTransfer(debtor.participantId, creditor.participantId, debtor.amount));
       debtors.splice(i, 1);
       creditors.splice(creditorIndex, 1);
       changed = true;
@@ -85,7 +105,7 @@ export function settle(nets: NetPosition[]): Transfer[] {
     const debtor = debtors[0]!;
     const creditor = creditors[0]!;
     const amount = debtor.amount < creditor.amount ? debtor.amount : creditor.amount;
-    transfers.push({ from: debtor.participantId, to: creditor.participantId, amountMinor: amount });
+    transfers.push(makeTransfer(debtor.participantId, creditor.participantId, amount));
     debtor.amount -= amount;
     creditor.amount -= amount;
     if (debtor.amount === 0n) debtors.splice(0, 1);
@@ -101,6 +121,8 @@ export function settle(nets: NetPosition[]): Transfer[] {
  * net (increasing it, toward/past zero) to `to`'s net (decreasing it).
  */
 export function applyTransfers(nets: NetPosition[], transfers: Transfer[]): NetPosition[] {
+  assertNoDuplicateIds(nets.map((n) => n.participantId));
+
   const result = nets.map((n) => ({ ...n }));
   const byId = new Map(result.map((n) => [n.participantId, n]));
   for (const t of transfers) {

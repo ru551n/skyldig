@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { DomainError } from "../errors.ts";
-import { getCurrencyDecimals, isKnownCurrency, listCurrencies } from "./registry.ts";
+import { getCurrencyDecimals, getCurrencyName, isKnownCurrency, listCurrencies } from "./registry.ts";
 
 describe("getCurrencyDecimals", () => {
   it("returns 2 for common currencies", () => {
@@ -31,6 +31,29 @@ describe("getCurrencyDecimals", () => {
       expect(err).toBeInstanceOf(DomainError);
       expect((err as DomainError).code).toBe("UNKNOWN_CURRENCY");
     }
+  });
+
+  it("throws UNKNOWN_CURRENCY for prototype-inherited keys, not the prototype's value", () => {
+    for (const code of ["constructor", "toString", "__proto__"]) {
+      try {
+        getCurrencyDecimals(code);
+        expect.unreachable(`expected ${code} to throw`);
+      } catch (err) {
+        expect(err).toBeInstanceOf(DomainError);
+        expect((err as DomainError).code).toBe("UNKNOWN_CURRENCY");
+      }
+    }
+  });
+});
+
+describe("getCurrencyName", () => {
+  it("returns the Swedish name for known currencies", () => {
+    expect(getCurrencyName("SEK")).toBe("Svenska kronor");
+    expect(getCurrencyName("EUR")).toBe("Euro");
+  });
+
+  it("throws UNKNOWN_CURRENCY for unknown codes", () => {
+    expect(() => getCurrencyName("XXX")).toThrow(DomainError);
   });
 });
 
@@ -62,5 +85,15 @@ describe("listCurrencies", () => {
   it("has no duplicate codes", () => {
     const codes = listCurrencies().map((c) => c.code);
     expect(new Set(codes).size).toBe(codes.length);
+  });
+
+  it("includes a Swedish name for each entry", () => {
+    const list = listCurrencies();
+    const sek = list.find((c) => c.code === "SEK");
+    expect(sek?.name).toBe("Svenska kronor");
+    for (const c of list) {
+      expect(typeof c.name).toBe("string");
+      expect(c.name.length).toBeGreaterThan(0);
+    }
   });
 });

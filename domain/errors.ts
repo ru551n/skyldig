@@ -12,7 +12,9 @@ export type DomainErrorCode =
   | "INVALID_RATE"
   | "EMPTY_SPLIT"
   | "UNBALANCED"
-  | "SELF_TRANSFER";
+  | "SELF_TRANSFER"
+  | "DUPLICATE_PARTICIPANT"
+  | "EXPENSE_SHARES_MISMATCH";
 
 /** Error thrown by the domain layer for any validation or invariant failure. */
 export class DomainError extends Error {

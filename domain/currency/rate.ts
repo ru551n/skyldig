@@ -1,5 +1,6 @@
 import { getCurrencyDecimals, type CurrencyCode } from "./registry.ts";
 import { DomainError } from "../errors.ts";
+import { MAX_AMOUNT_MINOR } from "../money/constants.ts";
 import type { Money } from "../money/money.ts";
 
 /**
@@ -87,11 +88,16 @@ export function parseRate(text: string, direction: RateDirection): ExchangeRate 
  * `result = floor((2*num + den) / (2*den))` — i.e. round half away from
  * zero, valid because all inputs are positive.
  *
- * Throws `AMOUNT_TOO_SMALL_IN_BASE` if the result rounds to 0, and
+ * Throws `INVALID_AMOUNT` if `money.amountMinor` is not positive,
+ * `AMOUNT_TOO_SMALL_IN_BASE` if the result rounds to 0,
+ * `AMOUNT_TOO_LARGE` if the result exceeds `MAX_AMOUNT_MINOR`, and
  * `INVALID_RATE` if a conversion between different currencies is attempted
  * without a rate.
  */
 export function convertToBase(money: Money, baseCurrency: CurrencyCode, rate?: ExchangeRate): bigint {
+  if (money.amountMinor <= 0n) {
+    throw new DomainError("INVALID_AMOUNT", "Amount to convert must be positive");
+  }
   if (money.currency === baseCurrency) {
     return money.amountMinor;
   }
@@ -109,6 +115,9 @@ export function convertToBase(money: Money, baseCurrency: CurrencyCode, rate?: E
 
   if (result === 0n) {
     throw new DomainError("AMOUNT_TOO_SMALL_IN_BASE", "Converted amount rounds to zero in the base currency");
+  }
+  if (result > MAX_AMOUNT_MINOR) {
+    throw new DomainError("AMOUNT_TOO_LARGE", `Converted amount exceeds maximum of ${MAX_AMOUNT_MINOR}`);
   }
   return result;
 }

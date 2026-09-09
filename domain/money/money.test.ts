@@ -91,6 +91,49 @@ describe("parseAmount", () => {
   it("throws UNKNOWN_CURRENCY for an unknown currency", () => {
     expectDomainError(() => parseAmount("1.00", "XXX"), "UNKNOWN_CURRENCY");
   });
+
+  it("throws UNKNOWN_CURRENCY for prototype-inherited keys instead of returning garbage", () => {
+    expectDomainError(() => parseAmount("1,5", "constructor"), "UNKNOWN_CURRENCY");
+  });
+
+  it("rejects malformed separator runs", () => {
+    expectDomainError(() => parseAmount("1,,5", "SEK"), "INVALID_AMOUNT");
+    expectDomainError(() => parseAmount("1..2", "SEK"), "INVALID_AMOUNT");
+    expectDomainError(() => parseAmount("1,2.34,5", "SEK"), "INVALID_AMOUNT");
+  });
+
+  it("rejects a leading separator", () => {
+    expectDomainError(() => parseAmount(",50", "SEK"), "INVALID_AMOUNT");
+  });
+
+  it("rejects a trailing separator", () => {
+    expectDomainError(() => parseAmount("1.", "SEK"), "INVALID_AMOUNT");
+  });
+
+  it("rejects a leading plus sign", () => {
+    expectDomainError(() => parseAmount("+5", "SEK"), "INVALID_AMOUNT");
+  });
+
+  it("rejects exponential notation", () => {
+    expectDomainError(() => parseAmount("1e5", "SEK"), "INVALID_AMOUNT");
+  });
+
+  it("rejects full-width digits (not treated as digits)", () => {
+    // Documented decision: full-width (fullwidth Unicode) digits are rejected,
+    // not normalized to ASCII digits.
+    expectDomainError(() => parseAmount("１２", "SEK"), "INVALID_AMOUNT");
+  });
+
+  it("still accepts valid single- and multi-separator forms", () => {
+    expect(parseAmount("1 234,56", "SEK")).toBe(123456n);
+    expect(parseAmount("1.234,56", "SEK")).toBe(123456n);
+    expect(parseAmount("1,234.56", "SEK")).toBe(123456n);
+    expect(parseAmount("1234.56", "SEK")).toBe(123456n);
+    expect(parseAmount("1234", "SEK")).toBe(123400n);
+    expect(parseAmount("12,5", "SEK")).toBe(1250n);
+    expect(parseAmount("0,5", "SEK")).toBe(50n);
+    expect(parseAmount("1234,5", "SEK")).toBe(123450n);
+  });
 });
 
 describe("formatMinorAsDecimal", () => {
