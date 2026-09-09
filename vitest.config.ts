@@ -19,7 +19,7 @@ export default defineConfig({
         test: {
           name: "unit",
           environment: "node",
-          include: ["domain/**/*.test.ts", "server/**/*.test.ts"],
+          include: ["domain/**/*.test.ts", "server/**/*.test.ts", "app/**/*.test.ts"],
           exclude: ["tests/integration/**", "node_modules/**"],
         },
       },

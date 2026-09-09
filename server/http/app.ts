@@ -14,6 +14,7 @@ import { startCleanupScheduler } from "../modules/expiration/cleanup.ts";
 import { phraseEntropyBits } from "../modules/session/phrase.ts";
 import { assignCspNonce, buildSecurityMiddleware } from "./security.ts";
 import { sanitizeRequestId } from "./request-id.ts";
+import { resolveLocale } from "../modules/i18n/locale-cookie.ts";
 
 export const app = express();
 
@@ -146,6 +147,7 @@ app.use(
         logger,
         clientIp: req.ip,
         cspNonce: (res.locals.cspNonce as string | undefined) ?? "",
+        locale: resolveLocale(req.headers.cookie, req.headers["accept-language"]),
       });
       return context;
     },

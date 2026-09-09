@@ -5,7 +5,7 @@ import {
   type ChangeLine,
 } from "~/components/expense/historyDiff.ts";
 import { formatExpiryLong } from "~/lib/format.ts";
-import { useT } from "~/i18n";
+import { toIntlLocale, useLocale, useT } from "~/i18n";
 
 export interface PaymentSnapshot {
   publicId: string;
@@ -39,6 +39,7 @@ function fieldChanges(
     date: string;
     note: string;
   },
+  intlLocale: string,
 ): ChangeLine[] {
   const changes: ChangeLine[] = [];
   const push = (c: ChangeLine | null) => {
@@ -47,8 +48,8 @@ function fieldChanges(
   push(
     diffField(
       labels.amount,
-      prev ? money(prev.amountMinor, prev.currencyCode) : "",
-      money(cur.amountMinor, cur.currencyCode),
+      prev ? money(prev.amountMinor, prev.currencyCode, intlLocale) : "",
+      money(cur.amountMinor, cur.currencyCode, intlLocale),
     ),
   );
   push(diffField(labels.currency, prev?.currencyCode ?? "", cur.currencyCode));
@@ -73,6 +74,8 @@ export interface RevisionHistoryProps {
 /** Chronological revision history with a field-level diff per entry, for the payment detail page. */
 export function RevisionHistory({ revisions }: RevisionHistoryProps) {
   const t = useT();
+  const locale = useLocale();
+  const intlLocale = toIntlLocale(locale);
 
   if (revisions.length === 0) {
     return <p className="text-body text-pine-soft">{t("payment.historyEmpty")}</p>;
@@ -93,7 +96,7 @@ export function RevisionHistory({ revisions }: RevisionHistoryProps) {
       {revisions.map((rev, i) => {
         const cur = rev.snapshot as PaymentSnapshot;
         const prev = i > 0 ? (revisions[i - 1]!.snapshot as PaymentSnapshot) : undefined;
-        const changes = rev.action === "updated" ? fieldChanges(prev, cur, labels) : [];
+        const changes = rev.action === "updated" ? fieldChanges(prev, cur, labels, intlLocale) : [];
         const actionLabel =
           rev.action === "created"
             ? t("common.created")
@@ -105,7 +108,7 @@ export function RevisionHistory({ revisions }: RevisionHistoryProps) {
           <li key={rev.revisionNo} className="rounded-card border-line bg-paper border p-3">
             <div className="flex items-center justify-between gap-2">
               <span className="text-body text-pine font-medium">{actionLabel}</span>
-              <span className="text-meta text-pine-soft">{formatExpiryLong(rev.createdAt)}</span>
+              <span className="text-meta text-pine-soft">{formatExpiryLong(rev.createdAt, intlLocale)}</span>
             </div>
             {changes.length > 0 && (
               <ul className="text-meta text-pine-soft mt-2 flex flex-col gap-1">

@@ -6,6 +6,7 @@ export default [
   route("join", "routes/join.tsx"),
   route("guide", "routes/guide.tsx"),
   route("i/:iid", "routes/invite.tsx"),
+  route("lang", "routes/set-locale.tsx"),
 
   ...prefix("s/:sid", [
     layout("routes/session/layout.tsx", [

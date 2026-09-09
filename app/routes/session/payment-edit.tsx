@@ -23,7 +23,7 @@ import {
   toActionError,
   type ActionError,
 } from "~/lib/session-context.server.ts";
-import { useT } from "~/i18n";
+import { toIntlLocale, useLocale, useT } from "~/i18n";
 
 import type { Route } from "./+types/payment-edit";
 
@@ -133,6 +133,7 @@ function errorMessage(t: ReturnType<typeof useT>, code: string): string {
 
 function ConflictBanner({ current }: { current: PaymentDto }) {
   const t = useT();
+  const locale = useLocale();
   return (
     <div
       role="alert"
@@ -143,7 +144,7 @@ function ConflictBanner({ current }: { current: PaymentDto }) {
       <dl className="text-meta text-pine flex flex-col gap-1">
         <div className="flex justify-between">
           <dt>{t("expense.fieldAmount")}</dt>
-          <dd>{formatMoney(BigInt(current.amountMinor), current.currencyCode)}</dd>
+          <dd>{formatMoney(BigInt(current.amountMinor), current.currencyCode, toIntlLocale(locale))}</dd>
         </div>
         <div className="flex justify-between">
           <dt>{t("payment.fieldPayer")}</dt>

@@ -1,4 +1,5 @@
 import "@fontsource-variable/familjen-grotesk";
+import { useContext } from "react";
 import { MotionConfig } from "motion/react";
 import {
   isRouteErrorResponse,
@@ -8,9 +9,12 @@ import {
   Scripts,
   ScrollRestoration,
   useRouteLoaderData,
+  type LinksFunction,
 } from "react-router";
 
 import { requestContext } from "~/context.ts";
+import { LocaleContext } from "~/i18n/LocaleContext.ts";
+import { t, type Locale } from "~/i18n/index.ts";
 
 import { ToastProvider } from "./components/ui/index.ts";
 
@@ -18,15 +22,25 @@ import type { Route } from "./+types/root";
 import "./app.css";
 
 export function loader({ context }: Route.LoaderArgs) {
-  return { cspNonce: context.get(requestContext)?.cspNonce ?? "" };
+  const ctx = context.get(requestContext);
+  return { cspNonce: ctx?.cspNonce ?? "", locale: ctx?.locale ?? ("sv" as Locale) };
 }
+
+export const links: LinksFunction = () => {
+  return [
+    { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+    { rel: "icon", href: "/favicon-32x32.png", type: "image/png", sizes: "32x32" },
+    { rel: "apple-touch-icon", href: "/apple-touch-icon.png", sizes: "180x180" },
+  ];
+};
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const data = useRouteLoaderData<typeof loader>("root");
   const nonce = data?.cspNonce;
+  const locale = data?.locale ?? "sv";
 
   return (
-    <html lang="sv">
+    <html lang={locale}>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -36,10 +50,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </head>
       <body>
         <a href="#main" className="skip-link">
-          Hoppa till innehållet
+          {t(locale, "common.skipToContent")}
         </a>
         <MotionConfig reducedMotion="user">
-          <ToastProvider>{children}</ToastProvider>
+          <LocaleContext.Provider value={locale}>
+            <ToastProvider>{children}</ToastProvider>
+          </LocaleContext.Provider>
         </MotionConfig>
         <ScrollRestoration nonce={nonce} />
         <Scripts nonce={nonce} />
@@ -53,16 +69,17 @@ export default function App() {
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
-  let message = "Något gick fel";
-  let details = "Ett oväntat fel inträffade. Ladda om sidan och försök igen.";
+  const locale = useContext(LocaleContext);
+  let message = t(locale, "errors.title");
+  let details = t(locale, "errors.genericDetails");
   let stack: string | undefined;
 
   if (isRouteErrorResponse(error)) {
     if (error.status === 404) {
-      message = "Sidan finns inte";
-      details = "Sidan du letar efter finns inte, eller så har den flyttats.";
+      message = t(locale, "errors.notFound");
+      details = t(locale, "errors.notFoundDetails");
     } else {
-      message = "Något gick fel";
+      message = t(locale, "errors.title");
       details = error.statusText || details;
     }
   } else if (import.meta.env.DEV && error instanceof Error) {
@@ -83,7 +100,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
         onClick={() => window.location.reload()}
         className="rounded-control bg-pine text-body text-paper px-4 py-2 font-medium"
       >
-        Ladda om sidan
+        {t(locale, "errors.reload")}
       </button>
       {stack && (
         <pre className="rounded-card border-line bg-paper text-meta mt-4 w-full overflow-x-auto border p-4">

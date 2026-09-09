@@ -1,5 +1,7 @@
 import { formatMoney } from "@domain/money/money.ts";
 
+import { toIntlLocale, useLocale } from "~/i18n";
+
 import { cn } from "./cn.ts";
 
 export interface MoneyProps {
@@ -17,7 +19,7 @@ const sizeClass: Record<NonNullable<MoneyProps["size"]>, string> = {
   hero: "text-money-hero font-semibold",
 };
 
-/** Formats a minor-unit amount with `formatMoney` (sv-SE, tabular numerals). */
+/** Formats a minor-unit amount with `formatMoney` (active interface locale, tabular numerals). */
 export function Money({
   amountMinor,
   currency,
@@ -25,8 +27,9 @@ export function Money({
   size = "body",
   className,
 }: MoneyProps) {
+  const locale = useLocale();
   const minor = typeof amountMinor === "string" ? BigInt(amountMinor) : amountMinor;
-  const formatted = formatMoney(minor, currency, "sv-SE");
+  const formatted = formatMoney(minor, currency, toIntlLocale(locale));
   const colorClass = signed ? (minor < 0n ? "text-rust" : "text-moss") : undefined;
 
   return <span className={cn("tabular", sizeClass[size], colorClass, className)}>{formatted}</span>;

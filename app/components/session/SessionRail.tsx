@@ -1,8 +1,9 @@
 import { NavLink } from "react-router";
 
-import { Avatar, Money, Pill } from "~/components/ui/index.ts";
+import { Avatar, Logo, Money, Pill } from "~/components/ui/index.ts";
+import { LocaleSwitcher } from "~/components/i18n/LocaleSwitcher.tsx";
 import { formatExpiryShort } from "~/lib/format.ts";
-import { useT } from "~/i18n";
+import { toIntlLocale, useLocale, useT } from "~/i18n";
 
 import type { LayoutBalanceEntry, LayoutParticipant } from "./types.ts";
 
@@ -38,16 +39,21 @@ export function SessionRail({
   onLeaveClick,
 }: SessionRailProps) {
   const t = useT();
+  const locale = useLocale();
   const balanceByPublicId = new Map(balances.map((b) => [b.publicId, b]));
 
   return (
     <div className="flex h-full flex-col gap-6 p-6">
       <div className="flex flex-col gap-2">
-        <p className="text-lead text-pine truncate font-semibold" title={sessionName}>
-          {sessionName}
+        <p
+          className="text-lead text-pine flex min-w-0 items-center gap-2 truncate font-semibold"
+          title={sessionName}
+        >
+          <Logo size={22} className="shrink-0" />
+          <span className="truncate">{sessionName}</span>
         </p>
         <Pill variant={expiringSoon ? "warning" : "neutral"}>
-          {t("admin.expiresLabel", { date: formatExpiryShort(expiresAt) })}
+          {t("admin.expiresLabel", { date: formatExpiryShort(expiresAt, toIntlLocale(locale)) })}
         </Pill>
       </div>
 
@@ -108,6 +114,8 @@ export function SessionRail({
       >
         {t("common.leaveGroup")}
       </button>
+
+      <LocaleSwitcher className="px-3" />
     </div>
   );
 }

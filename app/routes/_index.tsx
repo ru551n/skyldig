@@ -3,10 +3,11 @@ import { Link } from "react-router";
 import { listGrants } from "@server/modules/auth/browser-session.ts";
 import { resolveBrowserSession } from "@server/modules/auth/session-auth.ts";
 
-import { ButtonLink, Card, Pill } from "~/components/ui/index.ts";
+import { ButtonLink, Card, Logo, Pill } from "~/components/ui/index.ts";
+import { LocaleSwitcher } from "~/components/i18n/LocaleSwitcher.tsx";
 import { getConfig, getDb } from "~/lib/session-context.server.ts";
 import { formatExpiryShort } from "~/lib/format.ts";
-import { useT } from "~/i18n";
+import { toIntlLocale, useLocale, useT } from "~/i18n";
 
 import type { Route } from "./+types/_index";
 
@@ -68,6 +69,7 @@ function HeroExample() {
 
 export default function LandingPage({ loaderData }: Route.ComponentProps) {
   const t = useT();
+  const locale = useLocale();
   const { groups } = loaderData;
 
   return (
@@ -78,7 +80,10 @@ export default function LandingPage({ loaderData }: Route.ComponentProps) {
     >
       <header className="flex flex-col gap-6 pt-8">
         <div>
-          <h1 className="text-h1 text-pine font-semibold">{t("landing.title")}</h1>
+          <h1 className="text-h1 text-pine flex items-center gap-3 font-semibold">
+            <Logo size={36} />
+            {t("landing.title")}
+          </h1>
           <p className="text-lead text-pine-soft mt-2 max-w-[65ch]">{t("landing.lead")}</p>
         </div>
         <HeroExample />
@@ -110,7 +115,7 @@ export default function LandingPage({ loaderData }: Route.ComponentProps) {
                 >
                   <span className="text-body text-pine font-medium">{group.name}</span>
                   <Pill>
-                    {t("admin.expiresLabel", { date: formatExpiryShort(group.expiresAt) })}
+                    {t("admin.expiresLabel", { date: formatExpiryShort(group.expiresAt, toIntlLocale(locale)) })}
                   </Pill>
                 </Link>
               </li>
@@ -118,6 +123,10 @@ export default function LandingPage({ loaderData }: Route.ComponentProps) {
           </ul>
         </section>
       )}
+
+      <footer className="mt-auto flex justify-center pt-8">
+        <LocaleSwitcher />
+      </footer>
     </main>
   );
 }

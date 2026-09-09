@@ -25,7 +25,7 @@ import {
   toActionError,
   type ActionError,
 } from "~/lib/session-context.server.ts";
-import { useT } from "~/i18n";
+import { toIntlLocale, useLocale, useT } from "~/i18n";
 
 import type { Route } from "./+types/payment-detail";
 
@@ -98,6 +98,7 @@ function errorMessage(t: ReturnType<typeof useT>, code: string): string {
 
 export default function PaymentDetailPage({ loaderData, params }: Route.ComponentProps) {
   const t = useT();
+  const locale = useLocale();
   const { payment, baseCurrency, revisions } = loaderData;
   const [deleteOpen, setDeleteOpen] = useState(false);
   const deleteFetcher = useFetcher<ActionResult>();
@@ -168,7 +169,7 @@ export default function PaymentDetailPage({ loaderData, params }: Route.Componen
       </Card>
 
       <Card>
-        <p className="text-meta text-pine-soft">{formatExpiryLong(payment.paymentDate)}</p>
+        <p className="text-meta text-pine-soft">{formatExpiryLong(payment.paymentDate, toIntlLocale(locale))}</p>
         {payment.note && <p className="text-body text-pine-soft mt-2">{payment.note}</p>}
       </Card>
 

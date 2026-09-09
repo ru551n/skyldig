@@ -5,7 +5,7 @@ import { requireSessionAccess } from "@server/modules/auth/session-auth.ts";
 import { getSessionBalances } from "@server/modules/balances/balances.ts";
 import { listParticipants } from "@server/modules/participants/participants.ts";
 
-import { ActionBar, ButtonLink, ConfirmDialog, Pill } from "~/components/ui/index.ts";
+import { ActionBar, ButtonLink, ConfirmDialog, Logo, Pill } from "~/components/ui/index.ts";
 import { InviteDialog } from "~/components/session/InviteDialog.tsx";
 import { SessionRail, type NavItem } from "~/components/session/SessionRail.tsx";
 import { isExpiringSoon, type SessionLayoutData } from "~/components/session/types.ts";
@@ -116,9 +116,10 @@ export default function SessionLayout({ loaderData }: Route.ComponentProps) {
           )}
           <Link
             to={`/s/${session.publicId}`}
-            className="text-lead text-pine min-w-0 flex-1 truncate font-semibold"
+            className="text-lead text-pine flex min-w-0 flex-1 items-center gap-2 truncate font-semibold"
           >
-            {session.name}
+            <Logo size={22} className="shrink-0" />
+            <span className="truncate">{session.name}</span>
           </Link>
           <button
             type="button"
@@ -256,6 +257,7 @@ export default function SessionLayout({ loaderData }: Route.ComponentProps) {
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
+  const t = useT();
   const notFound = isRouteErrorResponse(error) && error.status === 404;
 
   return (
@@ -264,14 +266,12 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
       tabIndex={-1}
       className="bg-frost text-pine mx-auto flex min-h-screen max-w-[65ch] flex-col items-start justify-center gap-4 p-6"
     >
-      <h1 className="text-h1 font-semibold">Något gick fel</h1>
+      <h1 className="text-h1 font-semibold">{t("errors.title")}</h1>
       <p className="text-body text-pine-soft">
-        {notFound
-          ? "Gruppen finns inte, eller så har du inte tillgång till den."
-          : "Ett oväntat fel inträffade. Försök igen om en stund."}
+        {notFound ? t("errors.sessionNotFound") : t("errors.tryAgainSoon")}
       </p>
       <Link to="/" className="rounded-control bg-pine text-body text-paper px-4 py-2 font-medium">
-        Till startsidan
+        {t("errors.backToHome")}
       </Link>
     </main>
   );

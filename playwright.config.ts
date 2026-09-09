@@ -19,6 +19,12 @@ export default defineConfig({
   use: {
     baseURL,
     trace: "retain-on-failure",
+    // The app now resolves the interface language from `Accept-Language` on a first visit (see
+    // docs/todo.md "Add English as a second language"). Every existing spec asserts Swedish
+    // copy, so pin the default context locale to Swedish here; the i18n spec overrides
+    // `Accept-Language` explicitly per-context to exercise English.
+    locale: "sv-SE",
+    extraHTTPHeaders: { "Accept-Language": "sv-SE,sv;q=0.9" },
   },
   projects: [
     {

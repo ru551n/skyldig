@@ -24,9 +24,9 @@ export function diffField(label: string, from: string, to: string): ChangeLine |
   return from === to ? null : { label, from, to };
 }
 
-export function money(amountMinor: string, currencyCode: string): string {
+export function money(amountMinor: string, currencyCode: string, locale = "sv-SE"): string {
   try {
-    return formatMoney(BigInt(amountMinor), currencyCode);
+    return formatMoney(BigInt(amountMinor), currencyCode, locale);
   } catch {
     return `${amountMinor} ${currencyCode}`;
   }

@@ -129,6 +129,7 @@ export default function JoinSessionPage({ actionData }: Route.ComponentProps) {
       className="mx-auto flex min-h-screen max-w-[65ch] flex-col gap-6 p-6 pb-16"
     >
       <PageHeader title={t("join.title")} lead={t("join.lead")} />
+      <p className="text-meta text-pine-soft -mt-4">{t("join.phraseLanguageNote")}</p>
 
       {errorMessage && (
         <p
@@ -143,7 +144,7 @@ export default function JoinSessionPage({ actionData }: Route.ComponentProps) {
         <Field
           htmlFor="phrase"
           label={t("join.phraseLabel")}
-          hint="Klistra in den precis som du fick den — mellanslag eller punkter funkar lika bra som bindestreck."
+          hint={t("join.phraseHint")}
         >
           {(ids) => (
             <Input

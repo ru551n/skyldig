@@ -18,7 +18,7 @@ import {
   toActionError,
   type ActionError,
 } from "~/lib/session-context.server.ts";
-import { useT } from "~/i18n";
+import { toIntlLocale, useLocale, useT } from "~/i18n";
 
 import type { Route } from "./+types/new";
 
@@ -187,9 +187,10 @@ function CopyButton({ value, label, copiedLabel }: { value: string; label: strin
 
 function ResultView({ result }: { result: CreateSuccess }) {
   const t = useT();
+  const locale = useLocale();
 
   async function handleShare() {
-    const shareText = `Gå med i "${result.name}" på Skyldig med gruppnyckeln: ${result.phrase}`;
+    const shareText = t("create.shareText", { name: result.name, phrase: result.phrase });
     if (navigator.share) {
       try {
         await navigator.share({ text: shareText, title: result.name });
@@ -216,7 +217,7 @@ function ResultView({ result }: { result: CreateSuccess }) {
       <div className="rounded-card border-line bg-paper flex flex-col gap-2 border p-5">
         <p className="text-body text-pine font-medium">{result.name}</p>
         <p className="text-meta text-pine-soft">
-          {t("admin.expiresLabel", { date: formatExpiryLong(result.expiresAt) })}
+          {t("admin.expiresLabel", { date: formatExpiryLong(result.expiresAt, toIntlLocale(locale)) })}
         </p>
       </div>
 
@@ -225,6 +226,7 @@ function ResultView({ result }: { result: CreateSuccess }) {
         <p className="tabular text-lead text-pine font-semibold break-words select-all">
           {result.phrase}
         </p>
+        <p className="text-meta text-pine-soft">{t("create.phraseLanguageNote")}</p>
         <div className="flex gap-3">
           <CopyButton value={result.phrase} label={t("common.copy")} copiedLabel={t("common.copied")} />
         </div>
@@ -235,7 +237,7 @@ function ResultView({ result }: { result: CreateSuccess }) {
         <p className="tabular text-lead text-pine font-semibold break-words select-all">
           {result.adminKey}
         </p>
-        <p className="text-meta text-rust">Spara den här — den visas bara en gång.</p>
+        <p className="text-meta text-rust">{t("create.adminKeySaveNotice")}</p>
         <div className="flex gap-3">
           <CopyButton value={result.adminKey} label={t("common.copy")} copiedLabel={t("common.copied")} />
         </div>
@@ -243,7 +245,7 @@ function ResultView({ result }: { result: CreateSuccess }) {
 
       <div className="flex flex-col gap-3 min-[480px]:flex-row">
         <Button type="button" variant="secondary" onClick={handleShare} fullWidth>
-          Dela
+          {t("invite.share")}
         </Button>
         <a
           href={`/s/${result.publicId}`}

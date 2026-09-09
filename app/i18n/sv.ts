@@ -5,6 +5,11 @@
  *
  * Values are either a plain string or a function `(params) => string` for
  * messages that take parameters or need pluralization.
+ *
+ * Deliberately NOT `as const`: `en.ts` is written as `const en: typeof sv = {...}`, so every
+ * leaf must stay typed as the general `string` (or the message-function signature) rather than
+ * this catalog's specific Swedish string literals — otherwise no other language could ever
+ * satisfy the type.
  */
 export const sv = {
   appName: "Skyldig",
@@ -44,6 +49,10 @@ export const sv = {
     addParticipantCta: "Lägg till deltagare",
     allSettledHeadline: "Allt är uppgjort",
     registerPayment: "Registrera betalning",
+    skipToContent: "Hoppa till innehållet",
+    languageLabel: "Språk",
+    languageSwedish: "Svenska",
+    languageEnglish: "English",
   },
 
   landing: {
@@ -67,14 +76,20 @@ export const sv = {
     resultTitle: "Gruppen är skapad",
     resultLead: "Spara den här sidan eller skicka nyckeln till de andra — den visas bara en gång.",
     phraseLabel: "Gruppnyckel",
+    phraseLanguageNote: "Gruppnyckeln består alltid av svenska ord, oavsett språkval.",
     adminKeyLabel: "Adminnyckel",
+    adminKeySaveNotice: "Spara den här — den visas bara en gång.",
     goToSession: "Till gruppen",
+    shareText: (params: { name: string; phrase: string }) =>
+      `Gå med i "${params.name}" på Skyldig med gruppnyckeln: ${params.phrase}`,
   },
 
   join: {
     title: "Gå med i grupp",
     lead: "Klistra in gruppnyckeln du fått av någon i gruppen.",
     phraseLabel: "Gruppnyckel",
+    phraseHint: "Klistra in den precis som du fick den — mellanslag eller punkter funkar lika bra som bindestreck.",
+    phraseLanguageNote: "Gruppnyckeln består alltid av svenska ord, oavsett språkval.",
     submit: "Gå med",
   },
 
@@ -243,7 +258,12 @@ export const sv = {
   errors: {
     title: "Något gick fel",
     generic: "Något gick fel. Försök igen om en stund.",
+    genericDetails: "Ett oväntat fel inträffade. Ladda om sidan och försök igen.",
+    tryAgainSoon: "Ett oväntat fel inträffade. Försök igen om en stund.",
     notFound: "Sidan finns inte",
+    notFoundDetails: "Sidan du letar efter finns inte, eller så har den flyttats.",
+    sessionNotFound: "Gruppen finns inte, eller så har du inte tillgång till den.",
+    backToHome: "Till startsidan",
     reload: "Ladda om sidan",
     keyMismatch: "Nyckeln stämmer inte. Kontrollera stavningen och försök igen.",
   },
@@ -328,4 +348,4 @@ export const sv = {
     joinWithPhrase: "Gå med med gruppnyckeln",
     needsJavascript: "Den här sidan behöver JavaScript för att läsa länken. Öppna den i en vanlig webbläsare.",
   },
-} as const satisfies Record<string, unknown>;
+} satisfies Record<string, unknown>;

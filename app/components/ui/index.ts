@@ -8,6 +8,7 @@ export * from "./Dialog.tsx";
 export * from "./EmptyState.tsx";
 export * from "./Field.tsx";
 export * from "./Input.tsx";
+export * from "./Logo.tsx";
 export * from "./Money.tsx";
 export * from "./MoneyInput.tsx";
 export * from "./PageHeader.tsx";

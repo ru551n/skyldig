@@ -31,7 +31,7 @@ import {
   toActionError,
   type ActionError,
 } from "~/lib/session-context.server.ts";
-import { useT } from "~/i18n";
+import { toIntlLocale, useLocale, useT } from "~/i18n";
 
 import type { Route } from "./+types/admin";
 
@@ -260,6 +260,7 @@ function CopyButton({ value }: { value: string }) {
 
 export default function AdminPage({ loaderData, actionData }: Route.ComponentProps) {
   const t = useT();
+  const locale = useLocale();
   const navigation = useNavigation();
   const submit = useSubmit();
   const pendingIntent =
@@ -333,7 +334,7 @@ export default function AdminPage({ loaderData, actionData }: Route.ComponentPro
     <div className="mx-auto flex min-h-screen max-w-[65ch] flex-col gap-6 p-6 pb-16">
       <PageHeader
         title={t("admin.title")}
-        lead={t("admin.expiresLabel", { date: formatExpiryLong(loaderData.expiresAt) })}
+        lead={t("admin.expiresLabel", { date: formatExpiryLong(loaderData.expiresAt, toIntlLocale(locale)) })}
       />
 
       <p role="status" aria-live="polite" className="text-meta text-moss font-medium">
