@@ -23,12 +23,15 @@ export default async function setup(project: TestProject) {
   }
 
   const port = 55432;
+  const verbose = process.env.PG_EMBEDDED_VERBOSE === "1";
   pg = new EmbeddedPostgres({
     databaseDir: dataDir,
     user: "skyldig_test",
     password: "skyldig_test",
     port,
     persistent: false,
+    onLog: verbose ? console.log : () => {},
+    onError: verbose ? console.error : () => {},
   });
 
   if (!existsSync(dataDir)) {
