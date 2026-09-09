@@ -51,6 +51,8 @@ Docker deployment has not been executed here, because the development machine ha
 Docker. The image contents were verified by assembling the runtime file set by hand and
 booting it successfully, but `docker build` and `docker compose up` remain unrun.
 
+Known open items are tracked in [docs/todo.md](docs/todo.md).
+
 ## Quick start (no Docker)
 
 The project uses an embedded PostgreSQL binary (`embedded-postgres`) for local development, so
