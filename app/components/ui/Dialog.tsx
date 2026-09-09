@@ -1,4 +1,4 @@
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef } from "react";
 import { Dialog as RadixDialog } from "radix-ui";
 
@@ -32,55 +32,67 @@ export function Dialog({ open, onOpenChange, title, description, children, trigg
   return (
     <RadixDialog.Root open={open} onOpenChange={onOpenChange}>
       {trigger && <RadixDialog.Trigger asChild>{trigger}</RadixDialog.Trigger>}
-      <RadixDialog.Portal>
-        <RadixDialog.Overlay className="bg-pine/40 fixed inset-0 z-40" />
-        <RadixDialog.Content
-          asChild
-          onCloseAutoFocus={(event) => {
-            const target = previouslyFocused.current;
-            if (target?.isConnected) {
-              event.preventDefault();
-              target.focus();
-            }
-          }}
-        >
-          <motion.div
-            initial={{ opacity: 0, scale: 0.96 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.96 }}
-            transition={{ duration: 0.16, ease: "easeOut" }}
-            className="rounded-row border-line bg-paper fixed top-1/2 left-1/2 z-50 w-[min(92vw,480px)] -translate-x-1/2 -translate-y-1/2 border p-6 shadow-none"
-          >
-            <RadixDialog.Title className="text-h2 text-pine font-semibold">
-              {title}
-            </RadixDialog.Title>
-            {description && (
-              <RadixDialog.Description className="text-body text-pine-soft mt-2">
-                {description}
-              </RadixDialog.Description>
-            )}
-            <div className="mt-4">{children}</div>
-            <RadixDialog.Close asChild>
-              <button
-                type="button"
-                aria-label="Stäng"
-                className={cn(
-                  "rounded-control text-pine-soft hover:bg-frost absolute top-4 right-4 flex h-9 w-9 items-center justify-center",
-                )}
+      <AnimatePresence>
+        {open && (
+          // Radix unmounts the portal itself as soon as `open` goes false, which would
+          // skip the exit animation entirely. `forceMount` hands mount/unmount control
+          // to AnimatePresence instead, which is the documented Radix pattern for
+          // animating with an external animation library: the block above is only in
+          // the tree while `open` is true (or while AnimatePresence is still playing
+          // the exit), and Radix's own presence check (`forceMount || context.open`)
+          // stays satisfied throughout.
+          <RadixDialog.Portal forceMount>
+            <RadixDialog.Overlay className="bg-pine/40 fixed inset-0 z-40" />
+            <RadixDialog.Content
+              asChild
+              forceMount
+              onCloseAutoFocus={(event) => {
+                const target = previouslyFocused.current;
+                if (target?.isConnected) {
+                  event.preventDefault();
+                  target.focus();
+                }
+              }}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.96 }}
+                transition={{ duration: 0.16, ease: "easeOut" }}
+                className="rounded-row border-line bg-paper fixed top-1/2 left-1/2 z-50 w-[min(92vw,480px)] -translate-x-1/2 -translate-y-1/2 border p-6 shadow-none"
               >
-                <svg viewBox="0 0 20 20" width="16" height="16" fill="none" aria-hidden="true">
-                  <path
-                    d="M5 5l10 10M15 5L5 15"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </button>
-            </RadixDialog.Close>
-          </motion.div>
-        </RadixDialog.Content>
-      </RadixDialog.Portal>
+                <RadixDialog.Title className="text-h2 text-pine font-semibold">
+                  {title}
+                </RadixDialog.Title>
+                {description && (
+                  <RadixDialog.Description className="text-body text-pine-soft mt-2">
+                    {description}
+                  </RadixDialog.Description>
+                )}
+                <div className="mt-4">{children}</div>
+                <RadixDialog.Close asChild>
+                  <button
+                    type="button"
+                    aria-label="Stäng"
+                    className={cn(
+                      "rounded-control text-pine-soft hover:bg-frost absolute top-4 right-4 flex h-9 w-9 items-center justify-center",
+                    )}
+                  >
+                    <svg viewBox="0 0 20 20" width="16" height="16" fill="none" aria-hidden="true">
+                      <path
+                        d="M5 5l10 10M15 5L5 15"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  </button>
+                </RadixDialog.Close>
+              </motion.div>
+            </RadixDialog.Content>
+          </RadixDialog.Portal>
+        )}
+      </AnimatePresence>
     </RadixDialog.Root>
   );
 }
