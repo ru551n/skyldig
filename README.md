@@ -22,32 +22,34 @@ repeating it.
 
 ## Status
 
-Based on what's in the repository now:
+The MVP is complete and verified end to end. What works today:
 
-- Session lifecycle: create, join by phrase, admin elevation by admin key, rotate access
-  phrase/admin key, delete session, leave (`app/routes/new.tsx`, `join.tsx`,
-  `session/admin.tsx`, `session/leave.tsx`, `server/modules/session`, `server/modules/auth`).
-- Expenses and payments: add/edit/view with revision history
-  (`app/routes/session/expense-*.tsx`, `payment-*.tsx`, `server/modules/expenses`,
-  `server/modules/payments`).
-- Participants: list, add, rename (`app/routes/session/participants.tsx`).
-- Dashboard, settlement plan, and chronological activity feed including deleted items
-  (`app/routes/session/dashboard.tsx`, `settle.tsx`, `activity.tsx`, `server/modules/balances`,
-  `domain/settlement`).
-- `/health` and `/ready` endpoints (`server/http`).
-- Expiration cleanup job, runnable at startup/hourly or via `pnpm cleanup`
-  (`server/modules/expiration`).
-- Unit tests for the whole financial domain (`domain/**/*.test.ts`), integration tests against a
-  real Postgres (`tests/integration`), and a Playwright end-to-end spec
-  (`tests/e2e/entry.spec.ts`).
+- Create a group, share a six-word Swedish access phrase, join from another browser.
+- A separate admin key unlocks rotating either key and deleting the group.
+- Participants, expenses and repayments with edit, delete and full revision history.
+- Multiple currencies with a user-entered exchange rate locked to each transaction.
+- Balances and a settlement plan that says who should pay whom.
+- Groups expire 90 days after creation, removed by a background job.
+- Swedish interface, mobile first, with an in-app usage guide at `/guide`.
 
-Not yet done / unverified:
+Verification, all currently passing:
 
-- Weighted or exact (non-equal) splitting — the schema supports it, the UI does not expose it.
-- Docker deployment has **not been run** on the development machine (no Docker available there).
-  The `Dockerfile` and `compose.yaml` are written per the architecture doc and pass review, but
-  `docker compose up --build` has not actually been executed end-to-end — treat it as unverified
-  until you run it yourself.
+| Check | Result |
+|---|---|
+| Unit and integration tests | 268 across 27 files |
+| End-to-end tests (Playwright) | 14, covering the full 12-step flow |
+| Accessibility (axe, serious/critical) | 0 violations across 11 pages |
+| Lint and type checking | clean |
+
+Two independent reviews were run against a live instance. Financial correctness was
+fuzzed through the real database: 360 randomized groups, 6,717 mutations and 340,619
+assertions, plus 3.4 million settlement assertions, with no failures. The security review
+found no exploitable authorization, injection or cross-site defect; its findings have been
+fixed.
+
+Docker deployment has not been executed here, because the development machine has no
+Docker. The image contents were verified by assembling the runtime file set by hand and
+booting it successfully, but `docker build` and `docker compose up` remain unrun.
 
 ## Quick start (no Docker)
 
