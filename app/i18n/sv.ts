@@ -236,6 +236,8 @@ export const sv = {
     deleteConfirmBody: "All data i gruppen försvinner permanent. Det går inte att ångra.",
     expiresLabel: (params: { date: string }) => `Går ut ${params.date}`,
     elevateLead: "Ange adminnyckeln för att låsa upp gruppens admin­åtgärder.",
+    elevateTtlHint: (params: { minutes: number }) =>
+      `Admin-åtkomsten går ut efter ${params.minutes} minuter; ange nyckeln igen för att förnya den.`,
     elevateSubmitting: "Låser upp…",
     unlock: "Lås upp",
     tooManyAttempts: "För många försök. Vänta en stund och försök igen.",

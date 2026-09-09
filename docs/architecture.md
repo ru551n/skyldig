@@ -114,12 +114,21 @@ from the client bundle). Path aliases: `~/*` → `app/*`, `@domain/*`, `@server/
   expires_at)`; cookie `__Host-skyldig` in production (`skyldig` in dev over http) holding
   32 random bytes base64url; `HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=90d`. Only
   SHA-256(token) is stored.
-- `session_grants(browser_session_id, session_id, role member|admin, created_at,
-  last_used_at)`: one browser session may hold grants to several Skyldig sessions (landing page
-  lists them).
+- `session_grants(browser_session_id, session_id, role member|admin, admin_until NULL,
+  created_at, last_used_at)`: one browser session may hold grants to several Skyldig sessions
+  (landing page lists them).
 - **Token rotation on every grant change** (join, elevation, leave): in one transaction insert
   the new browser session, move all grants to it, delete the old row, set the new cookie.
-- Elevation: admin key entered on `/s/:sid/admin` → grant role `admin` for that session only.
+- Elevation: admin key entered on `/s/:sid/admin` → grant role `admin` for that session only,
+  with `admin_until = now() + ADMIN_ELEVATION_TTL_MINUTES` (default 30). **Elevation is
+  time-boxed and independent of membership**: `isActiveAdmin` (the single helper behind
+  `requireAdmin`, `getGrant`/`listGrants` and every admin-UI decision) treats a grant as admin
+  only while `role = 'admin'` *and* `admin_until` is strictly in the future; once it lapses the
+  browser session is a plain member again (row untouched — membership survives; the admin UI
+  shows the elevation form) and must re-enter the admin key, which refreshes `admin_until`. A
+  NULL `admin_until` (rows elevated before the column existed) counts as expired rather than
+  unbounded. The group's creator gets the same initial window at creation. Before this, an
+  `admin` grant stayed effective for the browser session's whole 90-day sliding lifetime.
 - Admin actions: delete session, rotate access phrase (new index+verifier, revoke every other
   browser session's grant to this session, and bump `sessions.access_generation` in the same
   UPDATE — every invite is stamped with the generation it was issued under and is redeemable

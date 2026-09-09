@@ -38,6 +38,7 @@ import type { Route } from "./+types/admin";
 
 interface LoaderData {
   isAdmin: boolean;
+  adminTtlMinutes: number;
   sessionName: string;
   expiresAt: string;
 }
@@ -80,6 +81,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   return data<LoaderData>(
     {
       isAdmin: isActiveAdmin(access.grant),
+      adminTtlMinutes: Math.round(config.adminElevationTtlMs / 60_000),
       sessionName: access.session.name,
       expiresAt: access.session.expiresAt.toISOString(),
     },
@@ -325,6 +327,9 @@ export default function AdminPage({ loaderData, actionData }: Route.ComponentPro
           <Button type="submit" size="lg" loading={pendingIntent === "elevate"} fullWidth>
             {t("admin.unlock")}
           </Button>
+          <p className="text-meta text-pine-soft">
+            {t("admin.elevateTtlHint", { minutes: loaderData.adminTtlMinutes })}
+          </p>
         </Form>
       </div>
     );

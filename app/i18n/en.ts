@@ -232,6 +232,8 @@ export const en: typeof sv = {
     deleteConfirmBody: "All data in the group will be permanently gone. This can't be undone.",
     expiresLabel: (params: { date: string }) => `Expires ${params.date}`,
     elevateLead: "Enter the admin key to unlock the group's admin actions.",
+    elevateTtlHint: (params: { minutes: number }) =>
+      `Admin access expires after ${params.minutes} minutes; enter the key again to renew it.`,
     elevateSubmitting: "Unlocking…",
     unlock: "Unlock",
     tooManyAttempts: "Too many attempts. Wait a moment and try again.",
