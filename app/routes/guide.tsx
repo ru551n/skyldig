@@ -1,6 +1,6 @@
 import { GuideStep } from "~/components/guide/GuideStep.tsx";
 import { ButtonLink, EmptyState, PageHeader } from "~/components/ui/index.ts";
-import { useT } from "~/i18n";
+import { useLocale, useT } from "~/i18n";
 
 import type { Route } from "./+types/guide";
 
@@ -14,6 +14,10 @@ export function meta(_args: Route.MetaArgs) {
 /** Static "Så funkar det" usage guide — teaches the whole flow with real screenshots. */
 export default function GuidePage() {
   const t = useT();
+  const locale = useLocale();
+  // The embedded screenshots are locale-specific captures (see scripts/screenshots.mjs and
+  // docs/screenshots/en/) — English readers get English-labelled UI, not just English text.
+  const guideScreens = locale === "en" ? "/guide-screens/en/" : "/guide-screens/";
 
   return (
     <main
@@ -29,7 +33,7 @@ export default function GuidePage() {
           title={t("guide.step1Title")}
           eager
           image={{
-            src: "/guide-screens/02-create.png",
+            src: `${guideScreens}02-create.png`,
             alt: t("guide.step1ImageAlt"),
             width: 780,
             height: 1688,
@@ -43,7 +47,7 @@ export default function GuidePage() {
           title={t("guide.step2Title")}
           reverse
           image={{
-            src: "/guide-screens/03-keys.png",
+            src: `${guideScreens}03-keys.png`,
             alt: t("guide.step2ImageAlt"),
             width: 780,
             height: 1688,
@@ -57,10 +61,10 @@ export default function GuidePage() {
           number={3}
           title={t("guide.step3Title")}
           image={{
-            src: "/guide-screens/04-expense-form.png",
+            src: `${guideScreens}04-expense-form.png`,
             alt: t("guide.step3ImageAlt"),
             width: 780,
-            height: 1760,
+            height: 2280,
           }}
         >
           <p>{t("guide.step3Body1")}</p>
@@ -75,7 +79,7 @@ export default function GuidePage() {
           number={5}
           title={t("guide.step5Title")}
           image={{
-            src: "/guide-screens/06-settle.png",
+            src: `${guideScreens}06-settle.png`,
             alt: t("guide.step5ImageAlt"),
             width: 780,
             height: 1688,
@@ -89,7 +93,7 @@ export default function GuidePage() {
           title={t("guide.step6Title")}
           reverse
           image={{
-            src: "/guide-screens/07-activity.png",
+            src: `${guideScreens}07-activity.png`,
             alt: t("guide.step6ImageAlt"),
             width: 780,
             height: 1688,
