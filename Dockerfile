@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM node:24-alpine AS base
+FROM node:24-alpine@sha256:50c8e8ca1d27439048670df5883f32d57cf81cff6233222c893fd0d9884cbd81 AS base
 WORKDIR /app
 RUN corepack enable
 
@@ -17,7 +17,7 @@ FROM base AS prod-deps
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile --prod
 
-FROM node:24-alpine AS runtime
+FROM node:24-alpine@sha256:50c8e8ca1d27439048670df5883f32d57cf81cff6233222c893fd0d9884cbd81 AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 RUN corepack enable
