@@ -20,15 +20,30 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   const db = getDb();
   const config = getConfig();
   const access = await requireSessionAccess(db, request, config, params.sid!);
-  const activity = await listActivity(db, access.session.id, { limit: RECENT_LIMIT });
+  // The dashboard shows recent expenses and repayments, one row per item. The full
+  // revision-by-revision feed, including deletions, lives on the activity page. Over-fetch
+  // so that collapsing revisions still leaves enough rows to fill the list.
+  const activity = await listActivity(db, access.session.id, { limit: RECENT_LIMIT * 4 });
 
-  const recent: SerializedActivityRow[] = activity.map((a) => ({
-    entityType: a.entityType,
-    action: a.action,
-    revisionNo: a.revisionNo,
-    createdAt: a.createdAt.toISOString(),
-    snapshot: a.snapshot,
-  }));
+  const seen = new Set<string>();
+  const recent: SerializedActivityRow[] = [];
+  for (const a of activity) {
+    const publicId = (a.snapshot as { publicId?: string } | null)?.publicId;
+    // Every snapshot carries a publicId; fall back to the timestamp so a malformed row
+    // is still shown rather than silently swallowed.
+    const key = `${a.entityType}:${publicId ?? a.createdAt.toISOString()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (a.action === "deleted") continue;
+    recent.push({
+      entityType: a.entityType,
+      action: a.action,
+      revisionNo: a.revisionNo,
+      createdAt: a.createdAt.toISOString(),
+      snapshot: a.snapshot,
+    });
+    if (recent.length >= RECENT_LIMIT) break;
+  }
 
   return { recent };
 }

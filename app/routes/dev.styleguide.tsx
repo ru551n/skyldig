@@ -38,8 +38,8 @@ export function meta(_args: Route.MetaArgs) {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="flex flex-col gap-4 border-t border-line pt-8 first:border-t-0 first:pt-0">
-      <h2 className="text-h2 font-semibold text-pine">{title}</h2>
+    <section className="border-line flex flex-col gap-4 border-t pt-8 first:border-t-0 first:pt-0">
+      <h2 className="text-h2 text-pine font-semibold">{title}</h2>
       <div className="flex flex-wrap items-start gap-4">{children}</div>
     </section>
   );
@@ -53,7 +53,7 @@ export default function StyleguidePage() {
   const { showToast } = useToast();
 
   return (
-    <main id="main" className="mx-auto flex max-w-4xl flex-col gap-10 p-6 pb-32">
+    <main id="main" tabIndex={-1} className="mx-auto flex max-w-4xl flex-col gap-10 p-6 pb-32">
       <PageHeader
         title="Styleguide"
         lead="Alla komponenter i sina olika tillstånd — endast i utvecklingsläge."
@@ -99,7 +99,9 @@ export default function StyleguidePage() {
           )}
         </Field>
         <Field htmlFor="sg-amount" label="Belopp">
-          {(ids) => <MoneyInput {...ids} name="amount" currency="SEK" defaultValue="" placeholder="0" />}
+          {(ids) => (
+            <MoneyInput {...ids} name="amount" currency="SEK" defaultValue="" placeholder="0" />
+          )}
         </Field>
       </Section>
 
@@ -120,19 +122,21 @@ export default function StyleguidePage() {
 
       <Section title="Avatars">
         <div className="flex items-center gap-3">
-          {["Peter Andersson", "Johan Karlsson", "Anna Svensson", "Maria Nilsson"].map((name, i) => (
-            <div key={name} className="flex items-center gap-2">
-              <Avatar name={name} position={i} />
-              <span className="text-body text-pine">{name}</span>
-            </div>
-          ))}
+          {["Peter Andersson", "Johan Karlsson", "Anna Svensson", "Maria Nilsson"].map(
+            (name, i) => (
+              <div key={name} className="flex items-center gap-2">
+                <Avatar name={name} position={i} />
+                <span className="text-body text-pine">{name}</span>
+              </div>
+            ),
+          )}
         </div>
       </Section>
 
       <Section title="Settle-up row (Card + Arrow)">
         <Card tinted className="w-full max-w-md">
           <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3 text-body font-medium text-pine">
+            <div className="text-body text-pine flex items-center gap-3 font-medium">
               <span>Peter</span>
               <Arrow className="text-pine-soft" />
               <span>Johan</span>

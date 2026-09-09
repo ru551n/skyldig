@@ -11,7 +11,13 @@ import { listCurrencies } from "@domain/currency/registry.ts";
 
 import { Button, Field, Input, PageHeader, Select } from "~/components/ui/index.ts";
 import { formatExpiryLong } from "~/lib/format.ts";
-import { getConfig, getDb, mutationGuard, toActionError, type ActionError } from "~/lib/session-context.server.ts";
+import {
+  getConfig,
+  getDb,
+  mutationGuard,
+  toActionError,
+  type ActionError,
+} from "~/lib/session-context.server.ts";
 import { useT } from "~/i18n";
 
 import type { Route } from "./+types/new";
@@ -31,7 +37,8 @@ interface CreateSuccess {
   expiresAt: string;
 }
 
-type ActionResult = CreateSuccess | (ActionError & { name?: string; baseCurrency?: string; participants?: string[] });
+type ActionResult =
+  CreateSuccess | (ActionError & { name?: string; baseCurrency?: string; participants?: string[] });
 
 export function loader(_args: Route.LoaderArgs) {
   return { currencies: listCurrencies() };
@@ -72,11 +79,12 @@ export async function action({ request }: Route.ActionArgs) {
     );
   }
 
-  const participantNames = (Array.isArray(parsed.data.participant)
-    ? parsed.data.participant
-    : parsed.data.participant
-      ? [parsed.data.participant]
-      : []
+  const participantNames = (
+    Array.isArray(parsed.data.participant)
+      ? parsed.data.participant
+      : parsed.data.participant
+        ? [parsed.data.participant]
+        : []
   )
     .map((n) => n.trim())
     .filter((n) => n.length > 0);
@@ -188,27 +196,35 @@ function ResultView({ result }: { result: CreateSuccess }) {
   }
 
   return (
-    <main id="main" className="mx-auto flex min-h-screen max-w-[65ch] flex-col gap-6 p-6 pb-16">
+    <main
+      id="main"
+      tabIndex={-1}
+      className="mx-auto flex min-h-screen max-w-[65ch] flex-col gap-6 p-6 pb-16"
+    >
       <PageHeader title={t("create.resultTitle")} lead={t("create.resultLead")} />
 
-      <div className="flex flex-col gap-2 rounded-card border border-line bg-paper p-5">
-        <p className="text-body font-medium text-pine">{result.name}</p>
+      <div className="rounded-card border-line bg-paper flex flex-col gap-2 border p-5">
+        <p className="text-body text-pine font-medium">{result.name}</p>
         <p className="text-meta text-pine-soft">
           {t("admin.expiresLabel", { date: formatExpiryLong(result.expiresAt) })}
         </p>
       </div>
 
-      <div className="flex flex-col gap-2 rounded-card border border-line bg-paper p-5">
-        <p className="text-meta font-medium text-pine-soft">{t("create.phraseLabel")}</p>
-        <p className="tabular select-all break-words text-lead font-semibold text-pine">{result.phrase}</p>
+      <div className="rounded-card border-line bg-paper flex flex-col gap-2 border p-5">
+        <p className="text-meta text-pine-soft font-medium">{t("create.phraseLabel")}</p>
+        <p className="tabular text-lead text-pine font-semibold break-words select-all">
+          {result.phrase}
+        </p>
         <div className="flex gap-3">
           <CopyButton value={result.phrase} label="Kopiera" />
         </div>
       </div>
 
-      <div className="flex flex-col gap-2 rounded-card border-2 border-rust bg-rust/5 p-5">
-        <p className="text-meta font-medium text-rust">{t("create.adminKeyLabel")}</p>
-        <p className="tabular select-all break-words text-lead font-semibold text-pine">{result.adminKey}</p>
+      <div className="rounded-card border-rust bg-rust/5 flex flex-col gap-2 border-2 p-5">
+        <p className="text-meta text-rust font-medium">{t("create.adminKeyLabel")}</p>
+        <p className="tabular text-lead text-pine font-semibold break-words select-all">
+          {result.adminKey}
+        </p>
         <p className="text-meta text-rust">Spara den här — den visas bara en gång.</p>
         <div className="flex gap-3">
           <CopyButton value={result.adminKey} label="Kopiera" />
@@ -221,7 +237,7 @@ function ResultView({ result }: { result: CreateSuccess }) {
         </Button>
         <a
           href={`/s/${result.publicId}`}
-          className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-control bg-pine px-6 text-lead font-medium text-paper hover:bg-pine/90"
+          className="rounded-control bg-pine text-lead text-paper hover:bg-pine/90 inline-flex min-h-12 w-full items-center justify-center gap-2 px-6 font-medium"
         >
           {t("create.goToSession")}
         </a>
@@ -248,7 +264,8 @@ export default function NewSessionPage({ loaderData, actionData }: Route.Compone
   }
 
   const error = result && !result.ok ? result : undefined;
-  const fieldError = (field: string) => (error?.field === field ? errorMessage(t, error.code) : undefined);
+  const fieldError = (field: string) =>
+    error?.field === field ? errorMessage(t, error.code) : undefined;
 
   function addParticipant() {
     setParticipants((current) => [...current, ""]);
@@ -263,11 +280,18 @@ export default function NewSessionPage({ loaderData, actionData }: Route.Compone
   }
 
   return (
-    <main id="main" className="mx-auto flex min-h-screen max-w-[65ch] flex-col gap-6 p-6 pb-16">
+    <main
+      id="main"
+      tabIndex={-1}
+      className="mx-auto flex min-h-screen max-w-[65ch] flex-col gap-6 p-6 pb-16"
+    >
       <PageHeader title={t("create.title")} lead={t("create.lead")} />
 
       {error && !error.field && (
-        <p role="alert" className="rounded-control border border-rust/40 bg-rust/5 p-3 text-body text-rust">
+        <p
+          role="alert"
+          className="rounded-control border-rust/40 bg-rust/5 text-body text-rust border p-3"
+        >
           {errorMessage(t, error.code)}
         </p>
       )}
@@ -299,7 +323,7 @@ export default function NewSessionPage({ loaderData, actionData }: Route.Compone
         </Field>
 
         <div className="flex flex-col gap-3">
-          <span className="text-body font-medium text-pine">{t("create.participantsLabel")}</span>
+          <span className="text-body text-pine font-medium">{t("create.participantsLabel")}</span>
           {participants.map((value, index) => (
             <div key={index} className="flex items-center gap-2">
               <label htmlFor={`participant-${index}`} className="sr-only">

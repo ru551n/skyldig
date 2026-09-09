@@ -53,11 +53,13 @@ async function assertReducedMotionDoesNotBreakRendering(page: Page, url: string)
 test.describe.configure({ mode: "serial" });
 
 test.describe("accessibility floor", () => {
-  let groupUrl = "";
-
-  test.beforeAll(async ({ browser }) => {
-    const context = await browser.newContext();
-    const page = await context.newPage();
+  /**
+   * Creates a group on the page under test so the browser context holds the access
+   * grant. Creating it in a separate context (which is then closed) would leave every
+   * session URL returning 404, and the checks below would pass vacuously against an
+   * error page.
+   */
+  async function createGroup(page: Page): Promise<string> {
     await page.goto("/new");
     await page.getByLabel("Namn på gruppen").fill("A11y Test Group");
     const participantInputs = page.locator('input[name="participant"]');
@@ -66,8 +68,14 @@ test.describe("accessibility floor", () => {
     await page.getByRole("button", { name: "Skapa grupp" }).click();
     await expect(page.getByText("Gruppen är skapad")).toBeVisible();
     const href = await page.getByRole("link", { name: "Till gruppen" }).getAttribute("href");
-    groupUrl = href!;
-    await context.close();
+    expect(href, "expected a link to the created group").toBeTruthy();
+    return href!;
+  }
+
+  let groupUrl = "";
+
+  test.beforeEach(async ({ page }) => {
+    groupUrl = await createGroup(page);
   });
 
   const pages = () => [

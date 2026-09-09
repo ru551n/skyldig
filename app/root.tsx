@@ -73,19 +73,20 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   return (
     <main
       id="main"
-      className="mx-auto flex min-h-screen max-w-[65ch] flex-col items-start justify-center gap-4 bg-frost p-6 text-pine"
+      tabIndex={-1}
+      className="bg-frost text-pine mx-auto flex min-h-screen max-w-[65ch] flex-col items-start justify-center gap-4 p-6"
     >
       <h1 className="text-h1 font-semibold">{message}</h1>
       <p className="text-body text-pine-soft">{details}</p>
       <button
         type="button"
         onClick={() => window.location.reload()}
-        className="rounded-control bg-pine px-4 py-2 text-body font-medium text-paper"
+        className="rounded-control bg-pine text-body text-paper px-4 py-2 font-medium"
       >
         Ladda om sidan
       </button>
       {stack && (
-        <pre className="mt-4 w-full overflow-x-auto rounded-card border border-line bg-paper p-4 text-meta">
+        <pre className="rounded-card border-line bg-paper text-meta mt-4 w-full overflow-x-auto border p-4">
           <code>{stack}</code>
         </pre>
       )}

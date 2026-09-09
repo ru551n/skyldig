@@ -141,6 +141,7 @@ export default function SessionLayout({ loaderData }: Route.ComponentProps) {
 
         <main
           id="main"
+          tabIndex={-1}
           className="min-w-0 flex-1 px-4 pt-4 pb-8 min-[880px]:max-w-[720px] min-[880px]:px-8 min-[880px]:pt-8"
         >
           <Outlet />
@@ -191,6 +192,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   return (
     <main
       id="main"
+      tabIndex={-1}
       className="bg-frost text-pine mx-auto flex min-h-screen max-w-[65ch] flex-col items-start justify-center gap-4 p-6"
     >
       <h1 className="text-h1 font-semibold">Något gick fel</h1>

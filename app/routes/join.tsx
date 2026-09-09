@@ -1,6 +1,10 @@
 import { data, Form, redirect, useNavigation } from "react-router";
 
-import { createBrowserSession, grantAccess, rotateBrowserSession } from "@server/modules/auth/browser-session.ts";
+import {
+  createBrowserSession,
+  grantAccess,
+  rotateBrowserSession,
+} from "@server/modules/auth/browser-session.ts";
 import { resolveBrowserSession, withSetCookie } from "@server/modules/auth/session-auth.ts";
 import { limiters, clientKey } from "@server/modules/auth/rate-limit.ts";
 import { joinSession } from "@server/modules/session/index.ts";
@@ -42,8 +46,15 @@ export async function action({ request, context }: Route.ActionArgs) {
     const retryAfterMs = Math.max(joinCheck.retryAfterMs, globalCheck.retryAfterMs);
     await enforceResponseFloor(startedAt);
     return data<JoinFailure>(
-      { ok: false, code: "RATE_LIMITED", retryAfterSeconds: Math.max(1, Math.ceil(retryAfterMs / 1000)) },
-      { status: 429, headers: { "Retry-After": String(Math.max(1, Math.ceil(retryAfterMs / 1000))) } },
+      {
+        ok: false,
+        code: "RATE_LIMITED",
+        retryAfterSeconds: Math.max(1, Math.ceil(retryAfterMs / 1000)),
+      },
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.max(1, Math.ceil(retryAfterMs / 1000))) },
+      },
     );
   }
 
@@ -103,11 +114,18 @@ export default function JoinSessionPage({ actionData }: Route.ComponentProps) {
         : undefined;
 
   return (
-    <main id="main" className="mx-auto flex min-h-screen max-w-[65ch] flex-col gap-6 p-6 pb-16">
+    <main
+      id="main"
+      tabIndex={-1}
+      className="mx-auto flex min-h-screen max-w-[65ch] flex-col gap-6 p-6 pb-16"
+    >
       <PageHeader title={t("join.title")} lead={t("join.lead")} />
 
       {errorMessage && (
-        <p role="alert" className="rounded-control border border-rust/40 bg-rust/5 p-3 text-body text-rust">
+        <p
+          role="alert"
+          className="rounded-control border-rust/40 bg-rust/5 text-body text-rust border p-3"
+        >
           {errorMessage}
         </p>
       )}
@@ -130,7 +148,7 @@ export default function JoinSessionPage({ actionData }: Route.ComponentProps) {
               autoComplete="off"
               placeholder="ord-ord-ord-ord-ord-ord"
               required
-              className="min-h-14 text-lead"
+              className="text-lead min-h-14"
             />
           )}
         </Field>

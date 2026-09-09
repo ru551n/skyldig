@@ -23,11 +23,16 @@ export function SettleRow({ from, to, amountMinor, currency, index = 0, action }
     >
       <Card tinted className="rounded-row">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3 text-body font-medium text-pine">
+          {/*
+            The arrow is decorative, so the direction of the payment is spelled out for
+            screen readers: without it the row reads as two bare names and an amount.
+          */}
+          <p className="text-body text-pine flex min-w-0 items-center gap-3 font-medium">
             <span className="truncate">{from}</span>
-            <Arrow className="shrink-0 text-pine-soft" />
+            <span className="sr-only"> betalar </span>
+            <Arrow className="text-pine-soft shrink-0" aria-hidden />
             <span className="truncate">{to}</span>
-          </div>
+          </p>
           <div className="flex items-center gap-3">
             <Money amountMinor={amountMinor} currency={currency} size="lead" />
             {action}
