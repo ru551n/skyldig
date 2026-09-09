@@ -39,7 +39,10 @@ export async function resolveBrowserSession(
 }
 
 function notFound(): never {
-  throw new Response("Not Found", { status: 404 });
+  throw new Response("Not Found", {
+    status: 404,
+    headers: { "Cache-Control": "no-store" },
+  });
 }
 
 /**
@@ -80,7 +83,10 @@ export async function requireAdmin(
   const access = await requireSessionAccess(db, request, config, sessionPublicId);
   if (access.grant.role !== "admin") {
     authLogger.info({ sessionPublicId }, "admin access denied: caller is not an admin");
-    throw new Response("Forbidden", { status: 403 });
+    throw new Response("Forbidden", {
+      status: 403,
+      headers: { "Cache-Control": "no-store" },
+    });
   }
   return access;
 }

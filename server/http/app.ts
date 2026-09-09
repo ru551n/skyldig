@@ -2,7 +2,6 @@ import { randomUUID } from "node:crypto";
 
 import { createRequestHandler } from "@react-router/express";
 import express from "express";
-import helmet from "helmet";
 import pinoHttp from "pino-http";
 import { RouterContextProvider } from "react-router";
 
@@ -13,6 +12,7 @@ import { db, pool } from "../db/client.ts";
 import { logger } from "../logger.ts";
 import { startCleanupScheduler } from "../modules/expiration/cleanup.ts";
 import { phraseEntropyBits } from "../modules/session/phrase.ts";
+import { assignCspNonce, buildSecurityMiddleware } from "./security.ts";
 
 export const app = express();
 
@@ -35,12 +35,8 @@ if (config.trustProxy) {
   app.set("trust proxy", config.trustProxy);
 }
 
-app.use(
-  helmet({
-    // TODO(phase 7+): enable a CSP with a per-request nonce once inline scripts/styles are audited.
-    contentSecurityPolicy: false,
-  }),
-);
+app.use(assignCspNonce);
+app.use(buildSecurityMiddleware(config));
 
 // Deliberately no express.json()/express.urlencoded() here: they would consume the request
 // body stream before @react-router/express's createRequestHandler builds the web Request that
@@ -104,12 +100,13 @@ app.get("/ready", async (_req, res) => {
 app.use(
   createRequestHandler({
     build: () => import("virtual:react-router/server-build"),
-    getLoadContext(req) {
+    getLoadContext(req, res) {
       const context = new RouterContextProvider();
       context.set(requestContext, {
         requestId: (req as unknown as { id?: string }).id ?? randomUUID(),
         logger,
         clientIp: req.ip,
+        cspNonce: (res.locals.cspNonce as string | undefined) ?? "",
       });
       return context;
     },

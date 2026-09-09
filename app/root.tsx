@@ -7,14 +7,24 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  useRouteLoaderData,
 } from "react-router";
+
+import { requestContext } from "~/context.ts";
 
 import { ToastProvider } from "./components/ui/index.ts";
 
 import type { Route } from "./+types/root";
 import "./app.css";
 
+export function loader({ context }: Route.LoaderArgs) {
+  return { cspNonce: context.get(requestContext)?.cspNonce ?? "" };
+}
+
 export function Layout({ children }: { children: React.ReactNode }) {
+  const data = useRouteLoaderData<typeof loader>("root");
+  const nonce = data?.cspNonce;
+
   return (
     <html lang="sv">
       <head>
@@ -31,8 +41,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <MotionConfig reducedMotion="user">
           <ToastProvider>{children}</ToastProvider>
         </MotionConfig>
-        <ScrollRestoration />
-        <Scripts />
+        <ScrollRestoration nonce={nonce} />
+        <Scripts nonce={nonce} />
       </body>
     </html>
   );
