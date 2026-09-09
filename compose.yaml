@@ -17,14 +17,28 @@ services:
   app:
     build: .
     env_file:
-      - .env
+      - path: .env
+        required: false
     environment:
+      NODE_ENV: production
       DATABASE_URL: postgres://${POSTGRES_USER:-skyldig}:${POSTGRES_PASSWORD:-skyldig}@db:5432/${POSTGRES_DB:-skyldig}
+      PORT: ${PORT:-3000}
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-http://localhost:3000}
+      ACCESS_KEY_PEPPER: ${ACCESS_KEY_PEPPER:?ACCESS_KEY_PEPPER must be set (min 32 chars) — export it or set it in .env}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      TRUST_PROXY: ${TRUST_PROXY:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
     depends_on:
       db:
         condition: service_healthy
     ports:
-      - "${PORT:-3000}:3000"
+      - "${PORT:-3000}:${PORT:-3000}"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:${PORT:-3000}/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
     restart: unless-stopped
 
 volumes:
