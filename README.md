@@ -2,14 +2,14 @@
 
 Skyldig ("owing" in Swedish) is an account-less, self-hosted web app for splitting shared
 expenses within a group. There is no signup and no login: a group ("session") is identified by a
-six-word Swedish access phrase that you share with the people in it. Anyone with the phrase can
+four-word Swedish access phrase that you share with the people in it. Anyone with the phrase can
 add expenses and repayments and see who should pay whom. Groups are temporary and disappear on
 their own.
 
 How it works:
 
 - Create a group: give it a name, a base currency, and the participants.
-- Share the six-word access phrase with the group (and keep the one-time admin key for yourself).
+- Share the four-word access phrase with the group (and keep the one-time admin key for yourself).
 - Everyone with the phrase adds expenses (who paid, how much, split between whom) and repayments.
 - The app computes a settlement plan: the shortest list of "X pays Y this much" transfers that
   clears every balance.
@@ -24,7 +24,7 @@ repeating it.
 
 The MVP is complete and verified end to end. What works today:
 
-- Create a group, share a six-word Swedish access phrase, join from another browser.
+- Create a group, share a four-word Swedish access phrase, join from another browser.
 - A separate admin key unlocks rotating either key and deleting the group.
 - Participants, expenses and repayments with edit, delete and full revision history.
 - Multiple currencies with a user-entered exchange rate locked to each transaction.
@@ -219,8 +219,8 @@ suggestion, since adding one more expense can reshape the whole plan.
 ## Security
 
 The access phrase is the sole credential for reading or editing a group — anyone who has it can
-see and change everything in that group. It is six words from a curated Swedish wordlist
-(≥ 2048 words), giving roughly 67 bits of entropy. It is never stored in plaintext: the database
+see and change everything in that group. It is four words from a curated Swedish wordlist
+(≥ 2048 words), giving roughly 44 bits of entropy. It is never stored in plaintext: the database
 holds an HMAC-SHA256 blind index (keyed by `ACCESS_KEY_PEPPER`) for lookup, plus a separate
 scrypt verifier hash checked with a timing-safe comparison. The admin key is a second, higher
 privilege credential (20 random bytes, base32-encoded) needed for destructive actions (deleting

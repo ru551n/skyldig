@@ -141,13 +141,26 @@ const HOUR = 60 * MINUTE;
 
 /** The named limiters described in docs/architecture.md section 4.4. */
 export const limiters = {
-  /** Per-client join attempts: 10 per 10 minutes and 60 per hour. */
+  /**
+   * Per-client join attempts: 20 per 10 minutes and 60 per hour.
+   *
+   * Deliberately generous, because the product's normal case is a whole group joining the
+   * same trip from one shared network, so every one of them presents the same client key.
+   * A tight per-client cap would lock out a legitimate group before it inconveniences an
+   * attacker, who simply uses more addresses.
+   *
+   * The global cap below is what actually bounds brute force. A join is resolved by a single
+   * blind-index lookup, so one guess is tested against every active group at once; with a
+   * 4-word phrase (44.5 bits) and 240 attempts an hour, even a million live groups take
+   * around a decade before one hit is expected, and ten thousand groups take over a
+   * millennium.
+   */
   join: createRateLimiter([
-    { name: "join-10m", limit: 10, windowMs: 10 * MINUTE },
+    { name: "join-10m", limit: 20, windowMs: 10 * MINUTE },
     { name: "join-1h", limit: 60, windowMs: HOUR },
   ]),
-  /** Global join attempts across all clients: 300 per hour. Always keyed 'global'. */
-  joinGlobal: createRateLimiter([{ name: "join-global-1h", limit: 300, windowMs: HOUR }]),
+  /** Global join attempts across all clients: 240 per hour. Always keyed 'global'. */
+  joinGlobal: createRateLimiter([{ name: "join-global-1h", limit: 240, windowMs: HOUR }]),
   /** Per-client admin elevation attempts: 5 per 10 minutes. */
   elevate: createRateLimiter([{ name: "elevate-10m", limit: 5, windowMs: 10 * MINUTE }]),
   /**

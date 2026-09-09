@@ -13,6 +13,7 @@ import {
   rotateAdminKey,
   verifyAdminKey,
 } from "../../server/modules/session/session.ts";
+import { PHRASE_WORDS } from "../../server/modules/session/phrase.ts";
 import { db, pool, resetDb } from "./db.ts";
 
 // scrypt (N=2^15) is ~100ms per call and createSession/rotate each do one; keep a generous
@@ -35,10 +36,10 @@ async function makeSession(overrides: Partial<Parameters<typeof createSession>[2
 
 describe("createSession / joinSession", () => {
   it(
-    "creates a session with a 6-word phrase that joins successfully",
+    "creates a session with a 4-word phrase that joins successfully",
     async () => {
       const { session, phrase, adminKey } = await makeSession();
-      expect(phrase.split("-")).toHaveLength(6);
+      expect(phrase.split("-")).toHaveLength(PHRASE_WORDS);
       expect(adminKey).toMatch(/^admin-/);
       expect(session.baseCurrency).toBe("SEK");
 

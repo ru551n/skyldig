@@ -83,7 +83,7 @@ test("admin: elevate, wrong key, rotate phrase, delete group", async ({ browser 
     await expect(memberPage.getByRole("heading", { name: "Ny gruppnyckel" })).toBeVisible();
     newPhrase = (await memberPage.locator("p.tabular.select-all").first().innerText()).trim();
     expect(newPhrase).not.toBe(phrase);
-    expect(newPhrase.split("-")).toHaveLength(6);
+    expect(newPhrase.split("-")).toHaveLength(4);
 
     const otherContext = await browser.newContext();
     const otherPage = await otherContext.newPage();

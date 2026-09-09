@@ -27,7 +27,7 @@ describe("generatePhrase", () => {
 });
 
 describe("phraseEntropyBits", () => {
-  it("is at least 66 bits", () => {
-    expect(phraseEntropyBits()).toBeGreaterThanOrEqual(66);
+  it("is at least 44 bits", () => {
+    expect(phraseEntropyBits()).toBeGreaterThanOrEqual(44);
   });
 });

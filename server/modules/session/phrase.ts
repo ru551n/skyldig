@@ -37,13 +37,13 @@ function validateWordlist(words: readonly string[]): void {
 validateWordlist(WORDLIST);
 
 /** Number of words drawn per access phrase. */
-export const PHRASE_WORDS = 6;
+export const PHRASE_WORDS = 4;
 
 /**
  * Draws `PHRASE_WORDS` words uniformly at random *with replacement* from the wordlist, using
  * `crypto.randomInt` (rejection-free, no modulo bias), joined with `-`. Words may repeat: the
  * entropy accounting (`phraseEntropyBits`) assumes a with-replacement draw, i.e.
- * log2(wordlist.length ^ PHRASE_WORDS), which for ~2250 words and 6 draws is ~67 bits.
+ * log2(wordlist.length ^ PHRASE_WORDS), which for ~2250 words and 4 draws is ~44.5 bits.
  */
 export function generatePhrase(): string {
   const words: string[] = [];

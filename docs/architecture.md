@@ -77,9 +77,12 @@ from the client bundle). Path aliases: `~/*` → `app/*`, `@domain/*`, `@server/
 ## 4. Credentials and browser sessions
 
 ### 4.1 Access phrase
-- **6 words** drawn with rejection-sampled `crypto.randomInt` from a curated Swedish wordlist of
+- **4 words** drawn with rejection-sampled `crypto.randomInt` from a curated Swedish wordlist of
   ≥ 2048 words (`server/modules/session/wordlist.sv.txt`, validated by
-  `scripts/check-wordlist.py`) → ≥ 66 bits. Wordlist rules: lowercase ASCII a–z only (typeable
+  `scripts/check-wordlist.py`) → ≥ 44 bits. Shortened from 6 words on request, trading entropy
+  for a phrase that is quicker to dictate; the join rate limits below were tightened to
+  compensate, because a guess is tested against every active group at once through the blind
+  index. See `docs/todo.md` for the full trade-off. Wordlist rules: lowercase ASCII a–z only (typeable
   on any keyboard; å/ä/ö words excluded), 3–8 letters, no prefix relationships, pairwise edit
   distance ≥ 2, no confusable inflections, nothing offensive.
 - Format `w-w-w-w-w-w`. Input normalization: NFKC, trim, lowercase, replace any run of
@@ -92,7 +95,7 @@ from the client bundle). Path aliases: `~/*` → `app/*`, `@domain/*`, `@server/
   The pepper is ≥ 32 bytes, lives in the environment (not the DB), and must be excluded from DB
   backups. `pepper_version smallint` is stored to allow future rotation.
 - Uniqueness among active sessions: the UNIQUE index; on collision regenerate (never observed
-  at 66 bits but handled).
+  at 44 bits but handled).
 
 ### 4.2 Admin key
 - 20 random bytes (160 bits) via `crypto.randomBytes`, Crockford-style base32 without
@@ -127,8 +130,10 @@ from the client bundle). Path aliases: `~/*` → `app/*`, `@domain/*`, `@server/
   exactly; if neither is present → 403. There are no mutating GET routes.
 - Rate limiting (`server/modules/auth/rate-limit.ts`): sliding-window counters in a bounded
   LRU (50k keys, fail-closed under eviction pressure). Client key = IPv4 address or IPv6 /64;
-  `X-Forwarded-For` is honoured only when `TRUST_PROXY` is set. Limits: join 10/10 min and
-  60/h per client, 300/h global; admin elevation 5/10 min per client **and** 20/h per session
+  `X-Forwarded-For` is honoured only when `TRUST_PROXY` is set. Limits: join 20/10 min and
+  60/h per client, 240/h global. The per-client cap is deliberately loose because a whole
+  group normally joins from one shared network; the global cap is what bounds brute force,
+  and at 44.5 bits it leaves even a million live groups about a decade from an expected hit; admin elevation 5/10 min per client **and** 20/h per session
   public id followed by a 15-minute lock. Failures return one generic message after a fixed
   ≥ 250 ms response floor.
 - helmet: CSP `default-src 'self'` with a per-request nonce for the hydration script,

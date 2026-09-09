@@ -44,45 +44,6 @@ the access phrase stays Swedish regardless of interface language, because the wo
 the entropy calculation and the stored blind index depend on; the English catalogue should
 explain the phrase rather than imply it will be in English.
 
-## Shorten the access phrase to three words
-
-Requested so the phrase is quicker to read out and type. It is a straight trade against
-brute-force resistance, and the numbers matter, so they are recorded here.
-
-The wordlist holds 2250 words. Phrase length gives:
-
-| Words | Entropy | Combinations |
-|---|---|---|
-| 3 | 33.4 bits | 11 billion |
-| 4 | 44.5 bits | 26 trillion |
-| 5 | 55.7 bits | 58 quadrillion |
-| 6 (today) | 66.8 bits | 130 quintillion |
-
-Three words is a large reduction. The specific risk is not offline cracking, which the scrypt
-verifier already makes expensive, but online guessing: because a guess is resolved through a
-single blind-index lookup, one attempt is tested against every active group at once. With ten
-thousand live groups, a random guess hits roughly once in a million, which a distributed
-attacker can reach. At six words the same attack is hopeless.
-
-If the phrase is shortened, it should not be shortened alone. Options, roughly in order of how
-much they buy:
-
-- **Use four words instead of three.** 44.5 bits, still short to dictate, and about two
-  thousand times harder to guess than three.
-- **Add a check character.** A short suffix derived from the words catches typos client-side
-  before an attempt reaches the limiter, so the rate limit is spent on real attacks rather than
-  mistakes.
-- **Tighten the limits.** The current join limit is ten attempts per ten minutes per client,
-  sixty per hour, three hundred globally. At three words the global cap is what stands between
-  the app and a distributed sweep, and it should come down.
-- **Grow the wordlist.** Doubling it to 4500 words adds one bit per word; that is far less than
-  it sounds and does not substitute for the word count.
-
-Whatever is chosen, the constant lives in `server/modules/session/phrase.ts` (`PHRASE_WORDS`),
-`phraseEntropyBits()` is logged at startup, and the change must be reflected in
-`docs/architecture.md` §4.1, the README security section, the `/guide` page and the tests that
-assert a six-word shape. Existing groups keep working, since only the hash is stored.
-
 # Known gaps
 
 ## Verify the Docker deployment

@@ -60,7 +60,7 @@ test("full MVP flow: create, expenses, payment, edit, history, balances, settle,
     const adminKeyText = (await page.locator("p.tabular.select-all").nth(1).innerText()).trim();
 
     const words = phraseText.split("-");
-    expect(words).toHaveLength(6);
+    expect(words).toHaveLength(4);
     for (const w of words) {
       expect(w).toMatch(/^[a-zåäö]+$/);
     }
