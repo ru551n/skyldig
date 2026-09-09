@@ -1,4 +1,5 @@
 import { motion } from "motion/react";
+import { useEffect, useRef } from "react";
 import { Dialog as RadixDialog } from "radix-ui";
 
 import { Button, type ButtonVariant } from "./Button.tsx";
@@ -18,12 +19,31 @@ export interface DialogProps {
 
 /** Radix dialog styled per the design system: 20px radius, focus trap, scale-in 0.96→1 over 160ms. */
 export function Dialog({ open, onOpenChange, title, description, children, trigger }: DialogProps) {
+  // Dialogs here are usually opened from a plain button that sets state rather than from a
+  // Dialog.Trigger, so Radix has no trigger to hand focus back to and closing drops focus on
+  // <body>. Remember what was focused when the dialog opened and restore it on close.
+  const previouslyFocused = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (open) {
+      previouslyFocused.current = document.activeElement as HTMLElement | null;
+    }
+  }, [open]);
+
   return (
     <RadixDialog.Root open={open} onOpenChange={onOpenChange}>
       {trigger && <RadixDialog.Trigger asChild>{trigger}</RadixDialog.Trigger>}
       <RadixDialog.Portal>
         <RadixDialog.Overlay className="bg-pine/40 fixed inset-0 z-40" />
-        <RadixDialog.Content asChild>
+        <RadixDialog.Content
+          asChild
+          onCloseAutoFocus={(event) => {
+            const target = previouslyFocused.current;
+            if (target?.isConnected) {
+              event.preventDefault();
+              target.focus();
+            }
+          }}
+        >
           <motion.div
             initial={{ opacity: 0, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}

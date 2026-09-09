@@ -11,8 +11,13 @@
   --color-pine: #0f2a24;
   --color-pine-soft: #5b6e69;
   --color-sol: #ffd23f;
-  --color-moss: #1d8a4e;
-  --color-rust: #d4462a;
+  /*
+    Balance colours double as body text on the frost/paper/sol surfaces and as button
+    backgrounds under white text, so both are darkened to clear 4.5:1 in every pairing.
+    The previous values measured 3.99:1 and 4.07:1 on frost.
+  */
+  --color-moss: #136437;
+  --color-rust: #a82f18;
   --color-line: rgb(15 42 36 / 0.12);
 
   /* Radius hierarchy */

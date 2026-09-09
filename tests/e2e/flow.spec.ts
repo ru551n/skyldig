@@ -252,7 +252,9 @@ test("full MVP flow: create, expenses, payment, edit, history, balances, settle,
     const applied = { ...nets };
     for (let i = 0; i < rowCount; i++) {
       const row = payRows.nth(i);
-      const text = (await row.innerText()).trim();
+      // The names and the visually hidden "betalar" render on separate lines, so
+      // collapse whitespace before parsing the direction out of the row.
+      const text = (await row.innerText()).replace(/\s+/g, " ").trim();
       const match = /^(.+?) betalar (.+)$/.exec(text);
       expect(match).not.toBeNull();
       const from = match![1]!.trim();
