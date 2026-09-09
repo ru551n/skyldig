@@ -1,8 +1,89 @@
 # Open items
 
-Known, verified gaps. Each entry says what is wrong, why it is not urgent, and what fixing it
+Planned work and known gaps. Each entry says what is wanted or wrong and what doing it
 involves. Nothing here blocks the MVP, which is complete and verified (see the README status
 table).
+
+- [Planned changes](#planned-changes) — requested work not yet started.
+- [Known gaps](#known-gaps) — verified shortcomings in what already ships.
+
+
+# Planned changes
+
+## Design a logo and show it on the landing page
+
+The landing page currently opens with the word "Skyldig" set in Familjen Grotesk and a small
+static settle-up row as the illustration. It needs a real mark.
+
+The name means "owing" in Swedish, and the product's whole job is resolving a tangle of debts
+into a few clean payments, so the arrow motif already used in the settle-up rows is the obvious
+place to start. Whatever is drawn should work as a 20 px favicon, sit beside the wordmark in
+the top bar of every session page, and hold up on the pine, frost and paper backgrounds defined
+in `docs/design.md`.
+
+Deliver it as inline SVG rather than a raster file, so it inherits `currentColor` and stays
+crisp; add a favicon and an apple-touch icon; and give it a proper accessible name where it
+stands alone as a link.
+
+## Add English as a second language
+
+The interface is Swedish only. The groundwork is already in place: every visible string goes
+through the typed `t()` helper in `app/i18n/`, so no component holds hard-coded Swedish, and
+adding a language means adding a catalogue with the same shape rather than touching components.
+
+The work is: write `app/i18n/en.ts` against the type derived from `sv.ts` so a missing key is a
+compile error; decide how the locale is chosen and remembered (the `Accept-Language` header for
+a first visit, with an explicit switcher that persists the choice, most simply in the browser
+session row so it survives across devices sharing a group); thread the active locale through
+the root context, which already carries it, and into every `Intl` call for dates and currency;
+and set `<html lang>` from it.
+
+Two things need care. Currency formatting already uses `Intl` with the active locale, so
+amounts will change shape between languages, which is correct but worth a screenshot check. And
+the access phrase stays Swedish regardless of interface language, because the wordlist is what
+the entropy calculation and the stored blind index depend on; the English catalogue should
+explain the phrase rather than imply it will be in English.
+
+## Shorten the access phrase to three words
+
+Requested so the phrase is quicker to read out and type. It is a straight trade against
+brute-force resistance, and the numbers matter, so they are recorded here.
+
+The wordlist holds 2250 words. Phrase length gives:
+
+| Words | Entropy | Combinations |
+|---|---|---|
+| 3 | 33.4 bits | 11 billion |
+| 4 | 44.5 bits | 26 trillion |
+| 5 | 55.7 bits | 58 quadrillion |
+| 6 (today) | 66.8 bits | 130 quintillion |
+
+Three words is a large reduction. The specific risk is not offline cracking, which the scrypt
+verifier already makes expensive, but online guessing: because a guess is resolved through a
+single blind-index lookup, one attempt is tested against every active group at once. With ten
+thousand live groups, a random guess hits roughly once in a million, which a distributed
+attacker can reach. At six words the same attack is hopeless.
+
+If the phrase is shortened, it should not be shortened alone. Options, roughly in order of how
+much they buy:
+
+- **Use four words instead of three.** 44.5 bits, still short to dictate, and about two
+  thousand times harder to guess than three.
+- **Add a check character.** A short suffix derived from the words catches typos client-side
+  before an attempt reaches the limiter, so the rate limit is spent on real attacks rather than
+  mistakes.
+- **Tighten the limits.** The current join limit is ten attempts per ten minutes per client,
+  sixty per hour, three hundred globally. At three words the global cap is what stands between
+  the app and a distributed sweep, and it should come down.
+- **Grow the wordlist.** Doubling it to 4500 words adds one bit per word; that is far less than
+  it sounds and does not substitute for the word count.
+
+Whatever is chosen, the constant lives in `server/modules/session/phrase.ts` (`PHRASE_WORDS`),
+`phraseEntropyBits()` is logged at startup, and the change must be reflected in
+`docs/architecture.md` §4.1, the README security section, the `/guide` page and the tests that
+assert a six-word shape. Existing groups keep working, since only the hash is stored.
+
+# Known gaps
 
 ## Verify the Docker deployment
 
