@@ -137,8 +137,16 @@ from the client bundle). Path aliases: `~/*` → `app/*`, `@domain/*`, `@server/
   invite-token redemption (§4.1, docs/todo.md) has its own identically sized limiter, kept
   separate from phrase joins because a token is single-use and short-lived and must not share
   a budget with a reusable credential; admin elevation 5/10 min per client **and** 20/h per session
-  public id followed by a 15-minute lock. Failures return one generic message after a fixed
-  ≥ 250 ms response floor.
+  public id followed by a 15-minute lock. Group creation (`POST /new`) has its own limiter,
+  sized meaningfully tighter than join's per-client budget since creating a group is a
+  one-person, one-time action rather than something a whole group legitimately shares a
+  client key for: 15/10 min and 40/h per client, 60/h global — the per-client numbers leave
+  headroom above the e2e suite's own measured usage (roughly a dozen creations from one
+  client key in a single run) so the suite itself never trips it, while the global cap still
+  meaningfully blunts a flood of junk groups, each of which otherwise persists for 90 days
+  (docs/todo.md) before cleanup. Failures return one generic message after a fixed
+  ≥ 250 ms response floor for join/invite/elevate; group creation returns its 429 immediately,
+  since there is no credential being guessed and so no timing side-channel to defend against.
 - helmet: CSP `default-src 'self'` with a per-request nonce for the hydration script,
   `frame-ancestors 'none'`, HSTS in production, `Referrer-Policy:
   strict-origin-when-cross-origin`, nosniff. Body limit 64 KB.

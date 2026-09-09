@@ -47,3 +47,18 @@ dialog closes, which counts as an inline style injection rather than a scripted 
 Scripts, which are the dangerous case, are fully locked down. Removing the exception would mean
 replacing the dialog's motion usage with CSS animations, or nonce-ing the styles the library
 writes, which the library does not currently support.
+
+## Group creation only has rate limiting, no CAPTCHA
+
+`POST /new` is rate limited (`server/modules/auth/rate-limit.ts`'s `createSession` /
+`createSessionGlobal`, docs/architecture.md §4.4) — 15/10 min and 40/h per client key, 60/h
+across all clients — so a scripted flood of group creation is bounded rather than unlimited.
+It is not backed by a CAPTCHA. That was a deliberate choice, not an oversight: every CAPTCHA
+worth using is a third-party script pulled from someone else's server, which would need a site
+key most self-hosters would have to sign up for and configure, contradicting the zero-external-
+dependency self-hosting principle described elsewhere in docs/architecture.md. Rate limiting
+alone is a reasonable default because the actual harm of a flood — junk groups occupying
+storage for their 90-day lifetime and slowing admin/backup operations on `sessions` — is
+already meaningfully blunted without it. A self-hoster who wants stronger bot resistance than a
+rate limiter provides can front the app with something like Cloudflare Turnstile at the reverse
+proxy layer, gating `/new` before it ever reaches the app; that requires no application change.

@@ -60,10 +60,28 @@ export function meta(_args: Route.MetaArgs) {
   return [{ title: "Skapa grupp — Skyldig" }];
 }
 
-export async function action({ request }: Route.ActionArgs) {
+export async function action({ request, context }: Route.ActionArgs) {
   mutationGuard(request);
   const config = getConfig();
   const db = getDb();
+
+  const clientIp = context.get(requestContext)?.clientIp;
+  const key = clientKey({ ip: clientIp, headers: headersOf(request) }, config);
+
+  const createCheck = limiters.createSession.check(key);
+  const globalCheck = limiters.createSessionGlobal.check("global");
+  if (!createCheck.allowed || !globalCheck.allowed) {
+    const retryAfterMs = Math.max(createCheck.retryAfterMs, globalCheck.retryAfterMs);
+    const retryAfterSeconds = Math.max(1, Math.ceil(retryAfterMs / 1000));
+    return data<ActionResult>(
+      { ok: false, code: "RATE_LIMITED", message: "Too many attempts." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(retryAfterSeconds) },
+      },
+    );
+  }
+
   const formData = await request.formData();
 
   const parsed = formSchema.safeParse({
@@ -145,6 +163,14 @@ export async function action({ request }: Route.ActionArgs) {
       { status: actionError.code === "UNEXPECTED" ? 500 : 422 },
     );
   }
+}
+
+function headersOf(request: Request): Record<string, string> {
+  const headers: Record<string, string> = {};
+  request.headers.forEach((value, key) => {
+    headers[key] = value;
+  });
+  return headers;
 }
 
 /** Looks up a `validation.<code>` message, falling back to the generic error copy. */
