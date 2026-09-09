@@ -6,11 +6,18 @@ export interface LocaleSwitcherProps {
   className?: string;
 }
 
+const OPTIONS = [
+  { locale: "sv", flag: "🇸🇪" },
+  { locale: "en", flag: "🇬🇧" },
+] as const;
+
 /**
- * Language switcher: a labeled `<select>` (an accessible name, not just a flag icon) that
- * posts to `/lang` to set the `skyldig_lang` cookie and reload the current page in the chosen
- * language. Works with JavaScript disabled via the submit button; with it, choosing an option
- * submits the form immediately.
+ * Language switcher: two flag buttons, each with a real accessible name via `aria-label`
+ * (never a flag standing alone with no name — flags aren't reliably announced by their
+ * country as text, and are ambiguous for colorblind/low-vision users). Posts to `/lang` to
+ * set the `skyldig_lang` cookie and reload the current page in the chosen language. Each
+ * option is a native submit button (`name="locale" value="sv"|"en"`), so this works with
+ * JavaScript disabled with no separate fallback needed.
  */
 export function LocaleSwitcher({ className }: LocaleSwitcherProps) {
   const location = useLocation();
@@ -21,28 +28,31 @@ export function LocaleSwitcher({ className }: LocaleSwitcherProps) {
   return (
     <form method="post" action="/lang" className={className}>
       <input type="hidden" name="redirectTo" value={redirectTo} />
-      <label htmlFor="locale-switcher" className="sr-only">
-        {t("common.languageLabel")}
-      </label>
-      <div className="flex items-center gap-2">
-        <select
-          id="locale-switcher"
-          name="locale"
-          defaultValue={locale}
-          onChange={(event) => event.currentTarget.form?.requestSubmit()}
-          className="rounded-control border-line bg-paper text-meta text-pine-soft focus-visible:outline-pine min-h-9 border px-2 py-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
-        >
-          <option value="sv">{t("common.languageSwedish")}</option>
-          <option value="en">{t("common.languageEnglish")}</option>
-        </select>
-        <noscript>
-          <button
-            type="submit"
-            className="rounded-control border-line bg-paper text-meta text-pine-soft min-h-9 border px-3 py-1"
-          >
-            {t("common.save")}
-          </button>
-        </noscript>
+      <div
+        role="group"
+        aria-label={t("common.languageLabel")}
+        className="border-line bg-paper inline-flex items-center gap-1 rounded-full border p-1"
+      >
+        {OPTIONS.map((option) => {
+          const active = locale === option.locale;
+          const label = t(option.locale === "sv" ? "common.languageSwedish" : "common.languageEnglish");
+          return (
+            <button
+              key={option.locale}
+              type="submit"
+              name="locale"
+              value={option.locale}
+              aria-label={label}
+              aria-pressed={active}
+              title={label}
+              className={`focus-visible:outline-pine flex h-9 w-9 items-center justify-center rounded-full text-lg leading-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${
+                active ? "bg-sol/40 ring-pine/20 ring-1" : "opacity-60 hover:opacity-100"
+              }`}
+            >
+              <span aria-hidden="true">{option.flag}</span>
+            </button>
+          );
+        })}
       </div>
     </form>
   );
