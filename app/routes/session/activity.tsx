@@ -25,7 +25,16 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 
   const url = new URL(request.url);
   const beforeParam = url.searchParams.get("before");
-  const before = beforeParam ? new Date(beforeParam) : undefined;
+  // An invalid/unparseable `before` is ignored (treated as absent) rather than throwing — this
+  // is attacker-controlled input (any member can set it), so a malformed value must not be
+  // able to trigger a 500 and an error log line.
+  let before: Date | undefined;
+  if (beforeParam) {
+    const parsed = new Date(beforeParam);
+    if (!Number.isNaN(parsed.getTime())) {
+      before = parsed;
+    }
+  }
 
   const rows = await listActivity(db, access.session.id, { limit: PAGE_SIZE + 1, before });
   const hasMore = rows.length > PAGE_SIZE;

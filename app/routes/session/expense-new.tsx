@@ -42,7 +42,11 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   return {
     sessionPublicId: access.session.publicId,
     baseCurrency: access.session.baseCurrency,
-    participants: participants.map((p) => ({ publicId: p.publicId, displayName: p.displayName })),
+    participants: participants.map((p) => ({
+      publicId: p.publicId,
+      displayName: p.displayName,
+      position: p.position,
+    })),
     currencies: listCurrencies(),
     suggestedRate,
   };

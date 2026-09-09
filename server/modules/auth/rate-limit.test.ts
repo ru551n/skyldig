@@ -90,6 +90,31 @@ describe("createRateLimiter", () => {
     expect(limiter.check("k", now + 5001).allowed).toBe(true);
   });
 
+  it("reports reason 'locked' for a denial caused by an existing lock", () => {
+    const limiter = createRateLimiter([{ name: "r", limit: 100, windowMs: 1000 }]);
+    const now = 1_000_000;
+    limiter.lock("k", 5000, now);
+    const result = limiter.check("k", now + 100);
+    expect(result.allowed).toBe(false);
+    expect(result.reason).toBe("locked");
+  });
+
+  it("reports reason 'limit' for a denial caused by exceeding a rule (not locked)", () => {
+    const limiter = createRateLimiter([{ name: "r", limit: 1, windowMs: 1000 }]);
+    const now = 1_000_000;
+    expect(limiter.check("k", now).allowed).toBe(true);
+    const result = limiter.check("k", now + 10);
+    expect(result.allowed).toBe(false);
+    expect(result.reason).toBe("limit");
+  });
+
+  it("does not report reason when allowed", () => {
+    const limiter = createRateLimiter([{ name: "r", limit: 100, windowMs: 1000 }]);
+    const result = limiter.check("k", 1_000_000);
+    expect(result.allowed).toBe(true);
+    expect(result.reason).toBeUndefined();
+  });
+
   it("fails closed when the bounded map is full and the key is new", () => {
     const limiter = createRateLimiter([{ name: "r", limit: 100, windowMs: 1000 }]);
     const now = 1_000_000;

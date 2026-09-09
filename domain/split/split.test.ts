@@ -189,4 +189,26 @@ describe("splitEqually", () => {
     ]);
     expect(shares.map((s) => s.share)).toEqual([4n, 3n, 3n]);
   });
+
+  it("a 1-minor-unit total split across more than one participant is [1, 0, 0, ...], summing to 1, zero shares allowed", () => {
+    const shares = splitEqually(1n, [
+      { id: "a", position: 0 },
+      { id: "b", position: 1 },
+      { id: "c", position: 2 },
+      { id: "d", position: 3 },
+    ]);
+    expect(shares.map((s) => s.share)).toEqual([1n, 0n, 0n, 0n]);
+    expect(shares.reduce((acc, s) => acc + s.share, 0n)).toBe(1n);
+  });
+
+  it("a 1-minor-unit total split across two participants of unequal weight still gives the whole unit to one side", () => {
+    const shares = splitAmount(1n, [
+      { id: "a", position: 0, weight: 1n },
+      { id: "b", position: 1, weight: 9n },
+    ]);
+    expect(shares.reduce((acc, s) => acc + s.share, 0n)).toBe(1n);
+    // b has the larger weight so gets the larger remainder (9/10 vs 1/10) and wins the single unit.
+    expect(shares.find((s) => s.id === "b")!.share).toBe(1n);
+    expect(shares.find((s) => s.id === "a")!.share).toBe(0n);
+  });
 });

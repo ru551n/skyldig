@@ -44,6 +44,16 @@ export function loader(_args: Route.LoaderArgs) {
   return { currencies: listCurrencies() };
 }
 
+/**
+ * Without this, React Router discards every header the loader/action set on a document
+ * response except `Set-Cookie` (see docs on `HeadersFunction`) — this route's action sets
+ * `Cache-Control: no-store` on a response whose body is the plaintext access phrase and admin
+ * key, so that must survive.
+ */
+export function headers({ actionHeaders, loaderHeaders }: Route.HeadersArgs) {
+  return [...actionHeaders.keys()].length > 0 ? actionHeaders : loaderHeaders;
+}
+
 export function meta(_args: Route.MetaArgs) {
   return [{ title: "Skapa grupp — Skyldig" }];
 }

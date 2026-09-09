@@ -31,6 +31,15 @@ export function meta(_args: Route.MetaArgs) {
   return [{ title: "Gå med i grupp — Skyldig" }];
 }
 
+/**
+ * Without this, React Router discards every header the action set on a document response
+ * except `Set-Cookie` — in particular the `Retry-After` header on a rate-limited (429)
+ * response would silently disappear.
+ */
+export function headers({ actionHeaders, loaderHeaders }: Route.HeadersArgs) {
+  return [...actionHeaders.keys()].length > 0 ? actionHeaders : loaderHeaders;
+}
+
 export async function action({ request, context }: Route.ActionArgs) {
   mutationGuard(request);
   const startedAt = Date.now();

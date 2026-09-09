@@ -527,15 +527,29 @@ export async function suggestRate(
   currencyCode: string,
 ): Promise<{ rateText: string; rateDirection: RateDirection } | null> {
   const fromExpenses = db
-    .select({ rateText: expenses.rateText, rateDirection: expenses.rateDirection, updatedAt: expenses.updatedAt })
+    .select({
+      rateText: expenses.rateText,
+      rateDirection: expenses.rateDirection,
+      updatedAt: expenses.updatedAt,
+      publicId: expenses.publicId,
+    })
     .from(expenses)
     .where(and(eq(expenses.sessionId, sessionId), eq(expenses.currencyCode, currencyCode), sql`${expenses.rateText} is not null`));
   const fromPayments = db
-    .select({ rateText: payments.rateText, rateDirection: payments.rateDirection, updatedAt: payments.updatedAt })
+    .select({
+      rateText: payments.rateText,
+      rateDirection: payments.rateDirection,
+      updatedAt: payments.updatedAt,
+      publicId: payments.publicId,
+    })
     .from(payments)
     .where(and(eq(payments.sessionId, sessionId), eq(payments.currencyCode, currencyCode), sql`${payments.rateText} is not null`));
 
-  const [row] = await union(fromExpenses, fromPayments).orderBy(desc(sql`updated_at`)).limit(1);
+  // Secondary ordering by public_id descending makes the suggestion deterministic
+  // when two rows share the same updated_at timestamp.
+  const [row] = await union(fromExpenses, fromPayments)
+    .orderBy(desc(sql`updated_at`), desc(sql`public_id`))
+    .limit(1);
   if (!row) return null;
   return { rateText: row.rateText!, rateDirection: row.rateDirection as RateDirection };
 }

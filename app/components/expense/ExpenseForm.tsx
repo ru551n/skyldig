@@ -20,6 +20,14 @@ import { RateSection, type RateDirection } from "./RateSection.tsx";
 export interface ParticipantOption {
   publicId: string;
   displayName: string;
+  /**
+   * The participant's real ordering within the session, used for the
+   * split preview so it matches what the server will store. Optional for
+   * backward compatibility with callers that have not threaded it through
+   * yet; falls back to array index (which only agrees with the real
+   * position when the list already arrives in position order).
+   */
+  position?: number;
 }
 
 export interface CurrencyOption {
@@ -141,7 +149,7 @@ export function ExpenseForm({
       if (ids.length === 0) return null;
       const parts = participants
         .filter((p) => selected.has(p.publicId))
-        .map((p, index) => ({ id: p.publicId, position: index }));
+        .map((p, index) => ({ id: p.publicId, position: p.position ?? index }));
       const shares = splitEqually(baseAmountMinor, parts);
       const byId = new Map(participants.map((p) => [p.publicId, p.displayName]));
       return {

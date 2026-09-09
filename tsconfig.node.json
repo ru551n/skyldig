@@ -9,7 +9,7 @@
     "tests/**/*",
     "server/**/*"
   ],
-  "exclude": ["server/http/**/*", "server/app.ts"],
+  "exclude": ["server/http/**/*", "server/app.ts", "tests/integration/activity-loader.test.ts"],
   "compilerOptions": {
     "composite": true,
     "strict": true,

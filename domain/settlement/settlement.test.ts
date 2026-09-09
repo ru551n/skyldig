@@ -187,4 +187,88 @@ describe("settle", () => {
       for (const n2 of applied) expect(n2.net).toBe(0n);
     }
   });
+
+  it("property: 300 seeded zero-sum vectors (n <= 12, magnitudes spanning 1 to 10^15) settle deterministically", () => {
+    const rand = mulberry32(20260909);
+
+    /** A bigint magnitude roughly log-uniform between 1 and 10^15, so both tiny and huge nets appear. */
+    function randomMagnitude(): bigint {
+      const exponent = rand() * 15; // 0..15
+      const scale = 10 ** exponent;
+      const value = Math.max(1, Math.round(scale * (0.5 + rand())));
+      return BigInt(value);
+    }
+
+    for (let scenario = 0; scenario < 300; scenario++) {
+      const n = 2 + Math.floor(rand() * 11); // 2..12
+      const nets: NetPosition[] = [];
+      let sum = 0n;
+      for (let i = 0; i < n - 1; i++) {
+        const magnitude = randomMagnitude();
+        const value = rand() < 0.5 ? magnitude : -magnitude;
+        nets.push({ participantId: `p${i}`, position: i, net: value });
+        sum += value;
+      }
+      nets.push({ participantId: `p${n - 1}`, position: n - 1, net: -sum });
+
+      const transfers = settle(nets);
+      expect(transfers.length).toBeLessThanOrEqual(n - 1);
+      for (const t of transfers) {
+        expect(t.amountMinor).toBeGreaterThan(0n);
+        expect(t.from).not.toBe(t.to);
+      }
+
+      // Determinism: re-running on a shuffled copy of the same nets produces the same transfers.
+      const shuffled = [...nets].sort(() => rand() - 0.5);
+      expect(settle(shuffled)).toEqual(transfers);
+
+      const applied = applyTransfers(nets, transfers);
+      for (const n2 of applied) expect(n2.net).toBe(0n);
+    }
+  });
+
+  it("property: exact-match chains of large, distinct magnitudes fully resolve via the pre-pass", () => {
+    // Three independent exact-match pairs at very different scales, interleaved so the
+    // pre-pass must iterate to a fixed point rather than resolving in a single scan.
+    const nets: NetPosition[] = [
+      { participantId: "A", position: 0, net: 1_000_000_000_000_000n },
+      { participantId: "B", position: 1, net: -7n },
+      { participantId: "C", position: 2, net: -1_000_000_000_000_000n },
+      { participantId: "D", position: 3, net: 7n },
+      { participantId: "E", position: 4, net: 250_000n },
+      { participantId: "F", position: 5, net: -250_000n },
+    ];
+    const transfers = settle(nets);
+    expect(transfers).toHaveLength(3);
+    for (const t of transfers) {
+      expect(t.amountMinor).toBeGreaterThan(0n);
+      expect(t.from).not.toBe(t.to);
+    }
+    const applied = applyTransfers(nets, transfers);
+    for (const n2 of applied) expect(n2.net).toBe(0n);
+  });
+
+  it("property: equal-magnitude ties across many participants settle deterministically and zero every net", () => {
+    // Three debtors and three creditors all sharing the same magnitude (1e12): the tie-break
+    // (position ascending, then id ascending) must produce a stable, fully-zeroing plan.
+    const magnitude = 1_000_000_000_000n;
+    const nets: NetPosition[] = [
+      { participantId: "D0", position: 0, net: -magnitude },
+      { participantId: "D1", position: 1, net: -magnitude },
+      { participantId: "D2", position: 2, net: -magnitude },
+      { participantId: "C0", position: 3, net: magnitude },
+      { participantId: "C1", position: 4, net: magnitude },
+      { participantId: "C2", position: 5, net: magnitude },
+    ];
+    const transfers1 = settle(nets);
+    const transfers2 = settle([...nets].reverse());
+    expect(transfers1).toEqual(transfers2);
+    expect(transfers1).toHaveLength(3);
+    for (const t of transfers1) {
+      expect(t.amountMinor).toBe(magnitude);
+      expect(t.from).not.toBe(t.to);
+    }
+    const applied = applyTransfers(nets, transfers1);
+    for (const n2 of applied) expect(n2.net).toBe(0n);
+  });
 });

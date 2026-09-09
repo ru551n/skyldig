@@ -16,6 +16,13 @@ interface Entry {
 export interface RateLimitResult {
   allowed: boolean;
   retryAfterMs: number;
+  /**
+   * Present only when `allowed` is false. Distinguishes a denial caused by an existing
+   * `lock()` ("locked") from one caused by exceeding a rule's own limit ("limit") — callers
+   * that re-apply a lock on every denial (e.g. admin elevation) must only do so for "limit",
+   * or a single lockout re-arms itself forever.
+   */
+  reason?: "locked" | "limit";
 }
 
 export interface RateLimiter {
@@ -76,10 +83,10 @@ export function createRateLimiter(rules: Rule[]): RateLimiter {
   function check(key: string, now: number = Date.now()): RateLimitResult {
     const entry = getOrCreate(key);
     if (!entry) {
-      return { allowed: false, retryAfterMs: 60_000 };
+      return { allowed: false, retryAfterMs: 60_000, reason: "limit" };
     }
     if (entry.lockedUntil && entry.lockedUntil > now) {
-      return { allowed: false, retryAfterMs: entry.lockedUntil - now };
+      return { allowed: false, retryAfterMs: entry.lockedUntil - now, reason: "locked" };
     }
     pruneWindow(entry, now);
     entry.hits.push(now);
@@ -89,7 +96,11 @@ export function createRateLimiter(rules: Rule[]): RateLimiter {
       const count = entry.hits.filter((t) => t > windowStart).length;
       if (count > rule.limit) {
         const oldestInWindow = entry.hits.find((t) => t > windowStart) ?? now;
-        return { allowed: false, retryAfterMs: Math.max(0, oldestInWindow + rule.windowMs - now) };
+        return {
+          allowed: false,
+          retryAfterMs: Math.max(0, oldestInWindow + rule.windowMs - now),
+          reason: "limit",
+        };
       }
     }
     return { allowed: true, retryAfterMs: 0 };

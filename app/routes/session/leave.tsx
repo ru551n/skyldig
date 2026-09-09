@@ -39,6 +39,11 @@ export async function action({ request, params }: Route.ActionArgs) {
     const deleted = await deleteBrowserSessionIfEmpty(tx, rotated.id);
     if (deleted) {
       withClearCookie(headers, config);
+      // Tell the browser to actually drop the cookie jar (and any cached/scripted state) for
+      // this origin now that the browser session is gone entirely — belt-and-braces alongside
+      // the Set-Cookie clear above. Only when the cookie is actually being cleared: if the
+      // browser still holds grants elsewhere, its (rotated) cookie must survive.
+      headers.set("Clear-Site-Data", '"cookies"');
     } else {
       withSetCookie(headers, config, rotated.token);
     }

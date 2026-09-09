@@ -6,7 +6,9 @@
     "app/**/.server/**/*",
     "app/**/.client/**/*",
     "server/**/*",
-    "domain/**/*"
+    "domain/**/*",
+    "tests/integration/activity-loader.test.ts",
+    "tests/integration/db.ts"
   ],
   "compilerOptions": {
     "composite": true,

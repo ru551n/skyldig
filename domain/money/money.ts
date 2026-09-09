@@ -160,27 +160,30 @@ export function formatMinorAsDecimal(amountMinor: bigint, decimals: CurrencyDeci
 /**
  * Formats an amount for display using `Intl.NumberFormat` with the given
  * locale (default `sv-SE`). Falls back to a plain "<decimal> <CODE>" string
- * when the magnitude is too large to safely round-trip through `Number`
- * (|amountMinor| >= 2^53) or when `Intl` rejects the currency code.
+ * when `Intl` rejects the currency code or locale.
+ *
+ * `Intl.NumberFormat.prototype.format` accepts a decimal STRING and formats
+ * it exactly, with no intermediate `Number` conversion — passing the exact
+ * decimal string produced by `formatMinorAsDecimal` avoids the precision
+ * loss `Number()` would introduce for amounts whose scaled value exceeds
+ * 2^53 (reachable via aggregates such as a summed `paid`/`share`/`net`,
+ * even though any single transaction stays under the much smaller
+ * per-transaction cap).
  */
 export function formatMoney(amountMinor: bigint, currency: CurrencyCode, locale = "sv-SE"): string {
   const decimals = getCurrencyDecimals(currency);
   const decimalStr = formatMinorAsDecimal(amountMinor, decimals);
-  const abs = amountMinor < 0n ? -amountMinor : amountMinor;
 
-  if (abs < 2n ** 53n) {
-    try {
-      const value = Number(decimalStr);
-      return new Intl.NumberFormat(locale, {
-        style: "currency",
-        currency,
-        currencyDisplay: "narrowSymbol",
-        minimumFractionDigits: decimals,
-        maximumFractionDigits: decimals,
-      }).format(value);
-    } catch {
-      // Unsupported currency code or locale in this Intl implementation: fall through.
-    }
+  try {
+    return new Intl.NumberFormat(locale, {
+      style: "currency",
+      currency,
+      currencyDisplay: "narrowSymbol",
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    }).format(decimalStr as unknown as number);
+  } catch {
+    // Unsupported currency code or locale in this Intl implementation: fall through.
   }
   return `${decimalStr} ${currency}`;
 }

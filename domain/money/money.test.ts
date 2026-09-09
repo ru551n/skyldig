@@ -166,16 +166,56 @@ describe("formatMoney", () => {
     expect(result.length).toBeGreaterThan(0);
   });
 
-  it("falls back to plain decimal + code for huge amounts", () => {
-    const huge = 2n ** 53n + 1000n;
-    const result = formatMoney(huge, "SEK");
-    expect(result).toContain("SEK");
-    expect(result).toContain(formatMinorAsDecimal(huge, 2));
-  });
-
   it("formats 0-decimal currencies", () => {
     const result = formatMoney(1500n, "JPY");
     expect(typeof result).toBe("string");
+  });
+
+  it("pins the ordinary formatting shape for a normal SEK amount", () => {
+    expect(formatMoney(123456n, "SEK", "sv-SE")).toBe("1 234,56 kr");
+  });
+
+  /** Strips everything but digits (and a leading minus) so we compare the numeral, not locale punctuation. */
+  function digitsOf(s: string): string {
+    return s.replace(/[^-0-9]/g, "");
+  }
+
+  it("does not lose minor units at large magnitudes for a 3-decimal currency (KWD)", () => {
+    // Below the guard's old (incorrect) threshold of 2^53, but the value handed
+    // to Number() after dividing by 1000 loses precision: reproduces the
+    // reviewer's KWD mismatch.
+    const amountMinor = 8940121637054552n;
+    const expectedDigits = digitsOf(formatMinorAsDecimal(amountMinor, 3));
+    const result = formatMoney(amountMinor, "KWD");
+    expect(digitsOf(result)).toBe(expectedDigits);
+  });
+
+  it("does not lose minor units at large magnitudes for a 2-decimal currency (SEK)", () => {
+    const amountMinor = 7036953802737987n;
+    const expectedDigits = digitsOf(formatMinorAsDecimal(amountMinor, 2));
+    const result = formatMoney(amountMinor, "SEK");
+    expect(digitsOf(result)).toBe(expectedDigits);
+  });
+
+  it("matches formatMinorAsDecimal's digits over a range of values around and beyond 2^53", () => {
+    const base = 2n ** 53n;
+    const offsets = [-10n, -1n, 0n, 1n, 2n, 10n, 1000n, 1_000_000n, 10_000_000_000n];
+    for (const currency of ["SEK", "KWD"] as const) {
+      const decimals = currency === "KWD" ? 3 : 2;
+      for (const offset of offsets) {
+        const amountMinor = base + offset;
+        const expectedDigits = digitsOf(formatMinorAsDecimal(amountMinor, decimals as never));
+        const result = formatMoney(amountMinor, currency);
+        expect(digitsOf(result)).toBe(expectedDigits);
+      }
+    }
+  });
+
+  it("is exact for the huge amount previously covered by the plain-decimal fallback", () => {
+    const huge = 2n ** 53n + 1000n;
+    const expectedDigits = digitsOf(formatMinorAsDecimal(huge, 2));
+    const result = formatMoney(huge, "SEK");
+    expect(digitsOf(result)).toBe(expectedDigits);
   });
 });
 

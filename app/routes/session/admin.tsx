@@ -61,6 +61,16 @@ type ActionResult = ActionSuccess | ActionFailure;
 
 const NO_STORE_HEADERS = { "Cache-Control": "no-store" };
 
+/**
+ * Without this, React Router discards every header the loader/action set on a document
+ * response except `Set-Cookie` — this route's loader/action set `Cache-Control: no-store`
+ * (private group/admin data) and, on a rate-limited elevation attempt, `Retry-After`; both
+ * would silently disappear without this export.
+ */
+export function headers({ actionHeaders, loaderHeaders }: Route.HeadersArgs) {
+  return [...actionHeaders.keys()].length > 0 ? actionHeaders : loaderHeaders;
+}
+
 export async function loader({ request, params }: Route.LoaderArgs) {
   const db = getDb();
   const config = getConfig();
@@ -94,7 +104,10 @@ export async function action({ request, params, context }: Route.ActionArgs) {
     const clientCheck = limiters.elevate.check(key);
     const sessionCheck = limiters.elevatePerSession.check(access.session.publicId);
     if (!clientCheck.allowed || !sessionCheck.allowed) {
-      if (!sessionCheck.allowed) {
+      // Only arm the lock when this denial is itself caused by exceeding the hourly rule —
+      // never when it's caused by an existing lock, or every member re-arms the 15-minute
+      // lock forever and it never actually expires.
+      if (!sessionCheck.allowed && sessionCheck.reason === "limit") {
         limiters.elevatePerSession.lock(access.session.publicId, ELEVATE_PER_SESSION_LOCK_MS);
       }
       const retryAfterMs = Math.max(clientCheck.retryAfterMs, sessionCheck.retryAfterMs);
