@@ -2,7 +2,7 @@ import { data, redirect } from "react-router";
 
 import { requireSessionAccess, resolveBrowserSession } from "@server/modules/auth/session-auth.ts";
 import { limiters, clientKey, checkThenGlobal } from "@server/modules/auth/rate-limit.ts";
-import { createInvite, INVITE_TTL_MS } from "@server/modules/session/invite.ts";
+import { createInvite, INVITE_TTL_MS, InviteLimitError } from "@server/modules/session/invite.ts";
 
 import { requestContext } from "~/context.ts";
 import { getConfig, getDb, mutationGuard } from "~/lib/session-context.server.ts";
@@ -69,9 +69,24 @@ export async function action({ request, params, context }: Route.ActionArgs) {
     );
   }
 
-  const created = await db.transaction((tx) =>
-    createInvite(tx, access.session.id, resolved.browserSession.id, "member"),
-  );
+  let created: Awaited<ReturnType<typeof createInvite>>;
+  try {
+    created = await db.transaction((tx) =>
+      createInvite(tx, access.session.id, resolved.browserSession.id, "member"),
+    );
+  } catch (error) {
+    if (error instanceof InviteLimitError) {
+      // The group already has MAX_OUTSTANDING_INVITES_PER_SESSION live links. Surfaced to the
+      // client as the same "too many links, wait" state as the rate limit: the earliest of
+      // them expires within the invite TTL, so "try again later" is the accurate advice.
+      const retryAfterSeconds = 60;
+      return data<InviteCreateFailure>(
+        { ok: false, code: "RATE_LIMITED", retryAfterSeconds },
+        { status: 429, headers: { "Retry-After": String(retryAfterSeconds) } },
+      );
+    }
+    throw error;
+  }
 
   const url = `${config.publicOrigin}/i/${created.publicId}#${created.token}`;
   return data<InviteCreateSuccess>({

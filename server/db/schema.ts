@@ -42,6 +42,13 @@ export const sessions = pgTable(
     accessKeyVerifier: text("access_key_verifier").notNull(),
     adminKeyHash: bytea("admin_key_hash").notNull(),
     pepperVersion: smallint("pepper_version").notNull(),
+    /**
+     * Bumped on every access-phrase rotation. Invites are stamped with the generation they
+     * were created under and are only redeemable while it still matches, so rotating the
+     * phrase revokes every outstanding invite in the same transaction (docs/architecture.md
+     * §4.3) — without it, an invite link issued before a rotation stayed a valid back door.
+     */
+    accessGeneration: integer("access_generation").notNull().default(1),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   },
@@ -282,6 +289,8 @@ export const sessionInvites = pgTable(
       .references(() => sessions.id, { onDelete: "cascade" }),
     tokenHash: bytea("token_hash").notNull(),
     role: text("role").notNull().default("member"),
+    /** `sessions.access_generation` at creation; redemption requires it to still match. */
+    accessGeneration: integer("access_generation").notNull().default(1),
     createdByBrowserSessionId: bigint("created_by_browser_session_id", { mode: "bigint" })
       .notNull()
       .references(() => browserSessions.id, { onDelete: "cascade" }),

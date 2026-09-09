@@ -10,6 +10,7 @@ export {
   verifyAdminKey,
 } from "./session.ts";
 export type { InviteRow } from "./invite.ts";
+export { InviteLimitError, MAX_OUTSTANDING_INVITES_PER_SESSION } from "./invite.ts";
 export {
   INVITE_TTL_MS,
   burnInvite,

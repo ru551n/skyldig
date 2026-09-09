@@ -118,7 +118,14 @@ from the client bundle). Path aliases: `~/*` → `app/*`, `@domain/*`, `@server/
   the new browser session, move all grants to it, delete the old row, set the new cookie.
 - Elevation: admin key entered on `/s/:sid/admin` → grant role `admin` for that session only.
 - Admin actions: delete session, rotate access phrase (new index+verifier, revoke every other
-  browser session's grant to this session), rotate admin key.
+  browser session's grant to this session, and bump `sessions.access_generation` in the same
+  UPDATE — every invite is stamped with the generation it was issued under and is redeemable
+  only while it still matches, so rotation also retires every outstanding invite link/QR
+  atomically), rotate admin key.
+- Outstanding-invite cap: `createInvite` locks the group row (`SELECT … FOR UPDATE`) and refuses
+  a new invite once the group has `MAX_OUTSTANDING_INVITES_PER_SESSION` (20) unused, unrevoked,
+  unexpired invites — a hard bound on live single-use credentials per group that the per-client
+  rate limits alone cannot give (many members, or one member behind rotating IPs).
 - Leave: delete the grant (rotate token); if none remain delete the browser session and clear
   the cookie (`Clear-Site-Data: "cookies"`).
 - Sliding lifetime: `last_seen_at` refreshed at most once per hour; expired browser sessions

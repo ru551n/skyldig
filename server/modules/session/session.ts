@@ -242,7 +242,9 @@ export async function deleteSession(tx: Tx, sessionId: bigint): Promise<void> {
 /**
  * Rotates the access phrase for a session: generates a new phrase, index, and verifier, and
  * revokes every other browser session's grant to this session (`revokeOtherGrantsForSession`),
- * per docs/architecture.md §4.3 — so rotating the phrase actually cuts off other holders.
+ * per docs/architecture.md §4.3 — so rotating the phrase actually cuts off other holders — and
+ * bumps `sessions.access_generation` in the same UPDATE, which invalidates every invite issued
+ * before the rotation (invites are stamped with the generation they were created under).
  * `keepBrowserSessionId` identifies the caller's own browser session, whose grant survives.
  *
  * `tx` is a transaction already opened by the caller (the rotation and the grant revocation
@@ -267,7 +269,12 @@ export async function rotateAccessPhrase(
       const updated = await tx.transaction(async (savepoint) => {
         const [row] = await savepoint
           .update(sessions)
-          .set({ accessKeyIndex, accessKeyVerifier })
+          .set({
+            accessKeyIndex,
+            accessKeyVerifier,
+            // Retires every invite issued under the old phrase (see `findRedeemableInvite`).
+            accessGeneration: sql`${sessions.accessGeneration} + 1`,
+          })
           .where(eq(sessions.id, sessionId))
           .returning({ id: sessions.id });
         return row;
