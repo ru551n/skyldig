@@ -174,6 +174,28 @@ export async function revokeOtherGrantsForSession(
     );
 }
 
+/**
+ * Downgrades every 'admin' grant to `sessionId` from role 'admin' to 'member', except the one
+ * held by `keepBrowserSessionId`. Used when the admin key is rotated: other browser sessions
+ * keep their member-level access, but lose the authority the old admin key granted them.
+ */
+export async function downgradeOtherGrantsToMember(
+  tx: DbOrTx,
+  sessionId: bigint,
+  keepBrowserSessionId: bigint,
+): Promise<void> {
+  await tx
+    .update(sessionGrants)
+    .set({ role: "member" })
+    .where(
+      and(
+        eq(sessionGrants.sessionId, sessionId),
+        eq(sessionGrants.role, "admin"),
+        sql`${sessionGrants.browserSessionId} <> ${keepBrowserSessionId}`,
+      ),
+    );
+}
+
 /** Deletes the browser session row if it holds no grants. Returns whether it was deleted. */
 export async function deleteBrowserSessionIfEmpty(tx: DbOrTx, id: bigint): Promise<boolean> {
   const [{ value }] = await tx

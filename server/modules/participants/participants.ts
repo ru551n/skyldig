@@ -1,10 +1,10 @@
 import { and, asc, eq, sql } from "drizzle-orm";
-import type { DatabaseError } from "pg";
 
 import type { DbOrTx, Tx } from "../auth/browser-session.ts";
 import { participants, sessions } from "../../db/schema.ts";
 import { generatePublicId } from "../shared/ids.ts";
 import { ConflictError, NotFoundError, ValidationError } from "../shared/errors.ts";
+import { isUniqueViolation, pgErrorOf } from "../shared/pg-errors.ts";
 import { recordRevision } from "../audit/audit.ts";
 
 export interface ParticipantDto {
@@ -49,18 +49,6 @@ function validateDisplayName(name: string): string {
     throw new ValidationError({ field: "displayName", code: "INVALID_NAME" });
   }
   return trimmed;
-}
-
-/** Drizzle wraps the underlying `pg` error in a `DrizzleQueryError` with `.cause`. */
-function pgErrorOf(err: unknown): DatabaseError | undefined {
-  const withCause = err as { cause?: unknown } | undefined;
-  const candidate = (withCause?.cause ?? err) as DatabaseError | undefined;
-  return candidate?.code ? candidate : undefined;
-}
-
-function isUniqueViolation(err: unknown, constraint: string): boolean {
-  const dbErr = pgErrorOf(err);
-  return !!dbErr && dbErr.code === "23505" && dbErr.constraint === constraint;
 }
 
 function isForeignKeyViolation(err: unknown): boolean {

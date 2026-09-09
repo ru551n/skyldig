@@ -67,6 +67,12 @@ export function createRateLimiter(rules: Rule[]): RateLimiter {
     if (start > 0) entry.hits = entry.hits.slice(start);
   }
 
+  /**
+   * Records an attempt against `key` and reports whether it is allowed. Recording happens on
+   * every call — success or failure alike — so the budget cannot be evaded by alternating a
+   * correct guess (which used to wipe the counter via `recordSuccess`) with fresh incorrect
+   * ones. Callers must call `check()` for every attempt, including successful ones.
+   */
   function check(key: string, now: number = Date.now()): RateLimitResult {
     const entry = getOrCreate(key);
     if (!entry) {
@@ -76,11 +82,12 @@ export function createRateLimiter(rules: Rule[]): RateLimiter {
       return { allowed: false, retryAfterMs: entry.lockedUntil - now };
     }
     pruneWindow(entry, now);
+    entry.hits.push(now);
 
     for (const rule of rules) {
       const windowStart = now - rule.windowMs;
       const count = entry.hits.filter((t) => t > windowStart).length;
-      if (count >= rule.limit) {
+      if (count > rule.limit) {
         const oldestInWindow = entry.hits.find((t) => t > windowStart) ?? now;
         return { allowed: false, retryAfterMs: Math.max(0, oldestInWindow + rule.windowMs - now) };
       }
@@ -88,15 +95,21 @@ export function createRateLimiter(rules: Rule[]): RateLimiter {
     return { allowed: true, retryAfterMs: 0 };
   }
 
-  function recordFailure(key: string, now: number = Date.now()): void {
-    const entry = getOrCreate(key);
-    if (!entry) return;
-    entry.hits.push(now);
-    pruneWindow(entry, now);
+  /**
+   * No-op alias kept for API compatibility: `check()` now records every attempt itself, so
+   * there is nothing left for a separate failure-recording step to add.
+   */
+  function recordFailure(_key: string, _now: number = Date.now()): void {
+    // Intentionally a no-op: check() already recorded this attempt.
   }
 
-  function recordSuccess(key: string): void {
-    store.delete(key);
+  /**
+   * No-op: previously this deleted the key, which let an attacker holding one valid phrase
+   * wipe their failure budget by alternating a valid join with fresh guesses. The sliding
+   * window now decays naturally via pruneWindow on the next check().
+   */
+  function recordSuccess(_key: string): void {
+    // Intentionally a no-op: do not reset the window on success.
   }
 
   function lock(key: string, ms: number, now: number = Date.now()): void {

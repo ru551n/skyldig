@@ -129,6 +129,44 @@ describe("participants module", () => {
     ).rejects.toMatchObject({ code: "PARTICIPANT_HAS_HISTORY" });
   });
 
+  it("concurrent addParticipant in two overlapping transactions assigns distinct positions with no unique violation", async () => {
+    const session = await createSession();
+
+    // Start both transactions and get past their initial work before either commits, so the
+    // `FOR UPDATE` session-row lock in addParticipant (participants.ts lockSession) is what
+    // actually serializes them rather than accidental ordering.
+    let releaseA!: () => void;
+    const gateA = new Promise<void>((resolve) => {
+      releaseA = resolve;
+    });
+
+    const txA = db.transaction(async (tx) => {
+      const created = await addParticipant(tx, session.id, "Alice");
+      // Hold this transaction open until B has had a chance to start and block on the lock.
+      await gateA;
+      return created;
+    });
+
+    // Give A a moment to acquire the session-row lock before starting B.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    const txB = db.transaction((tx) => addParticipant(tx, session.id, "Bob"));
+
+    // Let A proceed to commit after a short delay, once B is blocked waiting on the lock.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    releaseA();
+
+    const [a, b] = await Promise.all([txA, txB]);
+
+    expect(a.position).not.toBe(b.position);
+    expect(new Set([a.position, b.position]).size).toBe(2);
+
+    const list = await listParticipants(db, session.id);
+    expect(list).toHaveLength(2);
+    const positions = list.map((p) => p.position).sort((x, y) => x - y);
+    expect(positions).toEqual([1, 2]);
+  });
+
   it("addParticipants rejects duplicate names within the input", async () => {
     const session = await createSession();
     await expect(

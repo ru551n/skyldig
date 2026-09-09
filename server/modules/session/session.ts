@@ -1,5 +1,4 @@
 import { eq, sql } from "drizzle-orm";
-import type { DatabaseError } from "pg";
 
 import type { Database } from "../../db/client.ts";
 import { currencies, sessions } from "../../db/schema.ts";
@@ -14,7 +13,9 @@ import {
   verifyVerifier,
 } from "../auth/crypto.ts";
 import type { DbOrTx, Tx } from "../auth/browser-session.ts";
+import { downgradeOtherGrantsToMember, revokeOtherGrantsForSession } from "../auth/browser-session.ts";
 import { ValidationError } from "../shared/errors.ts";
+import { isUniqueViolation } from "../shared/pg-errors.ts";
 import { addParticipants } from "../participants/participants.ts";
 import { generatePhrase } from "./phrase.ts";
 
@@ -37,11 +38,6 @@ function toDto(row: typeof sessions.$inferSelect): SessionDto {
     createdAt: row.createdAt,
     expiresAt: row.expiresAt,
   };
-}
-
-function isUniqueViolation(err: unknown, constraint: string): boolean {
-  const dbErr = err as DatabaseError | undefined;
-  return !!dbErr && dbErr.code === "23505" && dbErr.constraint === constraint;
 }
 
 function validateName(name: string): string {
@@ -79,74 +75,105 @@ export interface CreateSessionResult {
   adminKey: string;
 }
 
+interface SessionCredentials {
+  phrase: string;
+  adminKey: string;
+  publicId: string;
+  accessKeyIndex: Buffer;
+  accessKeyVerifier: string;
+  adminKeyHash: Buffer;
+}
+
 /**
- * Creates a session, its access phrase, admin key, and initial participants in one
- * transaction. Regenerates the phrase/admin key/public id and retries on a unique-index
- * collision (never observed in practice at 66+ bits of entropy, but handled per
- * docs/architecture.md §4.1).
+ * Test-only injection seam: lets tests force a specific access phrase (and therefore a specific
+ * `access_key_index`) so the unique-index collision/retry path in `createSession` can be
+ * exercised deterministically, without relying on winning a 66-bit-entropy race.
+ */
+export interface CreateSessionDeps {
+  generatePhrase?: () => string;
+}
+
+/**
+ * Generates a fresh, unrelated candidate set of session credentials: access phrase, admin key,
+ * public id, blind index, and the (CPU-heavy, ~100ms scrypt) verifier. Deliberately performed
+ * with no open database transaction/connection, so retries never hold a pool connection or an
+ * open snapshot idle for pure CPU work (docs/architecture.md §4.1, defect: scrypt-in-transaction).
+ */
+async function generateSessionCredentials(config: Config, deps: CreateSessionDeps): Promise<SessionCredentials> {
+  const phrase = (deps.generatePhrase ?? generatePhrase)();
+  const adminKey = generateAdminKey();
+  const normalizedPhrase = normalizePhrase(phrase);
+
+  const accessKeyIndex = hmacIndex(config.accessKeyPepper, normalizedPhrase);
+  const accessKeyVerifier = await hashVerifier(normalizedPhrase);
+  const adminKeyHash = hmacIndex(config.accessKeyPepper, normalizeAdminKey(adminKey));
+  const publicId = generatePublicId();
+
+  return { phrase, adminKey, publicId, accessKeyIndex, accessKeyVerifier, adminKeyHash };
+}
+
+/**
+ * Creates a session, its access phrase, admin key, and initial participants. Regenerates the
+ * phrase/admin key/public id and retries on a unique-index collision (never observed in
+ * practice at 66+ bits of entropy, but handled per docs/architecture.md §4.1).
+ *
+ * Each attempt generates its credentials (including the scrypt verifier) *before* opening a
+ * transaction, and each attempt's insert (+ initial participants) runs in its own short-lived
+ * transaction — so a collision on one attempt cannot poison a later attempt's statements, and no
+ * attempt holds a connection open across the CPU-bound hashing step.
  */
 export async function createSession(
   db: Database,
   config: Config,
   input: CreateSessionInput,
+  deps: CreateSessionDeps = {},
 ): Promise<CreateSessionResult> {
   const name = validateName(input.name);
   const participantNames = validateParticipantNames(input.participantNames);
+  const baseCurrency = await validateBaseCurrency(db, input.baseCurrency);
 
-  return db.transaction(async (tx) => {
-    const baseCurrency = await validateBaseCurrency(tx, input.baseCurrency);
+  let result: { row: typeof sessions.$inferSelect; creds: SessionCredentials } | undefined;
 
-    let attempt = 0;
-    let row: typeof sessions.$inferSelect | undefined;
-    let phrase = "";
-    let adminKey = "";
+  for (let attempt = 0; attempt < MAX_INSERT_ATTEMPTS && !result; attempt += 1) {
+    const creds = await generateSessionCredentials(config, deps);
 
-    while (attempt < MAX_INSERT_ATTEMPTS && !row) {
-      attempt += 1;
-      phrase = generatePhrase();
-      adminKey = generateAdminKey();
-      const normalizedPhrase = normalizePhrase(phrase);
-
-      const accessKeyIndex = hmacIndex(config.accessKeyPepper, normalizedPhrase);
-      const accessKeyVerifier = await hashVerifier(normalizedPhrase);
-      const adminKeyHash = hmacIndex(config.accessKeyPepper, normalizeAdminKey(adminKey));
-      const publicId = generatePublicId();
-
-      try {
-        [row] = await tx
+    try {
+      const row = await db.transaction(async (tx) => {
+        const [inserted] = await tx
           .insert(sessions)
           .values({
-            publicId,
+            publicId: creds.publicId,
             name,
             baseCurrency,
-            accessKeyIndex,
-            accessKeyVerifier,
-            adminKeyHash,
+            accessKeyIndex: creds.accessKeyIndex,
+            accessKeyVerifier: creds.accessKeyVerifier,
+            adminKeyHash: creds.adminKeyHash,
             pepperVersion: 1,
             expiresAt: sql`now() + interval '90 days'`,
           })
           .returning();
-      } catch (err) {
-        if (
-          isUniqueViolation(err, "sessions_access_key_index_key") ||
-          isUniqueViolation(err, "sessions_public_id_key")
-        ) {
-          continue;
+        if (participantNames.length > 0) {
+          await addParticipants(tx, inserted.id, participantNames);
         }
-        throw err;
+        return inserted;
+      });
+      result = { row, creds };
+    } catch (err) {
+      if (
+        isUniqueViolation(err, "sessions_access_key_index_key") ||
+        isUniqueViolation(err, "sessions_public_id_key")
+      ) {
+        continue;
       }
+      throw err;
     }
+  }
 
-    if (!row) {
-      throw new Error("session: failed to allocate a unique access phrase / public id after retries");
-    }
+  if (!result) {
+    throw new Error("session: failed to allocate a unique access phrase / public id after retries");
+  }
 
-    if (participantNames.length > 0) {
-      await addParticipants(tx, row.id, participantNames);
-    }
-
-    return { session: toDto(row), phrase, adminKey };
-  });
+  return { session: toDto(result.row), phrase: result.creds.phrase, adminKey: result.creds.adminKey };
 }
 
 export interface JoinSessionResult {
@@ -213,11 +240,23 @@ export async function deleteSession(tx: Tx, sessionId: bigint): Promise<void> {
 }
 
 /**
- * Rotates the access phrase for a session: generates a new phrase, index, and verifier.
- * The caller (an admin action) is responsible for revoking every other browser session's
- * grant to this session (`revokeOtherGrantsForSession`), per docs/architecture.md §4.3.
+ * Rotates the access phrase for a session: generates a new phrase, index, and verifier, and
+ * revokes every other browser session's grant to this session (`revokeOtherGrantsForSession`),
+ * per docs/architecture.md §4.3 — so rotating the phrase actually cuts off other holders.
+ * `keepBrowserSessionId` identifies the caller's own browser session, whose grant survives.
+ *
+ * `tx` is a transaction already opened by the caller (the rotation and the grant revocation
+ * must be atomic together). Each retry attempt's UPDATE runs in its own SAVEPOINT (a nested
+ * `tx.transaction(...)`), so a unique-index collision on one attempt rolls back only that
+ * attempt and leaves the caller's outer transaction healthy for the next attempt and for the
+ * grant revocation that follows.
  */
-export async function rotateAccessPhrase(tx: Tx, config: Config, sessionId: bigint): Promise<string> {
+export async function rotateAccessPhrase(
+  tx: Tx,
+  config: Config,
+  sessionId: bigint,
+  keepBrowserSessionId: bigint,
+): Promise<string> {
   for (let attempt = 0; attempt < MAX_INSERT_ATTEMPTS; attempt += 1) {
     const phrase = generatePhrase();
     const normalized = normalizePhrase(phrase);
@@ -225,14 +264,18 @@ export async function rotateAccessPhrase(tx: Tx, config: Config, sessionId: bigi
     const accessKeyVerifier = await hashVerifier(normalized);
 
     try {
-      const [row] = await tx
-        .update(sessions)
-        .set({ accessKeyIndex, accessKeyVerifier })
-        .where(eq(sessions.id, sessionId))
-        .returning({ id: sessions.id });
-      if (!row) {
-        throw new Error(`session: rotateAccessPhrase called for unknown session ${sessionId}`);
+      const updated = await tx.transaction(async (savepoint) => {
+        const [row] = await savepoint
+          .update(sessions)
+          .set({ accessKeyIndex, accessKeyVerifier })
+          .where(eq(sessions.id, sessionId))
+          .returning({ id: sessions.id });
+        return row;
+      });
+      if (!updated) {
+        throw new Error("session: rotateAccessPhrase called for an unknown session");
       }
+      await revokeOtherGrantsForSession(tx, sessionId, keepBrowserSessionId);
       return phrase;
     } catch (err) {
       if (isUniqueViolation(err, "sessions_access_key_index_key")) {
@@ -244,8 +287,22 @@ export async function rotateAccessPhrase(tx: Tx, config: Config, sessionId: bigi
   throw new Error("session: failed to allocate a unique access phrase after retries");
 }
 
-/** Rotates the admin key for a session, returning the new plaintext key. */
-export async function rotateAdminKey(tx: Tx, config: Config, sessionId: bigint): Promise<string> {
+/**
+ * Rotates the admin key for a session, returning the new plaintext key, and downgrades every
+ * other grant's role from 'admin' to 'member' (never removes access — the other browser
+ * sessions keep member-level access to the session, they just lose the admin key's authority),
+ * per docs/architecture.md §4.3. `keepBrowserSessionId` identifies the caller's own browser
+ * session, whose grant (and role) is left untouched.
+ *
+ * `admin_key_hash` carries no uniqueness constraint, so unlike `rotateAccessPhrase` this needs
+ * no collision retry.
+ */
+export async function rotateAdminKey(
+  tx: Tx,
+  config: Config,
+  sessionId: bigint,
+  keepBrowserSessionId: bigint,
+): Promise<string> {
   const adminKey = generateAdminKey();
   const adminKeyHash = hmacIndex(config.accessKeyPepper, normalizeAdminKey(adminKey));
   const [row] = await tx
@@ -254,7 +311,8 @@ export async function rotateAdminKey(tx: Tx, config: Config, sessionId: bigint):
     .where(eq(sessions.id, sessionId))
     .returning({ id: sessions.id });
   if (!row) {
-    throw new Error(`session: rotateAdminKey called for unknown session ${sessionId}`);
+    throw new Error("session: rotateAdminKey called for an unknown session");
   }
+  await downgradeOtherGrantsToMember(tx, sessionId, keepBrowserSessionId);
   return adminKey;
 }

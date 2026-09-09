@@ -1,4 +1,5 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 
 import type { DbOrTx, Tx } from "../auth/browser-session.ts";
 import { participants, payments } from "../../db/schema.ts";
@@ -182,18 +183,37 @@ export async function getPayment(db: DbOrTx, sessionId: bigint, publicId: string
   return loadDto(db, row);
 }
 
-/** Lists payments newest payment date first, then newest created first. */
+/**
+ * Lists payments newest payment date first, then newest created first.
+ *
+ * One query total regardless of row count: the payment rows joined to both the payer's and the
+ * recipient's participant names via two aliases of `participants`. (Previously this called
+ * `loadDto` per row, i.e. 2 queries per payment.)
+ */
 export async function listPayments(db: DbOrTx, sessionId: bigint): Promise<PaymentDto[]> {
+  const payerAlias = alias(participants, "payer");
+  const recipientAlias = alias(participants, "recipient");
   const rows = await db
-    .select()
+    .select({
+      payment: payments,
+      payerPublicId: payerAlias.publicId,
+      payerDisplayName: payerAlias.displayName,
+      recipientPublicId: recipientAlias.publicId,
+      recipientDisplayName: recipientAlias.displayName,
+    })
     .from(payments)
+    .innerJoin(payerAlias, eq(payments.payerId, payerAlias.id))
+    .innerJoin(recipientAlias, eq(payments.recipientId, recipientAlias.id))
     .where(eq(payments.sessionId, sessionId))
     .orderBy(desc(payments.paymentDate), desc(payments.createdAt));
-  const out: PaymentDto[] = [];
-  for (const row of rows) {
-    out.push(await loadDto(db, row));
-  }
-  return out;
+
+  return rows.map((r) =>
+    toDto(
+      r.payment,
+      { publicId: r.payerPublicId, displayName: r.payerDisplayName },
+      { publicId: r.recipientPublicId, displayName: r.recipientDisplayName },
+    ),
+  );
 }
 
 /** Updates a payment. Enforces optimistic concurrency via `expectedRevision`. */
@@ -252,31 +272,51 @@ export async function updatePayment(
   return toDto(row, payerRef, recipientRef);
 }
 
-/** Deletes a payment. Enforces optimistic concurrency; snapshots the last known state. */
+/**
+ * Deletes a payment. Enforces optimistic concurrency; snapshots the last known state.
+ *
+ * Performs the guarded `DELETE ... RETURNING *` first (no pre-read), then a single query for
+ * the payer/recipient display names. Row exists with a different revision -> `ConflictError`
+ * with the current state; row absent entirely -> `NotFoundError`.
+ */
 export async function deletePayment(
   tx: Tx,
   session: SessionRef,
   publicId: string,
   expectedRevision: number,
 ): Promise<void> {
-  const before = await getPayment(tx, session.id, publicId);
-
   const [row] = await tx
     .delete(payments)
     .where(and(eq(payments.publicId, publicId), eq(payments.sessionId, session.id), eq(payments.revision, expectedRevision)))
     .returning();
 
   if (!row) {
-    const current = await getPayment(tx, session.id, publicId);
+    const [existing] = await tx
+      .select()
+      .from(payments)
+      .where(and(eq(payments.sessionId, session.id), eq(payments.publicId, publicId)))
+      .limit(1);
+    if (!existing) {
+      throw new NotFoundError(`Payment not found: ${publicId}`);
+    }
+    const current = await loadDto(tx, existing);
     throw new ConflictError("Payment has been modified", current);
   }
+
+  const nameRows = await tx
+    .select({ id: participants.id, publicId: participants.publicId, displayName: participants.displayName })
+    .from(participants)
+    .where(inArray(participants.id, [...new Set([row.payerId, row.recipientId])]));
+  const byId = new Map(nameRows.map((n) => [n.id, n]));
+  const payerRef = { publicId: byId.get(row.payerId)!.publicId, displayName: byId.get(row.payerId)!.displayName };
+  const recipientRef = { publicId: byId.get(row.recipientId)!.publicId, displayName: byId.get(row.recipientId)!.displayName };
 
   await recordRevision(tx, {
     sessionId: session.id,
     entityType: "payment",
     entityId: row.id,
-    revisionNo: expectedRevision + 1,
+    revisionNo: row.revision + 1,
     action: "deleted",
-    snapshot: toSnapshot(row, before.payer, before.recipient),
+    snapshot: toSnapshot(row, payerRef, recipientRef),
   });
 }

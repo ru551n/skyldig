@@ -7,11 +7,8 @@ describe("createRateLimiter", () => {
     const limiter = createRateLimiter([{ name: "r", limit: 3, windowMs: 1000 }]);
     const now = 1_000_000;
     expect(limiter.check("k", now).allowed).toBe(true);
-    limiter.recordFailure("k", now);
-    expect(limiter.check("k", now).allowed).toBe(true);
-    limiter.recordFailure("k", now + 10);
+    expect(limiter.check("k", now + 10).allowed).toBe(true);
     expect(limiter.check("k", now + 20).allowed).toBe(true);
-    limiter.recordFailure("k", now + 20);
     const result = limiter.check("k", now + 30);
     expect(result.allowed).toBe(false);
     expect(result.retryAfterMs).toBeGreaterThan(0);
@@ -20,8 +17,8 @@ describe("createRateLimiter", () => {
   it("slides the window: old hits expire", () => {
     const limiter = createRateLimiter([{ name: "r", limit: 2, windowMs: 1000 }]);
     const now = 1_000_000;
-    limiter.recordFailure("k", now);
-    limiter.recordFailure("k", now + 100);
+    limiter.check("k", now);
+    limiter.check("k", now + 100);
     expect(limiter.check("k", now + 200).allowed).toBe(false);
     // After the window has fully elapsed since the first hit, both hits should have expired.
     expect(limiter.check("k", now + 1101).allowed).toBe(true);
@@ -30,24 +27,57 @@ describe("createRateLimiter", () => {
   it("applies multiple rules independently (both must pass)", () => {
     const limiter = createRateLimiter([
       { name: "short", limit: 2, windowMs: 100 },
-      { name: "long", limit: 3, windowMs: 10_000 },
+      { name: "long", limit: 10, windowMs: 10_000 },
     ]);
     const now = 1_000_000;
-    limiter.recordFailure("k", now);
-    limiter.recordFailure("k", now + 10);
-    // Short window limit (2) reached.
+    limiter.check("k", now);
+    limiter.check("k", now + 10);
+    // Short window limit (2) reached; still well under the long-window limit (10).
     expect(limiter.check("k", now + 20).allowed).toBe(false);
-    // Once the short window passes, still blocked by neither (count under long-window limit).
+    // Once the short window passes, no longer blocked by it, and still under the long-window
+    // limit even counting the denied attempt above.
     expect(limiter.check("k", now + 200).allowed).toBe(true);
   });
 
-  it("recordSuccess resets the window for a key", () => {
+  it("recordFailure is a no-op: check() alone drives the budget", () => {
     const limiter = createRateLimiter([{ name: "r", limit: 1, windowMs: 1000 }]);
     const now = 1_000_000;
+    expect(limiter.check("k", now).allowed).toBe(true);
     limiter.recordFailure("k", now);
+    // recordFailure must not add a second hit -- the limit was already spent by check().
     expect(limiter.check("k", now + 1).allowed).toBe(false);
+  });
+
+  it("recordSuccess does not reset the window for a key (no-op)", () => {
+    const limiter = createRateLimiter([{ name: "r", limit: 1, windowMs: 1000 }]);
+    const now = 1_000_000;
+    expect(limiter.check("k", now).allowed).toBe(true);
     limiter.recordSuccess("k");
-    expect(limiter.check("k", now + 2).allowed).toBe(true);
+    // Budget was already spent by the first check(); recordSuccess must not wipe it.
+    expect(limiter.check("k", now + 1).allowed).toBe(false);
+    // Only once the window has actually elapsed does the budget recover.
+    expect(limiter.check("k", now + 1001).allowed).toBe(true);
+  });
+
+  it("blocks the alternating valid-join / fresh-guess attack: success no longer resets the budget", () => {
+    const limiter = createRateLimiter([{ name: "r", limit: 5, windowMs: 60_000 }]);
+    const now = 1_000_000;
+    // Attacker holds one valid phrase and alternates a successful check with guesses, hoping
+    // recordSuccess would wipe the counter each time. It must not: after `limit` total checks
+    // (successes and failures both count), further attempts within the window are denied.
+    for (let i = 0; i < 5; i += 1) {
+      const isValidJoinTurn = i % 2 === 0;
+      const result = limiter.check("k", now + i);
+      expect(result.allowed).toBe(true);
+      if (isValidJoinTurn) {
+        limiter.recordSuccess("k");
+      } else {
+        limiter.recordFailure("k", now + i);
+      }
+    }
+    const blocked = limiter.check("k", now + 5);
+    expect(blocked.allowed).toBe(false);
+    expect(blocked.retryAfterMs).toBeGreaterThan(0);
   });
 
   it("lock denies a key until the lock expires", () => {
@@ -74,8 +104,8 @@ describe("createRateLimiter", () => {
   it("size reflects tracked keys", () => {
     const limiter = createRateLimiter([{ name: "r", limit: 5, windowMs: 1000 }]);
     const now = 1_000_000;
-    limiter.recordFailure("a", now);
-    limiter.recordFailure("b", now);
+    limiter.check("a", now);
+    limiter.check("b", now);
     expect(limiter.size()).toBe(2);
   });
 });

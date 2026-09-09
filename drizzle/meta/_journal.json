@@ -15,6 +15,13 @@
       "when": 1788949718631,
       "tag": "0001_seed_currencies_and_triggers",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788951797929,
+      "tag": "0002_tighten_money_checks",
+      "breakpoints": true
     }
   ]
 }

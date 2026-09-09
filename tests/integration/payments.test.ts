@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { addParticipant } from "../../server/modules/participants/participants.ts";
 import { createPayment, deletePayment, getPayment, updatePayment } from "../../server/modules/payments/payments.ts";
 import { listRevisionsForEntity } from "../../server/modules/audit/audit.ts";
-import { ConflictError, ValidationError } from "../../server/modules/shared/errors.ts";
+import { ConflictError, NotFoundError, ValidationError } from "../../server/modules/shared/errors.ts";
 import { convertToBase, parseAmount, parseRate } from "../../domain/index.ts";
 import { payments, sessions } from "../../server/db/schema.ts";
 import { db, resetDb } from "./db.ts";
@@ -154,6 +154,51 @@ describe("payments module", () => {
     }
     expect(error).toBeInstanceOf(ConflictError);
     expect((error as ConflictError).current).toMatchObject({ amountMinor: 50000n });
+  });
+
+  it("rejects a stale revision on delete, carrying the current state", async () => {
+    const session = await createSession();
+    const { johan, anna } = await twoParticipants(session.id);
+    const created = await db.transaction((tx) =>
+      createPayment(tx, session, {
+        amountText: "500",
+        currencyCode: "SEK",
+        payerPublicId: anna.publicId,
+        recipientPublicId: johan.publicId,
+        paymentDate: "2026-01-03",
+      }),
+    );
+
+    let error: unknown;
+    try {
+      await db.transaction((tx) => deletePayment(tx, session, created.publicId, created.revision + 1));
+    } catch (err) {
+      error = err;
+    }
+    expect(error).toBeInstanceOf(ConflictError);
+    expect((error as ConflictError).current).toMatchObject({ publicId: created.publicId, revision: created.revision });
+
+    const stillThere = await getPayment(db, session.id, created.publicId);
+    expect(stillThere.publicId).toBe(created.publicId);
+  });
+
+  it("deletePayment on an already-deleted payment throws NotFoundError", async () => {
+    const session = await createSession();
+    const { johan, anna } = await twoParticipants(session.id);
+    const created = await db.transaction((tx) =>
+      createPayment(tx, session, {
+        amountText: "500",
+        currencyCode: "SEK",
+        payerPublicId: anna.publicId,
+        recipientPublicId: johan.publicId,
+        paymentDate: "2026-01-03",
+      }),
+    );
+    await db.transaction((tx) => deletePayment(tx, session, created.publicId, created.revision));
+
+    await expect(
+      db.transaction((tx) => deletePayment(tx, session, created.publicId, created.revision)),
+    ).rejects.toBeInstanceOf(NotFoundError);
   });
 
   it("rejects a payment where payer equals recipient", async () => {

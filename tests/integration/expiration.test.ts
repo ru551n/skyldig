@@ -203,6 +203,38 @@ describe("expiration cleanup", () => {
     expect(skippedResult).toBe(true);
   });
 
+  it("removes more than one batch (250 expired sessions) in a single runCleanup call", async () => {
+    // Insert 250 cheaply-generated expired sessions in one statement, so batching (BATCH_SIZE
+    // = 200) is actually exercised: a single 200-row batch must not be mistaken for "done" when
+    // more expired rows remain.
+    await db.execute(sql`
+      INSERT INTO sessions (
+        public_id, name, base_currency, access_key_index, access_key_verifier,
+        admin_key_hash, pepper_version, expires_at
+      )
+      SELECT
+        'pub-bulk-' || gs::text,
+        'Bulk expired ' || gs::text,
+        'SEK',
+        decode(md5('access-' || gs::text), 'hex'),
+        'verifier',
+        decode(md5('admin-' || gs::text), 'hex'),
+        1,
+        now() - interval '1 day'
+      FROM generate_series(1, 250) AS gs
+    `);
+
+    const result = await runCleanup(db);
+
+    expect(result.sessionsDeleted).toBe(250);
+    expect(result.skipped).toBe(false);
+
+    const [{ count }] = await db.execute<{ count: string }>(sql`
+      SELECT count(*)::text AS count FROM sessions WHERE public_id LIKE 'pub-bulk-%'
+    `).then((r) => r.rows);
+    expect(count).toBe("0");
+  });
+
   it("runs cleanup immediately on start", async () => {
     // Create an expired session
     const exp = await createSession(sql.raw("now() - interval '1 day'"));

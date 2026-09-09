@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { config } from "../../server/config.ts";
 import { participants, sessions } from "../../server/db/schema.ts";
+import { createBrowserSession, getGrant, grantAccess } from "../../server/modules/auth/browser-session.ts";
 import {
   createSession,
   deleteSession,
@@ -161,6 +162,51 @@ describe("createSession / joinSession", () => {
   );
 });
 
+describe("createSession collision retry", () => {
+  it(
+    "retries the insert (via a SAVEPOINT) and succeeds when the first generated phrase collides",
+    async () => {
+      // Force a real access_key_index collision on the *first* attempt by seeding a session
+      // whose phrase we control, then handing createSession a phrase generator that returns
+      // that exact phrase first (colliding) and a fresh one thereafter. This exercises the real
+      // 23505 retry path end-to-end, rather than mocking the DB error.
+      const collidingPhrase = "alfa-alfa-alfa-alfa-alfa-alfa";
+      // Seed a session directly with the colliding phrase, so its access_key_index is a real,
+      // correctly-derived one that the next createSession call will collide with.
+      const seeded = await createSession(
+        db,
+        config,
+        { name: "Seed", baseCurrency: "SEK", participantNames: [] },
+        { generatePhrase: () => collidingPhrase },
+      );
+      expect(seeded.phrase).toBe(collidingPhrase);
+
+      let genCalls = 0;
+      const outcomes = [collidingPhrase, "bravo-bravo-bravo-bravo-bravo-bravo"];
+      const result = await createSession(
+        db,
+        config,
+        { name: "Collider", baseCurrency: "SEK", participantNames: [] },
+        {
+          generatePhrase: () => {
+            const phrase = outcomes[Math.min(genCalls, outcomes.length - 1)];
+            genCalls += 1;
+            return phrase;
+          },
+        },
+      );
+
+      // The retry actually happened: two candidate phrases were generated.
+      expect(genCalls).toBeGreaterThanOrEqual(2);
+      // The final stored phrase is the second (non-colliding) candidate, not the first.
+      expect(result.phrase).toBe("bravo-bravo-bravo-bravo-bravo-bravo");
+      const joined = await joinSession(db, config, result.phrase);
+      expect(joined?.publicId).toBe(result.session.publicId);
+    },
+    SLOW_TEST_TIMEOUT,
+  );
+});
+
 describe("verifyAdminKey", () => {
   it(
     "verifies only against its own session",
@@ -178,6 +224,21 @@ describe("verifyAdminKey", () => {
     },
     SLOW_TEST_TIMEOUT,
   );
+
+  it(
+    "returns false against an expired session even with the correct admin key",
+    async () => {
+      const { session, adminKey } = await makeSession();
+      const [row] = await db.select().from(sessions).where(eq(sessions.publicId, session.publicId));
+      await db
+        .update(sessions)
+        .set({ expiresAt: new Date(Date.now() - 1000) })
+        .where(eq(sessions.id, row.id));
+
+      expect(await verifyAdminKey(db, config, row.id, adminKey)).toBe(false);
+    },
+    SLOW_TEST_TIMEOUT,
+  );
 });
 
 describe("rotateAccessPhrase", () => {
@@ -186,13 +247,38 @@ describe("rotateAccessPhrase", () => {
     async () => {
       const { session, phrase: oldPhrase } = await makeSession();
       const [row] = await db.select().from(sessions).where(eq(sessions.publicId, session.publicId));
+      const keeper = await db.transaction((tx) => createBrowserSession(tx));
 
-      const newPhrase = await db.transaction((tx) => rotateAccessPhrase(tx, config, row.id));
+      const newPhrase = await db.transaction((tx) => rotateAccessPhrase(tx, config, row.id, keeper.id));
       expect(newPhrase).not.toBe(oldPhrase);
 
       expect(await joinSession(db, config, oldPhrase)).toBeNull();
       const joined = await joinSession(db, config, newPhrase);
       expect(joined?.publicId).toBe(session.publicId);
+    },
+    SLOW_TEST_TIMEOUT,
+  );
+
+  it(
+    "revokes every other browser session's grant to this session, keeping only the caller's",
+    async () => {
+      const { session } = await makeSession();
+      const [row] = await db.select().from(sessions).where(eq(sessions.publicId, session.publicId));
+
+      const keeper = await db.transaction((tx) => createBrowserSession(tx));
+      const other1 = await db.transaction((tx) => createBrowserSession(tx));
+      const other2 = await db.transaction((tx) => createBrowserSession(tx));
+      await db.transaction(async (tx) => {
+        await grantAccess(tx, keeper.id, row.id, "member");
+        await grantAccess(tx, other1.id, row.id, "member");
+        await grantAccess(tx, other2.id, row.id, "admin");
+      });
+
+      await db.transaction((tx) => rotateAccessPhrase(tx, config, row.id, keeper.id));
+
+      expect(await getGrant(db, keeper.id, row.id)).not.toBeNull();
+      expect(await getGrant(db, other1.id, row.id)).toBeNull();
+      expect(await getGrant(db, other2.id, row.id)).toBeNull();
     },
     SLOW_TEST_TIMEOUT,
   );
@@ -204,12 +290,35 @@ describe("rotateAdminKey", () => {
     async () => {
       const { session, adminKey: oldKey } = await makeSession();
       const [row] = await db.select().from(sessions).where(eq(sessions.publicId, session.publicId));
+      const keeper = await db.transaction((tx) => createBrowserSession(tx));
 
-      const newKey = await db.transaction((tx) => rotateAdminKey(tx, config, row.id));
+      const newKey = await db.transaction((tx) => rotateAdminKey(tx, config, row.id, keeper.id));
       expect(newKey).not.toBe(oldKey);
 
       expect(await verifyAdminKey(db, config, row.id, oldKey)).toBe(false);
       expect(await verifyAdminKey(db, config, row.id, newKey)).toBe(true);
+    },
+    SLOW_TEST_TIMEOUT,
+  );
+
+  it(
+    "downgrades every other grant's admin role to member, keeping only the caller's admin role",
+    async () => {
+      const { session } = await makeSession();
+      const [row] = await db.select().from(sessions).where(eq(sessions.publicId, session.publicId));
+
+      const keeper = await db.transaction((tx) => createBrowserSession(tx));
+      const other = await db.transaction((tx) => createBrowserSession(tx));
+      await db.transaction(async (tx) => {
+        await grantAccess(tx, keeper.id, row.id, "admin");
+        await grantAccess(tx, other.id, row.id, "admin");
+      });
+
+      await db.transaction((tx) => rotateAdminKey(tx, config, row.id, keeper.id));
+
+      expect((await getGrant(db, keeper.id, row.id))?.role).toBe("admin");
+      // Downgraded, not removed: the other browser session keeps member-level access.
+      expect((await getGrant(db, other.id, row.id))?.role).toBe("member");
     },
     SLOW_TEST_TIMEOUT,
   );

@@ -12,10 +12,11 @@ import {
   suggestRate,
   updateExpense,
 } from "../../server/modules/expenses/expenses.ts";
+import { createPayment } from "../../server/modules/payments/payments.ts";
 import { listActivity, listRevisionsForEntity } from "../../server/modules/audit/audit.ts";
-import { ConflictError, ValidationError } from "../../server/modules/shared/errors.ts";
+import { ConflictError, NotFoundError, ValidationError } from "../../server/modules/shared/errors.ts";
 import { convertToBase, parseAmount, parseRate, splitEqually } from "../../domain/index.ts";
-import { expenseParticipants, expenses, sessions } from "../../server/db/schema.ts";
+import { expenseParticipants, expenses, participants, sessions } from "../../server/db/schema.ts";
 import { db, resetDb } from "./db.ts";
 
 beforeEach(async () => {
@@ -231,6 +232,256 @@ describe("expenses module", () => {
     expect(revs.map((r) => r.action)).toEqual(["created", "deleted"]);
     const deletedSnapshot = revs[1]!.snapshot as { participants: unknown[] };
     expect(deletedSnapshot.participants).toHaveLength(2);
+  });
+
+  it("revision_no sequence: create = 1, update = 2, delete = expected + 1", async () => {
+    const session = await createSession();
+    const { johan, anna } = await threeParticipants(session.id);
+    const created = await db.transaction((tx) =>
+      createExpense(tx, session, {
+        description: "Dinner",
+        amountText: "100",
+        currencyCode: "SEK",
+        payerPublicId: johan.publicId,
+        participantPublicIds: [johan.publicId, anna.publicId],
+        expenseDate: "2026-01-01",
+      }),
+    );
+    expect(created.revision).toBe(1);
+
+    const updated = await db.transaction((tx) =>
+      updateExpense(
+        tx,
+        session,
+        created.publicId,
+        {
+          description: "Dinner v2",
+          amountText: "90",
+          currencyCode: "SEK",
+          payerPublicId: johan.publicId,
+          participantPublicIds: [johan.publicId, anna.publicId],
+          expenseDate: "2026-01-01",
+        },
+        created.revision,
+      ),
+    );
+    expect(updated.revision).toBe(2);
+
+    await db.transaction((tx) => deleteExpense(tx, session, created.publicId, updated.revision));
+    const revs = await listRevisionsForEntity(db, session.id, "expense", created.publicId);
+    expect(revs.map((r) => ({ action: r.action, revisionNo: r.revisionNo }))).toEqual([
+      { action: "created", revisionNo: 1 },
+      { action: "updated", revisionNo: 2 },
+      { action: "deleted", revisionNo: 3 },
+    ]);
+  });
+
+  it("rejects deleteExpense with a stale revision with a ConflictError carrying current state", async () => {
+    const session = await createSession();
+    const { johan, anna } = await threeParticipants(session.id);
+    const created = await db.transaction((tx) =>
+      createExpense(tx, session, {
+        description: "Dinner",
+        amountText: "100",
+        currencyCode: "SEK",
+        payerPublicId: johan.publicId,
+        participantPublicIds: [johan.publicId, anna.publicId],
+        expenseDate: "2026-01-01",
+      }),
+    );
+
+    let error: unknown;
+    try {
+      await db.transaction((tx) => deleteExpense(tx, session, created.publicId, created.revision + 1));
+    } catch (err) {
+      error = err;
+    }
+    expect(error).toBeInstanceOf(ConflictError);
+    expect((error as ConflictError).current).toMatchObject({ publicId: created.publicId, revision: created.revision });
+
+    // The expense must still be there -- the stale delete must not have gone through.
+    const stillThere = await getExpense(db, session.id, created.publicId);
+    expect(stillThere.publicId).toBe(created.publicId);
+  });
+
+  it("deleteExpense on an already-deleted expense throws NotFoundError", async () => {
+    const session = await createSession();
+    const { johan, anna } = await threeParticipants(session.id);
+    const created = await db.transaction((tx) =>
+      createExpense(tx, session, {
+        description: "Dinner",
+        amountText: "100",
+        currencyCode: "SEK",
+        payerPublicId: johan.publicId,
+        participantPublicIds: [johan.publicId, anna.publicId],
+        expenseDate: "2026-01-01",
+      }),
+    );
+    await db.transaction((tx) => deleteExpense(tx, session, created.publicId, created.revision));
+
+    await expect(
+      db.transaction((tx) => deleteExpense(tx, session, created.publicId, created.revision)),
+    ).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it("real concurrent update of one expense from two transactions yields exactly one ConflictError", async () => {
+    const session = await createSession();
+    const { johan, anna } = await threeParticipants(session.id);
+    const created = await db.transaction((tx) =>
+      createExpense(tx, session, {
+        description: "Dinner",
+        amountText: "100",
+        currencyCode: "SEK",
+        payerPublicId: johan.publicId,
+        participantPublicIds: [johan.publicId, anna.publicId],
+        expenseDate: "2026-01-01",
+      }),
+    );
+
+    const attempt = (amountText: string) =>
+      db.transaction((tx) =>
+        updateExpense(
+          tx,
+          session,
+          created.publicId,
+          {
+            description: "Dinner",
+            amountText,
+            currencyCode: "SEK",
+            payerPublicId: johan.publicId,
+            participantPublicIds: [johan.publicId, anna.publicId],
+            expenseDate: "2026-01-01",
+          },
+          created.revision,
+        ),
+      );
+
+    const results = await Promise.allSettled([attempt("91"), attempt("92")]);
+    const fulfilled = results.filter((r) => r.status === "fulfilled");
+    const rejected = results.filter((r) => r.status === "rejected");
+    expect(fulfilled).toHaveLength(1);
+    expect(rejected).toHaveLength(1);
+    expect((rejected[0] as PromiseRejectedResult).reason).toBeInstanceOf(ConflictError);
+
+    const finalRow = await getExpense(db, session.id, created.publicId);
+    expect(finalRow.revision).toBe(2);
+  });
+
+  it("changing a foreign-currency expense to the base currency nulls the rate fields", async () => {
+    const session = await createSession();
+    const { johan, anna } = await threeParticipants(session.id);
+    const created = await db.transaction((tx) =>
+      createExpense(tx, session, {
+        description: "Hotel",
+        amountText: "50",
+        currencyCode: "EUR",
+        rateText: "11,45",
+        rateDirection: "base_per_unit",
+        payerPublicId: johan.publicId,
+        participantPublicIds: [johan.publicId, anna.publicId],
+        expenseDate: "2026-01-02",
+      }),
+    );
+    expect(created.rateText).not.toBeNull();
+
+    const updated = await db.transaction((tx) =>
+      updateExpense(
+        tx,
+        session,
+        created.publicId,
+        {
+          description: "Hotel",
+          amountText: "500",
+          currencyCode: "SEK",
+          payerPublicId: johan.publicId,
+          participantPublicIds: [johan.publicId, anna.publicId],
+          expenseDate: "2026-01-02",
+        },
+        created.revision,
+      ),
+    );
+
+    expect(updated.rateText).toBeNull();
+    expect(updated.rateDirection).toBeNull();
+    expect(updated.amountMinor).toBe(50000n);
+    expect(updated.baseAmountMinor).toBe(updated.amountMinor);
+
+    const [row] = await db.select().from(expenses).where(eq(expenses.publicId, created.publicId));
+    expect(row!.rateNum).toBeNull();
+    expect(row!.rateDen).toBeNull();
+  });
+
+  it("shrinking an expense's participant set leaves no stale expense_participants rows", async () => {
+    const session = await createSession();
+    const { johan, anna, peter } = await threeParticipants(session.id);
+    const created = await db.transaction((tx) =>
+      createExpense(tx, session, {
+        description: "Dinner",
+        amountText: "90",
+        currencyCode: "SEK",
+        payerPublicId: johan.publicId,
+        participantPublicIds: [johan.publicId, anna.publicId, peter.publicId],
+        expenseDate: "2026-01-01",
+      }),
+    );
+
+    await db.transaction((tx) =>
+      updateExpense(
+        tx,
+        session,
+        created.publicId,
+        {
+          description: "Dinner",
+          amountText: "50",
+          currencyCode: "SEK",
+          payerPublicId: johan.publicId,
+          participantPublicIds: [johan.publicId, anna.publicId],
+          expenseDate: "2026-01-01",
+        },
+        created.revision,
+      ),
+    );
+
+    const [expenseRow] = await db.select().from(expenses).where(eq(expenses.publicId, created.publicId));
+    const rows = await db.select().from(expenseParticipants).where(eq(expenseParticipants.expenseId, expenseRow!.id));
+    expect(rows).toHaveLength(2);
+    const [peterRow] = await db.select().from(participants).where(eq(participants.publicId, peter.publicId));
+    const participantIds = new Set(rows.map((r) => r.participantId));
+    expect(participantIds.has(peterRow!.id)).toBe(false);
+  });
+
+  it("suggestRate considers both expenses and payments, taking the most recently updated", async () => {
+    const session = await createSession();
+    const { johan, anna } = await threeParticipants(session.id);
+
+    await db.transaction((tx) =>
+      createExpense(tx, session, {
+        description: "Hotel",
+        amountText: "50",
+        currencyCode: "EUR",
+        rateText: "11,45",
+        rateDirection: "base_per_unit",
+        payerPublicId: johan.publicId,
+        participantPublicIds: [johan.publicId, anna.publicId],
+        expenseDate: "2026-01-02",
+      }),
+    );
+
+    // A later repayment in the same foreign currency, with a different rate, should now win.
+    await db.transaction((tx) =>
+      createPayment(tx, session, {
+        amountText: "20",
+        currencyCode: "EUR",
+        rateText: "11,60",
+        rateDirection: "base_per_unit",
+        payerPublicId: anna.publicId,
+        recipientPublicId: johan.publicId,
+        paymentDate: "2026-01-03",
+      }),
+    );
+
+    const suggestion = await suggestRate(db, session.id, "EUR");
+    expect(suggestion).toEqual({ rateText: "11,60", rateDirection: "base_per_unit" });
   });
 
   it("rejects an unknown payer or participant", async () => {

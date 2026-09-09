@@ -115,6 +115,67 @@ describe("balances module", () => {
 
     const liveExpenses: string[] = [];
 
+    // Guaranteed (non-random) foreign-currency coverage, per docs/architecture.md §5: a
+    // foreign-currency expense, a foreign-currency repayment, and an update of the
+    // foreign-currency expense -- interleaved into the same invariant check as the random walk.
+    const foreignExpense = await db.transaction((tx) =>
+      createExpense(tx, session, {
+        description: "Foreign expense",
+        amountText: "50",
+        currencyCode: "EUR",
+        rateText: "11,45",
+        rateDirection: "base_per_unit",
+        payerPublicId: people[0]!.publicId,
+        participantPublicIds: people.map((p) => p.publicId),
+        expenseDate: "2026-01-01",
+      }),
+    );
+    liveExpenses.push(foreignExpense.publicId);
+    {
+      const result = await getSessionBalances(db, session);
+      expect(result.balances.reduce((acc, b) => acc + b.net, 0n)).toBe(0n);
+    }
+
+    await db.transaction((tx) =>
+      createPayment(tx, session, {
+        amountText: "20",
+        currencyCode: "USD",
+        rateText: "10,80",
+        rateDirection: "base_per_unit",
+        payerPublicId: people[1]!.publicId,
+        recipientPublicId: people[2]!.publicId,
+        paymentDate: "2026-01-01",
+      }),
+    );
+    {
+      const result = await getSessionBalances(db, session);
+      expect(result.balances.reduce((acc, b) => acc + b.net, 0n)).toBe(0n);
+    }
+
+    const updatedForeignExpense = await db.transaction((tx) =>
+      updateExpense(
+        tx,
+        session,
+        foreignExpense.publicId,
+        {
+          description: "Foreign expense v2",
+          amountText: "75",
+          currencyCode: "EUR",
+          rateText: "11,60",
+          rateDirection: "base_per_unit",
+          payerPublicId: people[0]!.publicId,
+          participantPublicIds: people.map((p) => p.publicId),
+          expenseDate: "2026-01-01",
+        },
+        foreignExpense.revision,
+      ),
+    );
+    expect(updatedForeignExpense.revision).toBe(2);
+    {
+      const result = await getSessionBalances(db, session);
+      expect(result.balances.reduce((acc, b) => acc + b.net, 0n)).toBe(0n);
+    }
+
     for (let i = 0; i < 25; i++) {
       const roll = rand();
       if (roll < 0.55 || liveExpenses.length === 0) {

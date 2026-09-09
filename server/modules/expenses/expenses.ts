@@ -1,7 +1,8 @@
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { alias, union } from "drizzle-orm/pg-core";
 
 import type { DbOrTx, Tx } from "../auth/browser-session.ts";
-import { expenseParticipants, expenses, participants } from "../../db/schema.ts";
+import { expenseParticipants, expenses, participants, payments } from "../../db/schema.ts";
 import { generatePublicId } from "../shared/ids.ts";
 import { bigintToString } from "../shared/serialize.ts";
 import { ConflictError, NotFoundError, ValidationError } from "../shared/errors.ts";
@@ -336,18 +337,57 @@ async function loadDto(db: DbOrTx, row: typeof expenses.$inferSelect): Promise<E
   return toDto(row, payerRow!, parts);
 }
 
-/** Lists expenses newest expense date first, then newest created first. */
+/**
+ * Lists expenses newest expense date first, then newest created first.
+ *
+ * Two queries total regardless of row count: one for the expense rows joined to their payer's
+ * name, and one for every `expense_participants` row of those expenses joined to participant
+ * names — assembled together in memory. (Previously this called `loadDto` per row, i.e.
+ * 2-3 queries per expense.)
+ */
 export async function listExpenses(db: DbOrTx, sessionId: bigint): Promise<ExpenseDto[]> {
+  const payerAlias = alias(participants, "payer");
   const rows = await db
-    .select()
+    .select({
+      expense: expenses,
+      payerPublicId: payerAlias.publicId,
+      payerDisplayName: payerAlias.displayName,
+    })
     .from(expenses)
+    .innerJoin(payerAlias, eq(expenses.payerId, payerAlias.id))
     .where(eq(expenses.sessionId, sessionId))
     .orderBy(desc(expenses.expenseDate), desc(expenses.createdAt));
-  const out: ExpenseDto[] = [];
-  for (const row of rows) {
-    out.push(await loadDto(db, row));
+
+  if (rows.length === 0) return [];
+
+  const expenseIds = rows.map((r) => r.expense.id);
+  const shareRows = await db
+    .select({
+      expenseId: expenseParticipants.expenseId,
+      publicId: participants.publicId,
+      displayName: participants.displayName,
+      shareBaseMinor: expenseParticipants.shareBaseMinor,
+      position: participants.position,
+    })
+    .from(expenseParticipants)
+    .innerJoin(participants, eq(expenseParticipants.participantId, participants.id))
+    .where(inArray(expenseParticipants.expenseId, expenseIds))
+    .orderBy(asc(participants.position));
+
+  const sharesByExpenseId = new Map<bigint, ExpenseParticipantDto[]>();
+  for (const s of shareRows) {
+    const list = sharesByExpenseId.get(s.expenseId) ?? [];
+    list.push({ publicId: s.publicId, displayName: s.displayName, shareBaseMinor: s.shareBaseMinor });
+    sharesByExpenseId.set(s.expenseId, list);
   }
-  return out;
+
+  return rows.map((r) =>
+    toDto(
+      r.expense,
+      { publicId: r.payerPublicId, displayName: r.payerDisplayName },
+      sharesByExpenseId.get(r.expense.id) ?? [],
+    ),
+  );
 }
 
 /** Updates an expense, re-deriving shares. Enforces optimistic concurrency. */
@@ -405,14 +445,30 @@ export async function updateExpense(
   return toDto(row, payerRef, parts);
 }
 
-/** Deletes an expense. Enforces optimistic concurrency; snapshots the last known state. */
+/**
+ * Deletes an expense. Enforces optimistic concurrency; snapshots the last known state.
+ *
+ * Performs the guarded `DELETE ... RETURNING *` first (no pre-read): `expense_participants`
+ * rows for this expense are deleted in the same guarded statement shape (matched via the same
+ * publicId/sessionId/revision predicate on `expenses`), *before* the expense row itself, so
+ * their content is captured instead of being silently lost to the `ON DELETE CASCADE` that
+ * would otherwise fire when the expense row is deleted. If the guard doesn't match anything
+ * (revision mismatch or the row is already gone), nothing is deleted by either statement.
+ *
+ * Then: row exists with a different revision -> `ConflictError` with the current state (one
+ * query, via `loadDto`); row absent entirely -> `NotFoundError`.
+ */
 export async function deleteExpense(
   tx: Tx,
   session: SessionRef,
   publicId: string,
   expectedRevision: number,
 ): Promise<void> {
-  const before = await getExpense(tx, session.id, publicId);
+  const guard = sql`${expenseParticipants.expenseId} = (
+    select ${expenses.id} from ${expenses}
+    where ${expenses.publicId} = ${publicId} and ${expenses.sessionId} = ${session.id} and ${expenses.revision} = ${expectedRevision}
+  )`;
+  const deletedShares = await tx.delete(expenseParticipants).where(guard).returning();
 
   const [row] = await tx
     .delete(expenses)
@@ -420,32 +476,66 @@ export async function deleteExpense(
     .returning();
 
   if (!row) {
-    const current = await getExpense(tx, session.id, publicId);
+    const [existing] = await tx
+      .select()
+      .from(expenses)
+      .where(and(eq(expenses.sessionId, session.id), eq(expenses.publicId, publicId)))
+      .limit(1);
+    if (!existing) {
+      throw new NotFoundError(`Expense not found: ${publicId}`);
+    }
+    const current = await loadDto(tx, existing);
     throw new ConflictError("Expense has been modified", current);
   }
+
+  const idsToName = [...new Set([row.payerId, ...deletedShares.map((s) => s.participantId)])];
+  const nameRows =
+    idsToName.length > 0
+      ? await tx
+          .select({ id: participants.id, publicId: participants.publicId, displayName: participants.displayName, position: participants.position })
+          .from(participants)
+          .where(inArray(participants.id, idsToName))
+      : [];
+  const byId = new Map(nameRows.map((n) => [n.id, n]));
+
+  const payerRef = { publicId: byId.get(row.payerId)!.publicId, displayName: byId.get(row.payerId)!.displayName };
+  const parts: ExpenseParticipantDto[] = deletedShares
+    .map((s) => {
+      const p = byId.get(s.participantId)!;
+      return { publicId: p.publicId, displayName: p.displayName, shareBaseMinor: s.shareBaseMinor, position: p.position };
+    })
+    .sort((a, b) => a.position - b.position)
+    .map(({ position: _position, ...rest }) => rest);
 
   await recordRevision(tx, {
     sessionId: session.id,
     entityType: "expense",
     entityId: row.id,
-    revisionNo: expectedRevision + 1,
+    revisionNo: row.revision + 1,
     action: "deleted",
-    snapshot: toSnapshot(row, before.payer, before.participants),
+    snapshot: toSnapshot(row, payerRef, parts),
   });
 }
 
-/** Returns the most recently used rate for `currencyCode` in this session's expenses or payments. */
+/**
+ * Returns the most recently used rate for `currencyCode` in this session, across both expenses
+ * and payments (a repayment can just as well set the going rate as an expense can).
+ */
 export async function suggestRate(
   db: DbOrTx,
   sessionId: bigint,
   currencyCode: string,
 ): Promise<{ rateText: string; rateDirection: RateDirection } | null> {
-  const [row] = await db
+  const fromExpenses = db
     .select({ rateText: expenses.rateText, rateDirection: expenses.rateDirection, updatedAt: expenses.updatedAt })
     .from(expenses)
-    .where(and(eq(expenses.sessionId, sessionId), eq(expenses.currencyCode, currencyCode), sql`${expenses.rateText} is not null`))
-    .orderBy(desc(expenses.updatedAt))
-    .limit(1);
+    .where(and(eq(expenses.sessionId, sessionId), eq(expenses.currencyCode, currencyCode), sql`${expenses.rateText} is not null`));
+  const fromPayments = db
+    .select({ rateText: payments.rateText, rateDirection: payments.rateDirection, updatedAt: payments.updatedAt })
+    .from(payments)
+    .where(and(eq(payments.sessionId, sessionId), eq(payments.currencyCode, currencyCode), sql`${payments.rateText} is not null`));
+
+  const [row] = await union(fromExpenses, fromPayments).orderBy(desc(sql`updated_at`)).limit(1);
   if (!row) return null;
   return { rateText: row.rateText!, rateDirection: row.rateDirection as RateDirection };
 }

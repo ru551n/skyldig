@@ -8,69 +8,103 @@ const expirationLogger = logger.child({ module: "expiration" });
 
 export const CLEANUP_LOCK_KEY = 74610001n;
 
+const BATCH_SIZE = 200;
+// Guards against a runaway loop (e.g. the lock/delete predicate somehow never converging).
+// At BATCH_SIZE=200 this allows purging up to 2,000,000 expired sessions in one run.
+const MAX_BATCHES = 10_000;
+
 interface CleanupResult {
   sessionsDeleted: number;
   browserSessionsDeleted: number;
   skipped: boolean;
 }
 
+interface BatchOutcome {
+  locked: boolean;
+  deleted: number;
+}
+
 /**
- * Runs the session expiration cleanup job. Uses an advisory lock to ensure only one
- * instance runs at a time across replicas. Deletes expired sessions in batches of 200
- * until none remain, then purges expired browser sessions.
+ * Deletes up to one batch of expired sessions inside its own transaction, guarded by the
+ * advisory lock (`pg_try_advisory_xact_lock`, auto-released at commit/rollback). Running one
+ * transaction per batch — rather than the whole purge in a single long-lived transaction — keeps
+ * each transaction/snapshot short and lets `FOR UPDATE SKIP LOCKED` actually bound lock
+ * contention per batch instead of holding row locks on everything purged in the run.
  */
-export async function runCleanup(db: Database): Promise<CleanupResult> {
+async function deleteOneBatch(db: Database): Promise<BatchOutcome> {
   return db.transaction(async (tx) => {
-    // Try to acquire an exclusive advisory lock
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const lockResult: unknown = await (tx as any).execute(
-      sql`SELECT pg_try_advisory_xact_lock(${CLEANUP_LOCK_KEY}) AS locked`
+      sql`SELECT pg_try_advisory_xact_lock(${CLEANUP_LOCK_KEY}) AS locked`,
     );
-
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const locked = (lockResult as any).rows?.[0]?.locked;
-
     if (!locked) {
-      return { sessionsDeleted: 0, browserSessionsDeleted: 0, skipped: true };
+      return { locked: false, deleted: 0 };
     }
 
-    let sessionsDeleted = 0;
-
-    // Delete expired sessions in batches of 200 until none remain
-    while (true) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const deleteResult: unknown = await (tx as any).execute(
-        sql`DELETE FROM sessions WHERE id IN (
-          SELECT id FROM sessions WHERE expires_at < now()
-          ORDER BY id
-          LIMIT 200
-          FOR UPDATE SKIP LOCKED
-        ) RETURNING id`
-      );
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const batchRows = (deleteResult as any).rows ?? [];
-      const batchSize = batchRows.length;
-      sessionsDeleted += batchSize;
-
-      if (batchSize < 200) {
-        // No more sessions to delete
-        break;
-      }
-    }
-
-    // Purge expired browser sessions
-    const browserSessionsDeleted = await purgeExpiredBrowserSessions(tx);
-
-    if (sessionsDeleted > 0 || browserSessionsDeleted > 0) {
-      expirationLogger.info(
-        { sessionsDeleted, browserSessionsDeleted, skipped: false },
-        "cleanup completed"
-      );
-    }
-
-    return { sessionsDeleted, browserSessionsDeleted, skipped: false };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const deleteResult: unknown = await (tx as any).execute(
+      sql`DELETE FROM sessions WHERE id IN (
+        SELECT id FROM sessions WHERE expires_at < now()
+        ORDER BY id
+        LIMIT ${BATCH_SIZE}
+        FOR UPDATE SKIP LOCKED
+      ) RETURNING id`,
+    );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rows = (deleteResult as any).rows ?? [];
+    return { locked: true, deleted: rows.length };
   });
+}
+
+/**
+ * Runs the session expiration cleanup job. Uses an advisory lock (re-acquired per batch, since
+ * each batch is its own transaction) to ensure only one instance runs at a time across replicas.
+ * Deletes expired sessions in batches of `BATCH_SIZE`, looping until a batch deletes 0 rows —
+ * `FOR UPDATE SKIP LOCKED` can legitimately return fewer than a full batch while more expired
+ * rows remain (e.g. they're momentarily locked by something else), so a short batch must not be
+ * treated as "done".
+ */
+export async function runCleanup(db: Database): Promise<CleanupResult> {
+  let sessionsDeleted = 0;
+  let firstBatch = true;
+
+  for (let batch = 0; batch < MAX_BATCHES; batch += 1) {
+    const outcome = await deleteOneBatch(db);
+
+    if (!outcome.locked) {
+      if (firstBatch) {
+        return { sessionsDeleted: 0, browserSessionsDeleted: 0, skipped: true };
+      }
+      // Contended mid-run (rare: another instance grabbed the lock between our batches).
+      // Stop here rather than block; the next scheduled run will pick up any remainder.
+      expirationLogger.warn({ sessionsDeleted }, "cleanup: lost advisory lock mid-run, stopping early");
+      break;
+    }
+
+    firstBatch = false;
+    sessionsDeleted += outcome.deleted;
+    if (outcome.deleted === 0) break;
+
+    if (batch === MAX_BATCHES - 1) {
+      expirationLogger.error(
+        { sessionsDeleted, maxBatches: MAX_BATCHES },
+        "cleanup: exceeded max batch iterations, aborting this run",
+      );
+    }
+  }
+
+  const browserSessionsDeleted = await purgeExpiredBrowserSessions(db);
+
+  if (sessionsDeleted > 0 || browserSessionsDeleted > 0) {
+    expirationLogger.info(
+      { sessionsDeleted, browserSessionsDeleted, skipped: false },
+      "cleanup completed",
+    );
+  }
+
+  return { sessionsDeleted, browserSessionsDeleted, skipped: false };
 }
 
 interface SchedulerOptions {

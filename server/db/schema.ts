@@ -119,12 +119,12 @@ export const expenses = pgTable(
       name: "expenses_payer_fk",
     }).onDelete("restrict"),
     check("expenses_amount_minor_check", sql`${t.amountMinor} > 0 and ${t.amountMinor} <= 1000000000000000`),
-    check("expenses_base_amount_minor_check", sql`${t.baseAmountMinor} > 0`),
+    check("expenses_base_amount_minor_check", sql`${t.baseAmountMinor} > 0 and ${t.baseAmountMinor} <= 1000000000000000`),
     check("expenses_rate_direction_check", sql`${t.rateDirection} is null or ${t.rateDirection} in ('base_per_unit', 'units_per_base')`),
     check("expenses_split_mode_check", sql`${t.splitMode} in ('equal')`),
     check(
       "expenses_rate_consistency_check",
-      sql`(${t.currencyCode} = ${t.baseCurrencyCode} and ${t.rateNum} is null and ${t.rateDen} is null and ${t.baseAmountMinor} = ${t.amountMinor}) or (${t.currencyCode} <> ${t.baseCurrencyCode} and ${t.rateNum} is not null and ${t.rateDen} is not null and ${t.rateNum} > 0 and ${t.rateDen} > 0)`,
+      sql`(${t.currencyCode} = ${t.baseCurrencyCode} and ${t.rateNum} is null and ${t.rateDen} is null and ${t.baseAmountMinor} = ${t.amountMinor}) or (${t.currencyCode} <> ${t.baseCurrencyCode} and ${t.rateNum} is not null and ${t.rateDen} is not null and ${t.rateNum} > 0 and ${t.rateDen} > 0 and ${t.rateNum} <= 1000000000000000 and ${t.rateDen} <= 1000000000000000)`,
     ),
   ],
 );
@@ -204,12 +204,12 @@ export const payments = pgTable(
       name: "payments_recipient_fk",
     }).onDelete("restrict"),
     check("payments_amount_minor_check", sql`${t.amountMinor} > 0 and ${t.amountMinor} <= 1000000000000000`),
-    check("payments_base_amount_minor_check", sql`${t.baseAmountMinor} > 0`),
+    check("payments_base_amount_minor_check", sql`${t.baseAmountMinor} > 0 and ${t.baseAmountMinor} <= 1000000000000000`),
     check("payments_rate_direction_check", sql`${t.rateDirection} is null or ${t.rateDirection} in ('base_per_unit', 'units_per_base')`),
     check("payments_payer_recipient_check", sql`${t.payerId} <> ${t.recipientId}`),
     check(
       "payments_rate_consistency_check",
-      sql`(${t.currencyCode} = ${t.baseCurrencyCode} and ${t.rateNum} is null and ${t.rateDen} is null and ${t.baseAmountMinor} = ${t.amountMinor}) or (${t.currencyCode} <> ${t.baseCurrencyCode} and ${t.rateNum} is not null and ${t.rateDen} is not null and ${t.rateNum} > 0 and ${t.rateDen} > 0)`,
+      sql`(${t.currencyCode} = ${t.baseCurrencyCode} and ${t.rateNum} is null and ${t.rateDen} is null and ${t.baseAmountMinor} = ${t.amountMinor}) or (${t.currencyCode} <> ${t.baseCurrencyCode} and ${t.rateNum} is not null and ${t.rateDen} is not null and ${t.rateNum} > 0 and ${t.rateDen} > 0 and ${t.rateNum} <= 1000000000000000 and ${t.rateDen} <= 1000000000000000)`,
     ),
   ],
 );
