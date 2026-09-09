@@ -41,7 +41,7 @@ export function SessionRail({
   return (
     <div className="flex h-full flex-col gap-6 p-6">
       <div className="flex flex-col gap-2">
-        <p className="truncate text-lead font-semibold text-pine" title={sessionName}>
+        <p className="text-lead text-pine truncate font-semibold" title={sessionName}>
           {sessionName}
         </p>
         <Pill variant={expiringSoon ? "warning" : "neutral"}>
@@ -57,10 +57,16 @@ export function SessionRail({
               <li key={p.publicId} className="flex items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-2">
                   <Avatar name={p.displayName} position={i} />
-                  <span className="truncate text-body text-pine">{p.displayName}</span>
+                  <span className="text-body text-pine truncate">{p.displayName}</span>
                 </div>
                 {balance && (
-                  <Money amountMinor={balance.net} currency={baseCurrency} signed size="body" className="shrink-0" />
+                  <Money
+                    amountMinor={balance.net}
+                    currency={baseCurrency}
+                    signed
+                    size="body"
+                    className="shrink-0"
+                  />
                 )}
               </li>
             );
@@ -75,7 +81,7 @@ export function SessionRail({
             to={item.to}
             end={item.end}
             className={({ isActive }) =>
-              `min-h-11 rounded-control px-3 py-2 text-body font-medium ${
+              `rounded-control text-body min-h-11 px-3 py-2 font-medium ${
                 isActive ? "bg-frost text-pine" : "text-pine-soft hover:bg-frost hover:text-pine"
               }`
             }
@@ -88,7 +94,7 @@ export function SessionRail({
       <button
         type="button"
         onClick={onLeaveClick}
-        className="mt-auto min-h-11 rounded-control px-3 py-2 text-left text-body font-medium text-rust hover:bg-rust/5"
+        className="rounded-control text-body text-rust hover:bg-rust/5 mt-auto min-h-11 px-3 py-2 text-left font-medium"
       >
         {t("common.leaveGroup")}
       </button>

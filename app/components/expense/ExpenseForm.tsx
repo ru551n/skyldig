@@ -3,7 +3,16 @@ import { Form, useFetcher } from "react-router";
 
 import { convertToBase, parseAmount, splitEqually } from "@domain/index.ts";
 
-import { Button, Chip, Field, Input, Money, MoneyInput, Select, Textarea } from "~/components/ui/index.ts";
+import {
+  Button,
+  Chip,
+  Field,
+  Input,
+  Money,
+  MoneyInput,
+  Select,
+  Textarea,
+} from "~/components/ui/index.ts";
 import { useT } from "~/i18n";
 
 import { RateSection, type RateDirection } from "./RateSection.tsx";
@@ -67,7 +76,9 @@ export function ExpenseForm({
   formId,
 }: ExpenseFormProps) {
   const t = useT();
-  const fetcher = useFetcher<{ suggestedRate: { rateText: string; rateDirection: RateDirection } | null }>();
+  const fetcher = useFetcher<{
+    suggestedRate: { rateText: string; rateDirection: RateDirection } | null;
+  }>();
 
   const [description, setDescription] = useState(defaults.description);
   const [amountText, setAmountText] = useState(defaults.amountText);
@@ -94,7 +105,9 @@ export function ExpenseForm({
 
   const suggested = fetcher.data?.suggestedRate;
   const effectiveRateText = rateText || suggested?.rateText || "";
-  const effectiveRateDirection = rateText ? rateDirection : suggested?.rateDirection ?? rateDirection;
+  const effectiveRateDirection = rateText
+    ? rateDirection
+    : (suggested?.rateDirection ?? rateDirection);
 
   function toggleAll(on: boolean) {
     setSelected(on ? new Set(participants.map((p) => p.publicId)) : new Set());
@@ -118,7 +131,11 @@ export function ExpenseForm({
         if (!rateStr) return null;
         const rate = parseRateSafe(rateStr, effectiveRateDirection);
         if (!rate) return null;
-        baseAmountMinor = convertToBase({ amountMinor, currency: currencyCode }, baseCurrency, rate);
+        baseAmountMinor = convertToBase(
+          { amountMinor, currency: currencyCode },
+          baseCurrency,
+          rate,
+        );
       }
       const ids = [...selected];
       if (ids.length === 0) return null;
@@ -134,15 +151,29 @@ export function ExpenseForm({
     } catch {
       return null;
     }
-  }, [amountText, currencyCode, isForeign, effectiveRateText, effectiveRateDirection, selected, participants, baseCurrency]);
+  }, [
+    amountText,
+    currencyCode,
+    isForeign,
+    effectiveRateText,
+    effectiveRateDirection,
+    selected,
+    participants,
+    baseCurrency,
+  ]);
 
-  const fieldError = (field: string) => (error?.field === field && errorMessage ? errorMessage(error.code) : undefined);
+  const fieldError = (field: string) =>
+    error?.field === field && errorMessage ? errorMessage(error.code) : undefined;
 
   return (
     <Form method="post" id={formId} className="flex flex-col gap-6">
       {revision !== undefined && <input type="hidden" name="revision" value={revision} />}
 
-      <Field htmlFor="description" label={t("expense.descriptionLabel")} error={fieldError("description")}>
+      <Field
+        htmlFor="description"
+        label={t("expense.descriptionLabel")}
+        error={fieldError("description")}
+      >
         {(ids) => (
           <Input
             {...ids}
@@ -158,7 +189,12 @@ export function ExpenseForm({
       </Field>
 
       <div className="flex items-end gap-3">
-        <Field htmlFor="amountText" label={t("expense.amountLabel")} error={fieldError("amountText")} className="flex-1">
+        <Field
+          htmlFor="amountText"
+          label={t("expense.amountLabel")}
+          error={fieldError("amountText")}
+          className="flex-1"
+        >
           {(ids) => (
             <MoneyInput
               {...ids}
@@ -174,7 +210,12 @@ export function ExpenseForm({
           <label htmlFor="currencyCode" className="sr-only">
             {t("common.currencyLabel")}
           </label>
-          <Select id="currencyCode" name="currencyCode" value={currencyCode} onChange={(e) => handleCurrencyChange(e.target.value)}>
+          <Select
+            id="currencyCode"
+            name="currencyCode"
+            value={currencyCode}
+            onChange={(e) => handleCurrencyChange(e.target.value)}
+          >
             {currencies.map((c) => (
               <option key={c.code} value={c.code}>
                 {c.code}
@@ -196,9 +237,18 @@ export function ExpenseForm({
         />
       )}
 
-      <Field htmlFor="payerPublicId" label={t("expense.payerLabel")} error={fieldError("payerPublicId")}>
+      <Field
+        htmlFor="payerPublicId"
+        label={t("expense.payerLabel")}
+        error={fieldError("payerPublicId")}
+      >
         {(ids) => (
-          <Select {...ids} name="payerPublicId" value={payerPublicId} onChange={(e) => setPayerPublicId(e.target.value)}>
+          <Select
+            {...ids}
+            name="payerPublicId"
+            value={payerPublicId}
+            onChange={(e) => setPayerPublicId(e.target.value)}
+          >
             {participants.map((p) => (
               <option key={p.publicId} value={p.publicId}>
                 {p.displayName}
@@ -210,7 +260,7 @@ export function ExpenseForm({
 
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-3">
-          <span className="text-body font-medium text-pine">{t("expense.participantsLabel")}</span>
+          <span className="text-body text-pine font-medium">{t("expense.participantsLabel")}</span>
           <div className="flex gap-2">
             <Button type="button" variant="ghost" size="md" onClick={() => toggleAll(true)}>
               {t("common.selectAll")}
@@ -220,7 +270,11 @@ export function ExpenseForm({
             </Button>
           </div>
         </div>
-        <div role="group" aria-label={t("expense.participantsGroupLabel")} className="flex flex-wrap gap-2">
+        <div
+          role="group"
+          aria-label={t("expense.participantsGroupLabel")}
+          className="flex flex-wrap gap-2"
+        >
           {participants.map((p) => (
             <Chip
               key={p.publicId}
@@ -237,15 +291,15 @@ export function ExpenseForm({
           ) : null,
         )}
         {fieldError("participantPublicIds") && (
-          <p role="alert" className="text-meta font-medium text-rust">
+          <p role="alert" className="text-meta text-rust font-medium">
             {fieldError("participantPublicIds")}
           </p>
         )}
       </div>
 
       {preview && preview.shares.length > 0 && (
-        <div className="flex flex-col gap-1 rounded-card border border-line bg-paper p-4">
-          <p className="text-meta font-medium text-pine-soft">{t("expense.splitPreviewLabel")}</p>
+        <div className="rounded-card border-line bg-paper flex flex-col gap-1 border p-4">
+          <p className="text-meta text-pine-soft font-medium">{t("expense.splitPreviewLabel")}</p>
           {isForeign && (
             <p className="text-meta text-pine-soft">
               {t("common.totalOriginal", { amount: `${amountText} ${currencyCode}` })}
@@ -253,7 +307,7 @@ export function ExpenseForm({
           )}
           <ul className="flex flex-col gap-1">
             {preview.shares.map((s, i) => (
-              <li key={i} className="flex items-center justify-between text-body text-pine">
+              <li key={i} className="text-body text-pine flex items-center justify-between">
                 <span>{s.name}</span>
                 <Money amountMinor={s.share} currency={baseCurrency} />
               </li>
@@ -277,20 +331,34 @@ export function ExpenseForm({
 
       <div className="flex flex-col gap-2">
         {!noteOpen ? (
-          <Button type="button" variant="ghost" onClick={() => setNoteOpen(true)} className="self-start">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => setNoteOpen(true)}
+            className="self-start"
+          >
             {t("common.addNote")}
           </Button>
         ) : (
           <Field htmlFor="note" label={t("common.noteLabel")} error={fieldError("note")}>
             {(ids) => (
-              <Textarea {...ids} name="note" maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} />
+              <Textarea
+                {...ids}
+                name="note"
+                maxLength={500}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+              />
             )}
           </Field>
         )}
       </div>
 
       {error && !error.field && errorMessage && (
-        <p role="alert" className="rounded-control border border-rust/40 bg-rust/5 p-3 text-body text-rust">
+        <p
+          role="alert"
+          className="rounded-control border-rust/40 bg-rust/5 text-body text-rust border p-3"
+        >
           {errorMessage(error.code)}
         </p>
       )}

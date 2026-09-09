@@ -38,21 +38,25 @@ function Spinner({ className }: { className?: string }) {
       aria-hidden="true"
     >
       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path
-        className="opacity-90"
-        fill="currentColor"
-        d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4Z"
-      />
+      <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4Z" />
     </svg>
   );
 }
 
-export type ButtonProps = ButtonOwnProps &
-  React.ButtonHTMLAttributes<HTMLButtonElement>;
+export type ButtonProps = ButtonOwnProps & React.ButtonHTMLAttributes<HTMLButtonElement>;
 
 /** A native `<button>` styled per the design system. For navigation, use `ButtonLink`. */
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { variant = "primary", size = "md", loading = false, fullWidth = false, disabled, className, children, ...rest },
+  {
+    variant = "primary",
+    size = "md",
+    loading = false,
+    fullWidth = false,
+    disabled,
+    className,
+    children,
+    ...rest
+  },
   ref,
 ) {
   return (
@@ -70,12 +74,19 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
   );
 });
 
-export type ButtonLinkProps = ButtonOwnProps &
-  React.ComponentProps<typeof Link>;
+export type ButtonLinkProps = ButtonOwnProps & React.ComponentProps<typeof Link>;
 
 /** A React Router `<Link>` styled identically to `Button`, for navigation-shaped actions. */
 export const ButtonLink = forwardRef<HTMLAnchorElement, ButtonLinkProps>(function ButtonLink(
-  { variant = "primary", size = "md", loading = false, fullWidth = false, className, children, ...rest },
+  {
+    variant = "primary",
+    size = "md",
+    loading = false,
+    fullWidth = false,
+    className,
+    children,
+    ...rest
+  },
   ref,
 ) {
   return (

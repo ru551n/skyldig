@@ -40,7 +40,7 @@ export function Field({ htmlFor, label, hint, error, children, className }: Fiel
 
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
-      <label htmlFor={htmlFor} className="text-body font-medium text-pine">
+      <label htmlFor={htmlFor} className="text-body text-pine font-medium">
         {label}
       </label>
       {children({ id: htmlFor, "aria-describedby": describedBy, invalid: Boolean(error) })}
@@ -50,7 +50,7 @@ export function Field({ htmlFor, label, hint, error, children, className }: Fiel
         </p>
       )}
       {error && (
-        <p id={errorId} role="alert" className="text-meta font-medium text-rust">
+        <p id={errorId} role="alert" className="text-meta text-rust font-medium">
           {error}
         </p>
       )}

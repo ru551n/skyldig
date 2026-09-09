@@ -7,7 +7,12 @@ export interface AvatarProps {
   className?: string;
 }
 
-const rotation = ["bg-pine text-paper", "bg-sol text-pine", "bg-moss text-paper", "bg-rust text-paper"];
+const rotation = [
+  "bg-pine text-paper",
+  "bg-sol text-pine",
+  "bg-moss text-paper",
+  "bg-rust text-paper",
+];
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -26,7 +31,7 @@ export function Avatar({ name, position, className }: AvatarProps) {
     <span
       aria-hidden="true"
       className={cn(
-        "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-meta font-semibold",
+        "text-meta inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full font-semibold",
         colorClass,
         className,
       )}

@@ -22,18 +22,20 @@ export function Dialog({ open, onOpenChange, title, description, children, trigg
     <RadixDialog.Root open={open} onOpenChange={onOpenChange}>
       {trigger && <RadixDialog.Trigger asChild>{trigger}</RadixDialog.Trigger>}
       <RadixDialog.Portal>
-        <RadixDialog.Overlay className="fixed inset-0 z-40 bg-pine/40" />
+        <RadixDialog.Overlay className="bg-pine/40 fixed inset-0 z-40" />
         <RadixDialog.Content asChild>
           <motion.div
             initial={{ opacity: 0, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.96 }}
             transition={{ duration: 0.16, ease: "easeOut" }}
-            className="fixed left-1/2 top-1/2 z-50 w-[min(92vw,480px)] -translate-x-1/2 -translate-y-1/2 rounded-row border border-line bg-paper p-6 shadow-none"
+            className="rounded-row border-line bg-paper fixed top-1/2 left-1/2 z-50 w-[min(92vw,480px)] -translate-x-1/2 -translate-y-1/2 border p-6 shadow-none"
           >
-            <RadixDialog.Title className="text-h2 font-semibold text-pine">{title}</RadixDialog.Title>
+            <RadixDialog.Title className="text-h2 text-pine font-semibold">
+              {title}
+            </RadixDialog.Title>
             {description && (
-              <RadixDialog.Description className="mt-2 text-body text-pine-soft">
+              <RadixDialog.Description className="text-body text-pine-soft mt-2">
                 {description}
               </RadixDialog.Description>
             )}
@@ -43,7 +45,7 @@ export function Dialog({ open, onOpenChange, title, description, children, trigg
                 type="button"
                 aria-label="Stäng"
                 className={cn(
-                  "absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-control text-pine-soft hover:bg-frost",
+                  "rounded-control text-pine-soft hover:bg-frost absolute top-4 right-4 flex h-9 w-9 items-center justify-center",
                 )}
               >
                 <svg viewBox="0 0 20 20" width="16" height="16" fill="none" aria-hidden="true">

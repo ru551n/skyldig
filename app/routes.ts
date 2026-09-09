@@ -4,6 +4,7 @@ export default [
   index("routes/_index.tsx"),
   route("new", "routes/new.tsx"),
   route("join", "routes/join.tsx"),
+  route("guide", "routes/guide.tsx"),
 
   ...prefix("s/:sid", [
     layout("routes/session/layout.tsx", [

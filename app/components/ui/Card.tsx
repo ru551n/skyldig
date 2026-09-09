@@ -9,7 +9,7 @@ export function Card({ tinted = false, className, children, ...rest }: CardProps
   return (
     <div
       className={cn(
-        "rounded-card border border-line p-4",
+        "rounded-card border-line border p-4",
         tinted ? "border-sol/40 bg-sol/20" : "bg-paper",
         className,
       )}
@@ -31,7 +31,7 @@ export function Row({ noDivider = false, className, children, ...rest }: RowProp
     <div
       className={cn(
         "flex items-center justify-between gap-4 py-3",
-        !noDivider && "border-b border-line last:border-b-0",
+        !noDivider && "border-line border-b last:border-b-0",
         className,
       )}
       {...rest}

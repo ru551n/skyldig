@@ -2,8 +2,7 @@ import { forwardRef } from "react";
 
 import { cn } from "./cn.ts";
 
-export interface MoneyInputProps
-  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "type"> {
+export interface MoneyInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "type"> {
   invalid?: boolean;
   currency: string;
 }
@@ -16,7 +15,7 @@ export const MoneyInput = forwardRef<HTMLInputElement, MoneyInputProps>(function
   return (
     <div
       className={cn(
-        "flex min-h-11 items-center rounded-control border bg-paper pr-3",
+        "rounded-control bg-paper flex min-h-11 items-center border pr-3",
         invalid ? "border-rust" : "border-line",
         className,
       )}
@@ -27,10 +26,10 @@ export const MoneyInput = forwardRef<HTMLInputElement, MoneyInputProps>(function
         inputMode="decimal"
         autoComplete="off"
         aria-invalid={invalid || undefined}
-        className="tabular min-w-0 flex-1 rounded-control bg-transparent px-3 py-2 text-body text-pine placeholder:text-pine-soft focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+        className="tabular rounded-control text-body text-pine placeholder:text-pine-soft min-w-0 flex-1 bg-transparent px-3 py-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60"
         {...rest}
       />
-      <span className="text-meta font-medium text-pine-soft">{currency}</span>
+      <span className="text-meta text-pine-soft font-medium">{currency}</span>
     </div>
   );
 });

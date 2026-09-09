@@ -270,4 +270,44 @@ export const sv = {
     EMPTY_PARTICIPANTS: "Välj minst en person att dela med.",
     RATE_REQUIRED: "Ange en växelkurs för den här valutan.",
   },
+
+  guide: {
+    linkFromLanding: "Så funkar det",
+    title: "Så funkar det",
+    lead: "En snabb genomgång av hela flödet, från att skapa gruppen till att göra upp skulderna.",
+    step1Title: "Skapa en grupp",
+    step1Body1:
+      "Ge gruppen ett namn, välj vilken valuta ni räknar i, och lägg till alla som ska vara med. Ni kan lägga till fler personer senare.",
+    step1ImageAlt: "Formuläret för att skapa en grupp, med namn, valuta och deltagare ifyllda",
+    step2Title: "Spara nycklarna",
+    step2Body1:
+      "När gruppen är skapad visas två nycklar, en enda gång. Gruppnyckeln är vad alla i gruppen använder för att gå med och lägga till utgifter. Adminnyckeln är separat och mer kraftfull — den kan byta ut nycklarna och ta bort gruppen.",
+    step2Body2:
+      "Vem som helst med gruppnyckeln kan se och ändra allt i gruppen, så dela den bara med de som faktiskt ska vara med i gruppen.",
+    step2ImageAlt: "Sidan som visar gruppnyckeln och adminnyckeln direkt efter att gruppen skapats",
+    step3Title: "Lägg till utgifter",
+    step3Body1:
+      "För varje utgift anger ni vem som betalade, hur mycket, och vilka som delar på den. Fördelningen visas innan ni sparar, så ni ser exakt vad var och en får betala.",
+    step3Body2:
+      "Är utgiften i en annan valuta anger ni en växelkurs. Den kursen låses till just den utgiften, så gamla utgifter aldrig ändras i efterhand även om kurser rör sig.",
+    step3ImageAlt: "Formuläret för en ny utgift, med belopp, betalare och fördelning mellan deltagare",
+    step4Title: "Registrera betalningar",
+    step4Body1:
+      "När någon i gruppen betalar tillbaka till någon annan registrerar ni det som en betalning. Den påverkar saldona precis som en utgift, så alla ser att skulden är avklarad.",
+    step5Title: "Se vem som ska betala vem",
+    step5Body1:
+      "Gör-upp-planen är svaret appen finns till för att ge: den kortast möjliga listan av vem som ska betala vem, och hur mycket, för att alla ska bli kvitt.",
+    step5ImageAlt: "Gör-upp-sidan med förslag på vem som ska betala vem och hur mycket",
+    step6Title: "Aktivitet och historik",
+    step6Body1:
+      "Alla ändringar sparas. I aktivitetsflödet ser ni vad som hänt i gruppen, inklusive utgifter och betalningar som senare tagits bort eller ändrats.",
+    step6ImageAlt: "Aktivitetsflödet som listar utgifter och betalningar i tidsordning",
+    step7Title: "Gruppen försvinner efter 90 dagar",
+    step7Body1:
+      "90 dagar efter att gruppen skapades tas den bort automatiskt, tillsammans med all data i den. Tiden räknas från när gruppen skapades, inte från senaste besöket, så den förlängs inte av att ni använder gruppen.",
+    closingTitle: "Redo att sätta igång?",
+    closingBody: "Skapa en ny grupp, eller gå med i en du redan har fått en gruppnyckel till.",
+    createSession: "Skapa grupp",
+    joinSession: "Gå med i grupp",
+  },
 } as const satisfies Record<string, unknown>;

@@ -18,7 +18,7 @@ export function Pill({ variant = "neutral", children, className }: PillProps) {
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-chip px-3 py-1 text-meta font-medium",
+        "rounded-chip text-meta inline-flex items-center px-3 py-1 font-medium",
         variants[variant],
         className,
       )}

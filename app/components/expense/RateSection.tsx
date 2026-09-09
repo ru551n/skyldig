@@ -30,7 +30,7 @@ export function RateSection({
   const t = useT();
 
   return (
-    <div className="flex flex-col gap-3 rounded-card border border-line bg-frost p-4">
+    <div className="rounded-card border-line bg-frost flex flex-col gap-3 border p-4">
       <Field htmlFor="rateDirection" label={t("common.rateLabel")} error={error}>
         {(ids) => (
           <div className="flex flex-col gap-2">

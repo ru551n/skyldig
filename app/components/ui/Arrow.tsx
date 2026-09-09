@@ -14,7 +14,13 @@ export function Arrow({ className }: ArrowProps) {
       aria-hidden="true"
     >
       <line x1="0" y1="8" x2="54" y2="8" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M48 2l8 6-8 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M48 2l8 6-8 6"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }

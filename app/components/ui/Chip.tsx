@@ -13,7 +13,7 @@ export function Chip({ pressed, onPressedChange, className, children, ...rest }:
       aria-pressed={pressed}
       onClick={() => onPressedChange(!pressed)}
       className={cn(
-        "inline-flex min-h-11 items-center rounded-chip border px-4 text-body font-medium transition-colors",
+        "rounded-chip text-body inline-flex min-h-11 items-center border px-4 font-medium transition-colors",
         pressed ? "border-sol bg-sol text-pine" : "border-line bg-paper text-pine hover:bg-frost",
         className,
       )}

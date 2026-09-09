@@ -18,7 +18,13 @@ const sizeClass: Record<NonNullable<MoneyProps["size"]>, string> = {
 };
 
 /** Formats a minor-unit amount with `formatMoney` (sv-SE, tabular numerals). */
-export function Money({ amountMinor, currency, signed = false, size = "body", className }: MoneyProps) {
+export function Money({
+  amountMinor,
+  currency,
+  signed = false,
+  size = "body",
+  className,
+}: MoneyProps) {
   const minor = typeof amountMinor === "string" ? BigInt(amountMinor) : amountMinor;
   const formatted = formatMoney(minor, currency, "sv-SE");
   const colorClass = signed ? (minor < 0n ? "text-rust" : "text-moss") : undefined;

@@ -56,7 +56,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               transition={{ duration: 0.16, ease: "easeOut" }}
               role="status"
               className={cn(
-                "pointer-events-auto w-full max-w-sm rounded-control border px-4 py-3 text-body font-medium shadow-none",
+                "rounded-control text-body pointer-events-auto w-full max-w-sm border px-4 py-3 font-medium shadow-none",
                 toast.kind === "success"
                   ? "border-moss/30 bg-paper text-moss"
                   : "border-rust/30 bg-paper text-rust",

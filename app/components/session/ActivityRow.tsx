@@ -14,14 +14,14 @@ export function ActivityRow({ item, currency }: ActivityRowProps) {
   const content = (
     <Row className={item.deleted ? "opacity-60" : undefined}>
       <div className="flex min-w-0 flex-col">
-        <span className="truncate text-body font-medium text-pine">
+        <span className="text-body text-pine truncate font-medium">
           {item.title}
-          {item.deleted && <span className="ml-2 text-meta font-medium text-rust">Borttagen</span>}
+          {item.deleted && <span className="text-meta text-rust ml-2 font-medium">Borttagen</span>}
           {item.action === "updated" && !item.deleted && (
-            <span className="ml-2 text-meta font-medium text-pine-soft">Ändrad</span>
+            <span className="text-meta text-pine-soft ml-2 font-medium">Ändrad</span>
           )}
         </span>
-        <span className="truncate text-meta text-pine-soft">{item.personLine}</span>
+        <span className="text-meta text-pine-soft truncate">{item.personLine}</span>
       </div>
       <div className="flex shrink-0 flex-col items-end">
         <Money amountMinor={item.amountMinor} currency={currency} size="body" />
@@ -37,7 +37,7 @@ export function ActivityRow({ item, currency }: ActivityRowProps) {
   return (
     <Link
       to={item.href}
-      className="block rounded-control focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine"
+      className="rounded-control focus-visible:outline-pine block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
     >
       {content}
     </Link>
