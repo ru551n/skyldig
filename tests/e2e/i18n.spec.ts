@@ -27,13 +27,11 @@ test.describe("interface language", () => {
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     await expect(page.getByRole("link", { name: "Create a group" })).toBeVisible();
 
-    // Wait for hydration to finish before interacting: the switcher's onChange handler is only
-    // wired up once React has attached, and selecting an option before then would just change
-    // the native <select>'s value without submitting the form.
-    await page.waitForLoadState("networkidle");
+    // The switcher is two labelled flag buttons in one form (see LocaleSwitcher.tsx), each a
+    // native submit button — no hydration wait needed, it works even before React attaches.
     await Promise.all([
       page.waitForResponse((res) => res.request().method() === "POST" && res.url().endsWith("/lang")),
-      page.getByLabel("Language").selectOption("sv"),
+      page.getByRole("button", { name: "Svenska" }).click(),
     ]);
 
     await expect(page.locator("html")).toHaveAttribute("lang", "sv");

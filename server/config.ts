@@ -17,6 +17,7 @@ const envSchema = z.object({
   LOG_LEVEL: z
     .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
     .default("info"),
+  FX_RATE_LOOKUP_ENABLED: z.enum(["true", "false"]).default("true"),
 });
 
 function parseEnv(env: NodeJS.ProcessEnv) {
@@ -62,6 +63,13 @@ export const config = {
   trustProxy: parsed.TRUST_PROXY,
   cookieSecure: parsed.COOKIE_SECURE ?? isProduction,
   logLevel: parsed.LOG_LEVEL,
+  /**
+   * Whether the app is allowed to make outbound calls to a market exchange-rate provider
+   * (Frankfurter) to prefill the rate form field. Defaults to true; a privacy-conscious
+   * self-hoster can set `FX_RATE_LOOKUP_ENABLED=false` to make the app zero-network again —
+   * manual rate entry always works either way (see docs/architecture.md §5.1).
+   */
+  fxRateLookupEnabled: parsed.FX_RATE_LOOKUP_ENABLED === "true",
 } as const;
 
 export type Config = typeof config;

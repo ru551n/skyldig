@@ -11,6 +11,13 @@ export interface RateSectionProps {
   onRateTextChange: (value: string) => void;
   onRateDirectionChange: (value: RateDirection) => void;
   error?: string;
+  /**
+   * Small caption distinguishing where the prefilled rate came from — the live daily rate
+   * for the expense date ("Dagens kurs") vs. the last rate used in this session ("Senast
+   * använda kursen") — so the user knows what they're looking at and that it's editable
+   * either way. Omitted once the user has typed their own value.
+   */
+  sourceCaption?: string;
 }
 
 /**
@@ -26,6 +33,7 @@ export function RateSection({
   onRateTextChange,
   onRateDirectionChange,
   error,
+  sourceCaption,
 }: RateSectionProps) {
   const t = useT();
 
@@ -59,6 +67,7 @@ export function RateSection({
               onChange={(e) => onRateTextChange(e.target.value)}
               placeholder="t.ex. 11,45"
             />
+            {sourceCaption && <p className="text-meta text-pine-soft">{sourceCaption}</p>}
           </div>
         )}
       </Field>

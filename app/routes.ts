@@ -24,6 +24,7 @@ export default [
     ]),
     route("lamna", "routes/session/leave.tsx"),
     route("bjud-in", "routes/session/invite-create.tsx"),
+    route("fx-rate", "routes/session/fx-rate.tsx"),
   ]),
 
   route("dev/styleguide", "routes/dev.styleguide.tsx"),

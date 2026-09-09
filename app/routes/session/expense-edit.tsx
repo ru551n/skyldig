@@ -216,6 +216,7 @@ export default function ExpenseEditPage({ loaderData, actionData, params }: Rout
         participants={loaderData.participants}
         currencies={loaderData.currencies}
         baseCurrency={loaderData.baseCurrency}
+        sessionPublicId={loaderData.sessionPublicId}
         defaults={defaults}
         error={error}
         errorMessage={(code) => errorMessage(t, code)}

@@ -13,7 +13,8 @@
     "server/http/**/*",
     "server/app.ts",
     "server/modules/i18n/**/*",
-    "tests/integration/activity-loader.test.ts"
+    "tests/integration/activity-loader.test.ts",
+    "tests/integration/fx-rate-loader.test.ts"
   ],
   "compilerOptions": {
     "composite": true,

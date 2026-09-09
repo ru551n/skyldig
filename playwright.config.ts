@@ -46,6 +46,13 @@ export default defineConfig({
           ACCESS_KEY_PEPPER: process.env.ACCESS_KEY_PEPPER ?? "e2e-test-pepper-not-for-production-use-12345678",
           PUBLIC_ORIGIN: baseURL,
           NODE_ENV: "development",
+          // Threaded through explicitly (not inherited automatically) so a verification run
+          // like `FX_RATE_LOOKUP_ENABLED=false pnpm exec playwright test` actually disables
+          // live exchange-rate lookups in the spawned `pnpm dev` server — see
+          // tests/e2e/expense-fx-rate.spec.ts and docs/architecture.md §5.1.
+          ...(process.env.FX_RATE_LOOKUP_ENABLED
+            ? { FX_RATE_LOOKUP_ENABLED: process.env.FX_RATE_LOOKUP_ENABLED }
+            : {}),
         },
       },
 });

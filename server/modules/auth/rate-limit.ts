@@ -174,6 +174,14 @@ export const limiters = {
     { name: "invite-1h", limit: 60, windowMs: HOUR },
   ]),
   inviteGlobal: createRateLimiter([{ name: "invite-global-1h", limit: 240, windowMs: HOUR }]),
+  /**
+   * Per-client live exchange-rate lookups (server/modules/fx/rate-provider.ts): 30 per minute.
+   * Generous but real — this guards against a runaway client loop or deliberate abuse of the
+   * app as a free relay to Frankfurter, not credential guessing, so it is sized very
+   * differently from `join`/`invite` and kept in its own bucket for the same reason those two
+   * are kept separate from each other.
+   */
+  fx: createRateLimiter([{ name: "fx-1m", limit: 30, windowMs: MINUTE }]),
   /** Per-client admin elevation attempts: 5 per 10 minutes. */
   elevate: createRateLimiter([{ name: "elevate-10m", limit: 5, windowMs: 10 * MINUTE }]),
   /**
@@ -181,6 +189,32 @@ export const limiters = {
    * `lock` the key for 15 minutes.
    */
   elevatePerSession: createRateLimiter([{ name: "elevate-session-1h", limit: 20, windowMs: HOUR }]),
+  /**
+   * Per-client group (session) creation: 15 per 10 minutes and 40 per hour.
+   *
+   * Unlike `join`, where a whole real group legitimately shares one client key, creating a
+   * group is a one-person, one-time action — nobody legitimately spins up a dozen groups from
+   * the same network in a short window. So this is sized meaningfully tighter than
+   * `join`/`joinGlobal` (20/10min, 60/h): well under half the per-client budget. It is not as
+   * tight as a first pass might suggest, though, because this app's own e2e suite creates
+   * roughly a dozen groups from a single client key (one shared loopback IP, workers: 1) in
+   * one run; the numbers here leave deliberate headroom above that real, measured usage so a
+   * legitimate burst (including this app's own tests, or a small team spinning up a few
+   * groups back to back) never trips it, while still cutting a scripted flood down hard
+   * compared to `join`.
+   */
+  createSession: createRateLimiter([
+    { name: "create-session-10m", limit: 15, windowMs: 10 * MINUTE },
+    { name: "create-session-1h", limit: 40, windowMs: HOUR },
+  ]),
+  /**
+   * Global group-creation attempts across all clients: 60 per hour. Always keyed 'global'.
+   * Generous enough that a real multi-tenant self-hosted instance with several active teams
+   * won't notice it, but tight enough to blunt a flood of junk groups, each of which persists
+   * for 90 days (see docs/todo.md) and burdens storage and every admin/backup operation that
+   * touches the `sessions` table until cleanup catches up.
+   */
+  createSessionGlobal: createRateLimiter([{ name: "create-session-global-1h", limit: 60, windowMs: HOUR }]),
 };
 
 export const ELEVATE_PER_SESSION_LOCK_MS = 15 * MINUTE;

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Form, useFetcher } from "react-router";
 
 import { convertToBase, parseAmount, splitEqually } from "@domain/index.ts";
@@ -55,6 +55,8 @@ export interface ExpenseFormProps {
   participants: ParticipantOption[];
   currencies: CurrencyOption[];
   baseCurrency: string;
+  /** The session's public id, used to call the fx-rate resource route for live rate suggestions. */
+  sessionPublicId: string;
   defaults: ExpenseFormDefaults;
   error?: ExpenseFormError;
   errorMessage?: (code: string) => string;
@@ -73,6 +75,7 @@ export function ExpenseForm({
   participants,
   currencies,
   baseCurrency,
+  sessionPublicId,
   defaults,
   error,
   errorMessage,
@@ -82,8 +85,17 @@ export function ExpenseForm({
   formId,
 }: ExpenseFormProps) {
   const t = useT();
-  const fetcher = useFetcher<{
+  // Last rate used for this currency in this session (expenses.ts `suggestRate`), served by
+  // the current page's own loader via its existing `?currency=` contract.
+  const suggestFetcher = useFetcher<{
     suggestedRate: { rateText: string; rateDirection: RateDirection } | null;
+  }>();
+  // Live daily market rate for the expense date (server/modules/fx/rate-provider.ts), served
+  // by the dedicated `/s/:sid/fx-rate` resource route. Tried first; falls back to
+  // `suggestFetcher` above when it comes back null (unsupported pair, disabled, or a failed
+  // fetch) — see docs/architecture.md §5.1.
+  const fxFetcher = useFetcher<{
+    rate: { rateText: string; rateDirection: RateDirection } | null;
   }>();
 
   const [description, setDescription] = useState(defaults.description);
@@ -99,17 +111,55 @@ export function ExpenseForm({
 
   const isForeign = currencyCode !== baseCurrency;
 
+  function fetchRateSuggestions(code: string, date: string) {
+    suggestFetcher.load(`${window.location.pathname}?currency=${encodeURIComponent(code)}`);
+    fxFetcher.load(
+      `/s/${encodeURIComponent(sessionPublicId)}/fx-rate?currency=${encodeURIComponent(code)}&date=${encodeURIComponent(date)}`,
+    );
+  }
+
   function handleCurrencyChange(code: string) {
     setCurrencyCode(code);
+    setRateText("");
     if (code !== baseCurrency) {
-      setRateText("");
-      fetcher.load(`${window.location.pathname}?currency=${encodeURIComponent(code)}`);
-    } else {
-      setRateText("");
+      fetchRateSuggestions(code, expenseDate);
     }
   }
 
-  const suggested = fetcher.data?.suggestedRate;
+  // Re-fetch both suggestions when the expense date changes (back-dating an expense should
+  // use that day's rate), debounced so it doesn't fire on every keystroke while typing the
+  // date, and skipped on mount (the initial suggestion, if any, comes from the loader).
+  const skipNextDateEffect = useRef(true);
+  useEffect(() => {
+    if (skipNextDateEffect.current) {
+      skipNextDateEffect.current = false;
+      return;
+    }
+    if (!isForeign) return;
+    const timer = setTimeout(() => {
+      fetchRateSuggestions(currencyCode, expenseDate);
+    }, 400);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-fetch on date changes
+  }, [expenseDate]);
+
+  const liveRate = fxFetcher.data?.rate ?? null;
+  const sessionSuggestedRate = suggestFetcher.data?.suggestedRate ?? null;
+  const suggested = liveRate ?? sessionSuggestedRate;
+  const suggestionSource: "live" | "session" | null = rateText
+    ? null
+    : liveRate
+      ? "live"
+      : sessionSuggestedRate
+        ? "session"
+        : null;
+  const sourceCaption =
+    suggestionSource === "live"
+      ? t("common.rateSourceLive")
+      : suggestionSource === "session"
+        ? t("common.rateSourceSession")
+        : undefined;
+
   const effectiveRateText = rateText || suggested?.rateText || "";
   const effectiveRateDirection = rateText
     ? rateDirection
@@ -240,6 +290,7 @@ export function ExpenseForm({
           onRateTextChange={setRateText}
           onRateDirectionChange={setRateDirection}
           error={fieldError("rateText")}
+          sourceCaption={sourceCaption}
         />
       )}
 

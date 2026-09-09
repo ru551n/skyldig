@@ -25,6 +25,8 @@ export const en: typeof sv = {
     addNote: "Add a note",
     rateLabel: "Exchange rate",
     rateLockedHint: "The rate is locked to this transaction and won't change if later rates move.",
+    rateSourceLive: "Today's rate",
+    rateSourceSession: "Last used rate",
     rateDirectionBasePerUnit: (params: { unit: string; base: string }) => `1 ${params.unit} = ? ${params.base}`,
     rateDirectionUnitsPerBase: (params: { unit: string; base: string }) => `1 ${params.base} = ? ${params.unit}`,
     selectAll: "Select all",

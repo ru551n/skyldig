@@ -6,11 +6,13 @@ import { z } from "zod";
 import { sessions } from "@server/db/schema.ts";
 import { createBrowserSession, grantAccess } from "@server/modules/auth/browser-session.ts";
 import { withSetCookie } from "@server/modules/auth/session-auth.ts";
+import { limiters, clientKey } from "@server/modules/auth/rate-limit.ts";
 import { createSession } from "@server/modules/session/index.ts";
 import { listCurrencies } from "@domain/currency/registry.ts";
 
 import { Button, Field, Input, PageHeader, Select } from "~/components/ui/index.ts";
 import { formatExpiryLong } from "~/lib/format.ts";
+import { requestContext } from "~/context.ts";
 import {
   getConfig,
   getDb,

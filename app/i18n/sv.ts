@@ -29,6 +29,8 @@ export const sv = {
     addNote: "Lägg till anteckning",
     rateLabel: "Växelkurs",
     rateLockedHint: "Kursen låses till den här transaktionen och påverkas inte av senare kurser.",
+    rateSourceLive: "Dagens kurs",
+    rateSourceSession: "Senast använda kursen",
     rateDirectionBasePerUnit: (params: { unit: string; base: string }) => `1 ${params.unit} = ? ${params.base}`,
     rateDirectionUnitsPerBase: (params: { unit: string; base: string }) => `1 ${params.base} = ? ${params.unit}`,
     selectAll: "Markera alla",

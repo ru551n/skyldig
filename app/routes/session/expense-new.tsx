@@ -130,6 +130,7 @@ export default function ExpenseNewPage({ loaderData, actionData }: Route.Compone
         participants={loaderData.participants}
         currencies={loaderData.currencies}
         baseCurrency={loaderData.baseCurrency}
+        sessionPublicId={loaderData.sessionPublicId}
         defaults={defaults}
         error={error}
         errorMessage={(code) => errorMessage(t, code)}
