@@ -2,6 +2,7 @@ import { data, redirect, useFetcher } from "react-router";
 import { useEffect, useRef } from "react";
 
 import {
+  adminElevationExpiry,
   createBrowserSession,
   grantAccess,
   rotateBrowserSession,
@@ -120,7 +121,13 @@ export async function action({ request, params, context }: Route.ActionArgs) {
     redeemed = await burnInvite(tx, invite.id, browserSessionId);
     if (!redeemed) return;
 
-    await grantAccess(tx, browserSessionId, invite.sessionId, invite.role);
+    await grantAccess(
+      tx,
+      browserSessionId,
+      invite.sessionId,
+      invite.role,
+      invite.role === "admin" ? adminElevationExpiry(config) : null,
+    );
     withSetCookie(headers, config, token2);
   });
 

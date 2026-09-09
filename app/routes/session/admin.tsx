@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { data, Form, redirect, useNavigation, useSubmit } from "react-router";
 import { z } from "zod";
 
-import { grantAccess, rotateBrowserSession } from "@server/modules/auth/browser-session.ts";
+import { adminElevationExpiry, grantAccess, isActiveAdmin, rotateBrowserSession } from "@server/modules/auth/browser-session.ts";
 import {
   ELEVATE_PER_SESSION_LOCK_MS,
   checkClientThenSession,
@@ -79,7 +79,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 
   return data<LoaderData>(
     {
-      isAdmin: access.grant.role === "admin",
+      isAdmin: isActiveAdmin(access.grant),
       sessionName: access.session.name,
       expiresAt: access.session.expiresAt.toISOString(),
     },
@@ -146,7 +146,13 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       }
 
       await db.transaction(async (tx) => {
-        await grantAccess(tx, access.browserSession.id, access.session.id, "admin");
+        await grantAccess(
+          tx,
+          access.browserSession.id,
+          access.session.id,
+          "admin",
+          adminElevationExpiry(config),
+        );
         const rotated = await rotateBrowserSession(tx, access.browserSession.id);
         withSetCookie(headers, config, rotated.token);
       });

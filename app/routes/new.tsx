@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { sessions } from "@server/db/schema.ts";
-import { createBrowserSession, grantAccess } from "@server/modules/auth/browser-session.ts";
+import { adminElevationExpiry, createBrowserSession, grantAccess } from "@server/modules/auth/browser-session.ts";
 import { withSetCookie } from "@server/modules/auth/session-auth.ts";
 import { limiters, clientKey, checkThenGlobal } from "@server/modules/auth/rate-limit.ts";
 import { issueFormToken, verifyFormToken } from "@server/modules/auth/form-token.ts";
@@ -164,7 +164,9 @@ export async function action({ request, context }: Route.ActionArgs) {
         throw new Error("new: created session row not found immediately after insert");
       }
       const browserSession = await createBrowserSession(tx);
-      await grantAccess(tx, browserSession.id, sessionRow.id, "admin");
+      // The creator starts out elevated for one TTL window (the admin key is shown once on
+      // this page); afterwards they re-elevate on /s/:sid/admin like any other member.
+      await grantAccess(tx, browserSession.id, sessionRow.id, "admin", adminElevationExpiry(config));
       withSetCookie(headers, config, browserSession.token);
     });
 

@@ -6,6 +6,7 @@ import { logger } from "../../logger.ts";
 import {
   findBrowserSessionByToken,
   getGrant,
+  isActiveAdmin,
   type BrowserSessionRow,
   type DbOrTx,
   type GrantRow,
@@ -73,7 +74,11 @@ export async function requireSessionAccess(
   return { session, browserSession: resolved.browserSession, grant };
 }
 
-/** Same as `requireSessionAccess`, but additionally requires an `admin` role grant (403). */
+/**
+ * Same as `requireSessionAccess`, but additionally requires an *active* admin elevation (403):
+ * `role = 'admin'` with `admin_until` still in the future (`isActiveAdmin`). A lapsed
+ * elevation is denied without touching the grant — the caller remains a member.
+ */
 export async function requireAdmin(
   db: DbOrTx,
   request: Request,
@@ -81,7 +86,7 @@ export async function requireAdmin(
   sessionPublicId: string,
 ): Promise<SessionAccess> {
   const access = await requireSessionAccess(db, request, config, sessionPublicId);
-  if (access.grant.role !== "admin") {
+  if (!isActiveAdmin(access.grant)) {
     authLogger.info({ sessionPublicId }, "admin access denied: caller is not an admin");
     throw new Response("Forbidden", {
       status: 403,

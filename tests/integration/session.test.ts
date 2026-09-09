@@ -3,7 +3,12 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { config } from "../../server/config.ts";
 import { participants, sessions } from "../../server/db/schema.ts";
-import { createBrowserSession, getGrant, grantAccess } from "../../server/modules/auth/browser-session.ts";
+import {
+  adminElevationExpiry,
+  createBrowserSession,
+  getGrant,
+  grantAccess,
+} from "../../server/modules/auth/browser-session.ts";
 import {
   createSession,
   deleteSession,
@@ -327,7 +332,7 @@ describe("rotateAccessPhrase", () => {
       await db.transaction(async (tx) => {
         await grantAccess(tx, keeper.id, row.id, "member");
         await grantAccess(tx, other1.id, row.id, "member");
-        await grantAccess(tx, other2.id, row.id, "admin");
+        await grantAccess(tx, other2.id, row.id, "admin", adminElevationExpiry(config));
       });
 
       await db.transaction((tx) => rotateAccessPhrase(tx, config, row.id, keeper.id));
@@ -366,15 +371,18 @@ describe("rotateAdminKey", () => {
       const keeper = await db.transaction((tx) => createBrowserSession(tx));
       const other = await db.transaction((tx) => createBrowserSession(tx));
       await db.transaction(async (tx) => {
-        await grantAccess(tx, keeper.id, row.id, "admin");
-        await grantAccess(tx, other.id, row.id, "admin");
+        await grantAccess(tx, keeper.id, row.id, "admin", adminElevationExpiry(config));
+        await grantAccess(tx, other.id, row.id, "admin", adminElevationExpiry(config));
       });
 
       await db.transaction((tx) => rotateAdminKey(tx, config, row.id, keeper.id));
 
       expect((await getGrant(db, keeper.id, row.id))?.role).toBe("admin");
       // Downgraded, not removed: the other browser session keeps member-level access.
-      expect((await getGrant(db, other.id, row.id))?.role).toBe("member");
+      const other_ = await getGrant(db, other.id, row.id);
+      expect(other_?.role).toBe("member");
+      expect(other_?.storedRole).toBe("member");
+      expect(other_?.adminUntil).toBeNull();
     },
     SLOW_TEST_TIMEOUT,
   );

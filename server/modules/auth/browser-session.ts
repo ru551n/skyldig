@@ -1,5 +1,6 @@
 import { and, count, eq, gt, lt, sql } from "drizzle-orm";
 
+import type { Config } from "../../config.ts";
 import type { db as dbInstance } from "../../db/client.ts";
 import { browserSessions, sessionGrants, sessions } from "../../db/schema.ts";
 import { logger } from "../../logger.ts";
@@ -29,6 +30,7 @@ export interface GrantSummary {
   sessionId: bigint;
   sessionPublicId: string;
   sessionName: string;
+  /** Effective role (see `effectiveRole`): 'admin' only while the elevation is unexpired. */
   role: Role;
   expiresAt: Date;
 }
@@ -36,9 +38,46 @@ export interface GrantSummary {
 export interface GrantRow {
   browserSessionId: bigint;
   sessionId: bigint;
+  /** Effective role (see `effectiveRole`): 'admin' only while the elevation is unexpired. */
   role: Role;
+  /** Role as stored in the row; 'admin' here does not by itself confer admin authority. */
+  storedRole: Role;
+  adminUntil: Date | null;
   createdAt: Date;
   lastUsedAt: Date;
+}
+
+/** Bare stored-row shape every admin decision is made from. */
+export interface StoredGrantRole {
+  role: string;
+  adminUntil: Date | null;
+}
+
+/**
+ * The single source of truth for "does this grant currently confer admin authority".
+ *
+ * Elevation is time-boxed and independent of membership: a grant is an admin only while
+ * `role = 'admin'` AND `admin_until` is strictly in the future. `admin_until = now` is already
+ * expired (strict `>`). A NULL `admin_until` on an 'admin' row is treated as expired, not as
+ * "no limit": such rows were elevated before the column existed, at an unknown time, so the
+ * safe default is to require a fresh proof of the admin key rather than grandfather an
+ * elevation of unbounded age. The row itself — the membership — is never touched here.
+ */
+export function isActiveAdmin(grant: StoredGrantRole, now: Date = new Date()): boolean {
+  return grant.role === "admin" && grant.adminUntil !== null && grant.adminUntil.getTime() > now.getTime();
+}
+
+/** Role the rest of the app should act on: 'admin' only while `isActiveAdmin`. */
+export function effectiveRole(grant: StoredGrantRole, now: Date = new Date()): Role {
+  return isActiveAdmin(grant, now) ? "admin" : "member";
+}
+
+/** When an elevation performed right now stops being effective (`now + ADMIN_ELEVATION_TTL_MINUTES`). */
+export function adminElevationExpiry(
+  config: Pick<Config, "adminElevationTtlMs">,
+  now: Date = new Date(),
+): Date {
+  return new Date(now.getTime() + config.adminElevationTtlMs);
 }
 
 /** Creates a new browser session row and returns its id and the plaintext token. */
@@ -102,21 +141,40 @@ export async function rotateBrowserSession(
   return created;
 }
 
-/** Upserts a grant. Never downgrades an existing admin grant to member. */
+/**
+ * Upserts a grant. Never downgrades an existing admin grant to member.
+ *
+ * An 'admin' grant must carry `adminUntil` (use `adminElevationExpiry`): elevating and
+ * re-elevating always (re)stamps it, so re-entering the admin key refreshes the window. A
+ * 'member' upsert onto an existing admin row leaves both the stored role and `admin_until`
+ * untouched, so a plain re-join can neither extend nor cut short an elevation.
+ */
 export async function grantAccess(
   tx: DbOrTx,
   browserSessionId: bigint,
   sessionId: bigint,
   role: Role,
+  adminUntil: Date | null = null,
 ): Promise<void> {
+  if (role === "admin" && adminUntil === null) {
+    throw new Error("grantAccess: an 'admin' grant requires adminUntil");
+  }
   const now = new Date();
   await tx
     .insert(sessionGrants)
-    .values({ browserSessionId, sessionId, role, createdAt: now, lastUsedAt: now })
+    .values({
+      browserSessionId,
+      sessionId,
+      role,
+      adminUntil: role === "admin" ? adminUntil : null,
+      createdAt: now,
+      lastUsedAt: now,
+    })
     .onConflictDoUpdate({
       target: [sessionGrants.browserSessionId, sessionGrants.sessionId],
       set: {
         role: sql`case when ${sessionGrants.role} = 'admin' then 'admin' else excluded.role end`,
+        adminUntil: sql`case when excluded.role = 'admin' then excluded.admin_until else ${sessionGrants.adminUntil} end`,
         lastUsedAt: now,
       },
     });
@@ -128,7 +186,10 @@ export async function revokeGrant(tx: DbOrTx, browserSessionId: bigint, sessionI
     .where(and(eq(sessionGrants.browserSessionId, browserSessionId), eq(sessionGrants.sessionId, sessionId)));
 }
 
-/** Lists grants for a browser session, excluding grants to sessions that have expired. */
+/**
+ * Lists grants for a browser session, excluding grants to sessions that have expired. `role`
+ * is the effective role, so a lapsed elevation shows as 'member'.
+ */
 export async function listGrants(db: DbOrTx, browserSessionId: bigint): Promise<GrantSummary[]> {
   const rows = await db
     .select({
@@ -136,12 +197,14 @@ export async function listGrants(db: DbOrTx, browserSessionId: bigint): Promise<
       sessionPublicId: sessions.publicId,
       sessionName: sessions.name,
       role: sessionGrants.role,
+      adminUntil: sessionGrants.adminUntil,
       expiresAt: sessions.expiresAt,
     })
     .from(sessionGrants)
     .innerJoin(sessions, eq(sessionGrants.sessionId, sessions.id))
     .where(and(eq(sessionGrants.browserSessionId, browserSessionId), gt(sessions.expiresAt, sql`now()`)));
-  return rows.map((r) => ({ ...r, role: r.role as Role }));
+  const now = new Date();
+  return rows.map(({ adminUntil, ...r }) => ({ ...r, role: effectiveRole({ role: r.role, adminUntil }, now) }));
 }
 
 export async function getGrant(
@@ -155,7 +218,7 @@ export async function getGrant(
     .where(and(eq(sessionGrants.browserSessionId, browserSessionId), eq(sessionGrants.sessionId, sessionId)))
     .limit(1);
   if (!row) return null;
-  return { ...row, role: row.role as Role };
+  return { ...row, role: effectiveRole(row), storedRole: row.role as Role };
 }
 
 /** Revokes every grant to `sessionId` except the one held by `keepBrowserSessionId`. */
@@ -186,7 +249,7 @@ export async function downgradeOtherGrantsToMember(
 ): Promise<void> {
   await tx
     .update(sessionGrants)
-    .set({ role: "member" })
+    .set({ role: "member", adminUntil: null })
     .where(
       and(
         eq(sessionGrants.sessionId, sessionId),
