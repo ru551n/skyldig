@@ -5,6 +5,7 @@ import { z } from "zod";
 import { grantAccess, rotateBrowserSession } from "@server/modules/auth/browser-session.ts";
 import {
   ELEVATE_PER_SESSION_LOCK_MS,
+  checkClientThenSession,
   clientKey,
   limiters,
 } from "@server/modules/auth/rate-limit.ts";
@@ -101,17 +102,18 @@ export async function action({ request, params, context }: Route.ActionArgs) {
     const clientIp = context.get(requestContext)?.clientIp;
     const key = clientKey({ ip: clientIp });
 
-    const clientCheck = limiters.elevate.check(key);
-    const sessionCheck = limiters.elevatePerSession.check(access.session.publicId);
-    if (!clientCheck.allowed || !sessionCheck.allowed) {
-      // Only arm the lock when this denial is itself caused by exceeding the hourly rule —
-      // never when it's caused by an existing lock, or every member re-arms the 15-minute
-      // lock forever and it never actually expires.
-      if (!sessionCheck.allowed && sessionCheck.reason === "limit") {
-        limiters.elevatePerSession.lock(access.session.publicId, ELEVATE_PER_SESSION_LOCK_MS);
-      }
-      const retryAfterMs = Math.max(clientCheck.retryAfterMs, sessionCheck.retryAfterMs);
-      const retryAfterSeconds = Math.max(1, Math.ceil(retryAfterMs / 1000));
+    // Per-client first; the per-group bucket (and its 15-minute lock) is only charged by a
+    // request that passed the per-client check — see `checkClientThenSession`. `access` above
+    // already proved a grant, so an outsider never reaches either limiter.
+    const rateResult = checkClientThenSession(
+      limiters.elevate,
+      limiters.elevatePerSession,
+      key,
+      access.session.publicId,
+      ELEVATE_PER_SESSION_LOCK_MS,
+    );
+    if (!rateResult.allowed) {
+      const retryAfterSeconds = Math.max(1, Math.ceil(rateResult.retryAfterMs / 1000));
       await enforceResponseFloor(startedAt);
       return data<ActionResult>(
         { ok: false, code: "RATE_LIMITED", message: "", intent },

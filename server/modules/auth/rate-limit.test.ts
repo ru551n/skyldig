@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { checkThenGlobal, clientKey, createRateLimiter } from "./rate-limit.ts";
+import {
+  MAX_KEYS,
+  checkClientThenSession,
+  checkThenGlobal,
+  clientKey,
+  createRateLimiter,
+} from "./rate-limit.ts";
 
 describe("createRateLimiter", () => {
   it("allows requests under the limit and denies once the limit is hit", () => {
@@ -115,15 +121,69 @@ describe("createRateLimiter", () => {
     expect(result.reason).toBeUndefined();
   });
 
-  it("fails closed when the bounded map is full and the key is new", () => {
-    const limiter = createRateLimiter([{ name: "r", limit: 100, windowMs: 1000 }]);
+  it("fails closed when the bounded map is full: new keys are denied, tracked keys still work, size never exceeds MAX_KEYS", () => {
+    const limiter = createRateLimiter([{ name: "r", limit: 100, windowMs: 60_000 }]);
     const now = 1_000_000;
-    // Fill just a small limiter's worth for the test by checking distinct keys until size caps.
-    // We can't cheaply fill 50k entries in a unit test in a meaningful way for behavior beyond
-    // the API surface, so we just assert size() tracks distinct keys touched.
-    limiter.check("a", now);
-    limiter.check("b", now);
-    expect(limiter.size()).toBeGreaterThanOrEqual(0);
+    for (let i = 0; i < MAX_KEYS; i += 1) {
+      limiter.check(`k${i}`, now);
+    }
+    expect(limiter.size()).toBe(MAX_KEYS);
+
+    // A never-seen key is refused outright (reason "limit", so a lock-arming caller treats it
+    // as a plain denial), and it is NOT admitted into the map.
+    const fresh = limiter.check("newcomer", now + 1);
+    expect(fresh.allowed).toBe(false);
+    expect(fresh.reason).toBe("limit");
+    expect(fresh.retryAfterMs).toBeGreaterThan(0);
+    expect(limiter.size()).toBe(MAX_KEYS);
+
+    // Every already-tracked key keeps its own budget — capacity pressure never punishes them.
+    expect(limiter.check("k0", now + 2).allowed).toBe(true);
+    expect(limiter.check(`k${MAX_KEYS - 1}`, now + 2).allowed).toBe(true);
+    expect(limiter.size()).toBe(MAX_KEYS);
+
+    // Hammering with more unique keys still does not grow memory.
+    for (let i = 0; i < 1000; i += 1) {
+      expect(limiter.check(`flood${i}`, now + 3).allowed).toBe(false);
+    }
+    expect(limiter.size()).toBe(MAX_KEYS);
+  });
+
+  it("lock() on an untracked key at capacity does not grow the map past MAX_KEYS", () => {
+    const limiter = createRateLimiter([{ name: "r", limit: 1, windowMs: 60_000 }]);
+    const now = 1_000_000;
+    for (let i = 0; i < MAX_KEYS; i += 1) limiter.check(`k${i}`, now);
+    expect(limiter.size()).toBe(MAX_KEYS);
+    for (let i = 0; i < 100; i += 1) limiter.lock(`locked${i}`, 60_000, now);
+    expect(limiter.size()).toBe(MAX_KEYS);
+    // ...and the key is still denied (fail closed), just as it was before the lock call.
+    expect(limiter.check("locked0", now + 1).allowed).toBe(false);
+    // Locking an already-tracked key still works at capacity.
+    limiter.lock("k0", 60_000, now);
+    expect(limiter.check("k0", now + 1).reason).toBe("locked");
+  });
+
+  it("keeps correct per-key counts under an interleaved concurrent burst", async () => {
+    const limiter = createRateLimiter([{ name: "r", limit: 10, windowMs: 60_000 }]);
+    const now = 1_000_000;
+    // 30 "a" and 30 "b" checks, interleaved and scheduled as microtasks so their ordering is
+    // as concurrent as a single-threaded event loop allows; the limiter must attribute each
+    // hit to exactly its own key.
+    const tasks: Promise<{ key: string; allowed: boolean }>[] = [];
+    for (let i = 0; i < 60; i += 1) {
+      const key = i % 2 === 0 ? "a" : "b";
+      tasks.push(
+        Promise.resolve().then(() => ({ key, allowed: limiter.check(key, now + i).allowed })),
+      );
+    }
+    const results = await Promise.all(tasks);
+    const allowedA = results.filter((r) => r.key === "a" && r.allowed).length;
+    const allowedB = results.filter((r) => r.key === "b" && r.allowed).length;
+    expect(allowedA).toBe(10);
+    expect(allowedB).toBe(10);
+    expect(limiter.size()).toBe(2);
+    // A third key is completely unaffected by the burst.
+    expect(limiter.check("c", now + 100).allowed).toBe(true);
   });
 
   it("size reflects tracked keys", () => {
@@ -178,6 +238,38 @@ describe("checkThenGlobal", () => {
     expect(global.size()).toBe(1); // still just the "global" key, far under its 500 limit
   });
 
+  it("an abusive client can never charge the global bucket beyond its own per-client limit", () => {
+    // Shapes mirror limiters.join / joinGlobal: 60/h per client, 480/h global.
+    const perClient = createRateLimiter([{ name: "pc", limit: 60, windowMs: 3_600_000 }]);
+    const global = createRateLimiter([{ name: "g", limit: 480, windowMs: 3_600_000 }]);
+    const now = 1_000_000;
+
+    let allowed = 0;
+    for (let i = 0; i < 5000; i += 1) {
+      if (checkThenGlobal(perClient, global, "abuser", "global", now + i).allowed) allowed += 1;
+    }
+    expect(allowed).toBe(60);
+
+    // The global bucket holds exactly the abuser's per-client limit worth of hits: 60 of 480.
+    // Probe it directly — the probe itself is hit 61; remaining headroom is 480 - 61 = 419.
+    let headroom = 0;
+    while (global.check("global", now + 10_000).allowed) headroom += 1;
+    expect(headroom).toBe(480 - 60);
+
+    // Meanwhile an unrelated client, on a fresh limiter pair with the same abuse applied, is
+    // completely unaffected and enjoys its full per-client budget.
+    const perClient2 = createRateLimiter([{ name: "pc", limit: 60, windowMs: 3_600_000 }]);
+    const global2 = createRateLimiter([{ name: "g", limit: 480, windowMs: 3_600_000 }]);
+    for (let i = 0; i < 5000; i += 1) checkThenGlobal(perClient2, global2, "abuser", "global", now + i);
+    let innocentAllowed = 0;
+    for (let i = 0; i < 60; i += 1) {
+      if (checkThenGlobal(perClient2, global2, "innocent", "global", now + 6000 + i).allowed) {
+        innocentAllowed += 1;
+      }
+    }
+    expect(innocentAllowed).toBe(60);
+  });
+
   it("still enforces the global cap once it is genuinely exhausted by passing requests", () => {
     const perClient = createRateLimiter([{ name: "pc", limit: 1000, windowMs: 60_000 }]);
     const global = createRateLimiter([{ name: "g", limit: 2, windowMs: 60_000 }]);
@@ -188,6 +280,69 @@ describe("checkThenGlobal", () => {
     const third = checkThenGlobal(perClient, global, "c", "global", now + 2);
     expect(third.allowed).toBe(false);
     expect(third.retryAfterMs).toBeGreaterThan(0);
+  });
+});
+
+describe("checkClientThenSession", () => {
+  const LOCK_MS = 15 * 60_000;
+  function make() {
+    // Mirrors limiters.elevate (5/10 min per client) and elevatePerSession (20/h per group).
+    return {
+      perClient: createRateLimiter([{ name: "c", limit: 5, windowMs: 10 * 60_000 }]),
+      perSession: createRateLimiter([{ name: "s", limit: 20, windowMs: 60 * 60_000 }]),
+    };
+  }
+
+  it("does not charge the per-group bucket for a request denied by the per-client check", () => {
+    const { perClient, perSession } = make();
+    const now = 1_000_000;
+    let allowed = 0;
+    // One member floods 200 attempts. Before the fix each of them charged the group bucket
+    // and armed the 15-minute lock after the 21st; now only the 5 that pass per-client do.
+    for (let i = 0; i < 200; i += 1) {
+      const r = checkClientThenSession(perClient, perSession, "member-a", "grp", LOCK_MS, now + i);
+      if (r.allowed) allowed += 1;
+    }
+    expect(allowed).toBe(5);
+    // The group bucket holds 5 hits of 20 — a second member (other client key) still has the
+    // remaining 15, and no lock was armed.
+    let otherAllowed = 0;
+    for (let i = 0; i < 5; i += 1) {
+      const r = checkClientThenSession(perClient, perSession, "member-b", "grp", LOCK_MS, now + 500 + i);
+      if (r.allowed) otherAllowed += 1;
+    }
+    expect(otherAllowed).toBe(5);
+    expect(perSession.check("grp", now + 600).reason).toBeUndefined();
+  });
+
+  it("arms the group lock only when the per-group rule itself trips, and reports the lock length", () => {
+    const { perClient, perSession } = make();
+    const now = 1_000_000;
+    // Four members each spend their full per-client budget: 20 group hits, at the cap.
+    for (const m of ["m1", "m2", "m3", "m4"]) {
+      for (let i = 0; i < 5; i += 1) {
+        expect(checkClientThenSession(perClient, perSession, m, "grp", LOCK_MS, now + i).allowed).toBe(true);
+      }
+    }
+    // A fifth member's first attempt passes per-client but trips the group rule -> lock armed.
+    const tripped = checkClientThenSession(perClient, perSession, "m5", "grp", LOCK_MS, now + 10);
+    expect(tripped.allowed).toBe(false);
+    expect(tripped.retryAfterMs).toBeGreaterThanOrEqual(LOCK_MS);
+    expect(perSession.check("grp", now + 11).reason).toBe("locked");
+  });
+
+  it("does not re-arm an existing lock, so it actually expires", () => {
+    const { perClient, perSession } = make();
+    const now = 1_000_000;
+    perSession.lock("grp", LOCK_MS, now);
+    // A member keeps trying during the lock, well within their per-client budget.
+    const during = checkClientThenSession(perClient, perSession, "m1", "grp", LOCK_MS, now + LOCK_MS - 1000);
+    expect(during.allowed).toBe(false);
+    expect(during.retryAfterMs).toBeLessThanOrEqual(1000);
+    // Just past the original lock expiry the group is usable again — the attempt during the
+    // lock must not have pushed the expiry out.
+    const after = checkClientThenSession(perClient, perSession, "m1", "grp", LOCK_MS, now + LOCK_MS + 1);
+    expect(after.allowed).toBe(true);
   });
 });
 

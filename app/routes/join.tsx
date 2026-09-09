@@ -69,9 +69,9 @@ export async function action({ request, context }: Route.ActionArgs) {
   const formData = await request.formData();
   const phraseInput = String(formData.get("phrase") ?? "");
 
+  // No separate failure bookkeeping: `checkThenGlobal` above already charged this attempt
+  // (success or failure alike) — see `check()` in rate-limit.ts.
   const joinResult = await joinSession(db, config, phraseInput);
-  limiters.join.recordFailure(key);
-  limiters.joinGlobal.recordFailure("global");
 
   if (!joinResult) {
     await enforceResponseFloor(startedAt);

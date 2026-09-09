@@ -1,4 +1,8 @@
-const MAX_KEYS = 50_000;
+/**
+ * Upper bound on distinct keys a single limiter tracks. Exported for tests only — the value is
+ * a memory bound, not a tunable.
+ */
+export const MAX_KEYS = 50_000;
 
 interface Rule {
   name: string;
@@ -123,10 +127,17 @@ export function createRateLimiter(rules: Rule[]): RateLimiter {
     // Intentionally a no-op: do not reset the window on success.
   }
 
+  /**
+   * Locks `key` until `now + ms`. When the map is at capacity and `key` is not yet tracked,
+   * this is a no-op: `check()` already denies every untracked key at capacity (see
+   * `getOrCreate`), so the lock would add nothing — and inserting past the bound (which an
+   * earlier version did via a detached entry) would let repeated `lock()` calls grow the map
+   * without limit, defeating the whole point of the bound.
+   */
   function lock(key: string, ms: number, now: number = Date.now()): void {
-    const entry = getOrCreate(key) ?? { hits: [] };
+    const entry = getOrCreate(key);
+    if (!entry) return;
     entry.lockedUntil = now + ms;
-    touch(key, entry);
   }
 
   function size(): number {
@@ -170,6 +181,41 @@ export function checkThenGlobal(
   const globalResult = global.check(globalKey, now);
   if (!globalResult.allowed) {
     return { allowed: false, retryAfterMs: globalResult.retryAfterMs };
+  }
+  return { allowed: true, retryAfterMs: 0 };
+}
+
+/**
+ * The admin-elevation counterpart of `checkThenGlobal`: a per-client limiter composed with a
+ * per-group (session public id) limiter that arms a lock once its rule trips. Same ordering
+ * rule, same reason: the per-client check runs FIRST, and the per-group bucket is only checked
+ * (and thereby only charged) when the per-client check passed. Checking both unconditionally
+ * — as `app/routes/session/admin.tsx` did before this — let one member who had already
+ * exhausted their own 5/10 min budget keep charging the group's 20/h bucket with every denied
+ * request, reaching the 15-minute group-wide lock in seconds and shutting every legitimate
+ * admin of that group out of elevating. The lock is armed only when the per-group denial is
+ * caused by the rule itself (`reason === "limit"`), never by an existing lock, or every
+ * attempt during the lock would re-arm it and it would never expire.
+ */
+export function checkClientThenSession(
+  perClient: RateLimiter,
+  perSession: RateLimiter,
+  clientKey: string,
+  sessionKey: string,
+  lockMs: number,
+  now?: number,
+): CombinedRateLimitResult {
+  const clientResult = perClient.check(clientKey, now);
+  if (!clientResult.allowed) {
+    return { allowed: false, retryAfterMs: clientResult.retryAfterMs };
+  }
+  const sessionResult = perSession.check(sessionKey, now);
+  if (!sessionResult.allowed) {
+    if (sessionResult.reason === "limit") {
+      perSession.lock(sessionKey, lockMs, now);
+      return { allowed: false, retryAfterMs: Math.max(sessionResult.retryAfterMs, lockMs) };
+    }
+    return { allowed: false, retryAfterMs: sessionResult.retryAfterMs };
   }
   return { allowed: true, retryAfterMs: 0 };
 }
@@ -243,8 +289,20 @@ export const limiters = {
   /** Per-client admin elevation attempts: 5 per 10 minutes. */
   elevate: createRateLimiter([{ name: "elevate-10m", limit: 5, windowMs: 10 * MINUTE }]),
   /**
-   * Per-session-public-id admin elevation attempts: 20 per hour, after which callers should
-   * `lock` the key for 15 minutes.
+   * Per-session-public-id admin elevation attempts: 20 per hour, after which the key is locked
+   * for `ELEVATE_PER_SESSION_LOCK_MS` (15 minutes). Only ever checked via
+   * `checkClientThenSession`, i.e. after the per-client `elevate` check passed, so a client can
+   * charge this bucket at most 5 hits per 10 minutes.
+   *
+   * Accepted trade-off: this bucket is keyed by the group, so any *member* of the group (a
+   * grant is required before the limiter is touched — `requireSessionAccess` in
+   * `app/routes/session/admin.tsx` runs first, and an outsider who merely knows the public id
+   * gets a 404 without spending anything) can, by sustaining wrong guesses for ~40 minutes from
+   * one client key or faster from several, lock every legitimate admin of that same group out
+   * of elevating for 15 minutes. That nuisance is confined to a group the attacker is already
+   * inside, whereas without the per-group cap a member behind rotating client keys could guess
+   * at the admin key at 5 tries per key per 10 minutes without bound (docs/architecture.md
+   * §4.3). Brute-force protection on the admin key wins.
    */
   elevatePerSession: createRateLimiter([{ name: "elevate-session-1h", limit: 20, windowMs: HOUR }]),
   /**
@@ -278,7 +336,7 @@ export const limiters = {
    * comment.
    *
    * This is a last-resort circuit breaker against a botnet spreading load across many client
-   * keys (each individually bounded by the much tighter 15/10min, 40/h per-client cap above),
+   * keys (each individually bounded by the much tighter 18/10min, 45/h per-client cap above),
    * not a tight budget meant to constrain ordinary traffic — a self-hosted instance with
    * several active teams creating groups back-to-back must never notice it. 500/h comfortably
    * absorbs that (500 is more than 12x the per-client hourly cap, i.e. room for a dozen busy
