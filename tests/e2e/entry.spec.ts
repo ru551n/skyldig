@@ -28,7 +28,7 @@ test.describe("create a group", () => {
 
     const phraseText = await page.locator("p.tabular.select-all").first().innerText();
     const words = phraseText.trim().split("-");
-    expect(words).toHaveLength(4);
+    expect(words).toHaveLength(5);
 
     const adminKeyText = await page.locator("p.tabular.select-all").nth(1).innerText();
     expect(adminKeyText.startsWith("admin-")).toBe(true);

@@ -36,14 +36,20 @@ function validateWordlist(words: readonly string[]): void {
 
 validateWordlist(WORDLIST);
 
-/** Number of words drawn per access phrase. */
-export const PHRASE_WORDS = 4;
+/**
+ * Number of words drawn per *newly generated* access phrase. Raised from 4 to 5 (~44.5 → ~55.7
+ * bits for the ~2250-word list) in the security-hardening pass. Nothing on the verification path
+ * (`normalizePhrase` → HMAC blind index → scrypt verifier) depends on this number, so phrases
+ * issued while it was 4 keep joining until their session expires or the phrase is rotated. Do
+ * not add a word-count check to `joinSession`/`normalizePhrase` without an explicit migration.
+ */
+export const PHRASE_WORDS = 5;
 
 /**
  * Draws `PHRASE_WORDS` words uniformly at random *with replacement* from the wordlist, using
  * `crypto.randomInt` (rejection-free, no modulo bias), joined with `-`. Words may repeat: the
  * entropy accounting (`phraseEntropyBits`) assumes a with-replacement draw, i.e.
- * log2(wordlist.length ^ PHRASE_WORDS), which for ~2250 words and 4 draws is ~44.5 bits.
+ * log2(wordlist.length ^ PHRASE_WORDS), which for ~2250 words and 5 draws is ~55.7 bits.
  */
 export function generatePhrase(): string {
   const words: string[] = [];

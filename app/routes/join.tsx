@@ -147,7 +147,7 @@ export default function JoinSessionPage({ actionData }: Route.ComponentProps) {
               autoCorrect="off"
               spellCheck={false}
               autoComplete="off"
-              placeholder="ord-ord-ord-ord"
+              placeholder="ord-ord-ord-ord-ord"
               required
               className="text-lead min-h-14"
             />

@@ -14,6 +14,7 @@ import {
   verifyAdminKey,
 } from "../../server/modules/session/session.ts";
 import { PHRASE_WORDS } from "../../server/modules/session/phrase.ts";
+import { WORDLIST } from "../../server/modules/session/wordlist.generated.ts";
 import { db, pool, resetDb } from "./db.ts";
 
 // scrypt (N=2^15) is ~100ms per call and createSession/rotate each do one; keep a generous
@@ -36,9 +37,10 @@ async function makeSession(overrides: Partial<Parameters<typeof createSession>[2
 
 describe("createSession / joinSession", () => {
   it(
-    "creates a session with a 4-word phrase that joins successfully",
+    "creates a session with a 5-word phrase that joins successfully",
     async () => {
       const { session, phrase, adminKey } = await makeSession();
+      expect(PHRASE_WORDS).toBe(5);
       expect(phrase.split("-")).toHaveLength(PHRASE_WORDS);
       expect(adminKey).toMatch(/^admin-/);
       expect(session.baseCurrency).toBe("SEK");
@@ -46,6 +48,59 @@ describe("createSession / joinSession", () => {
       const joined = await joinSession(db, config, phrase);
       expect(joined).not.toBeNull();
       expect(joined?.publicId).toBe(session.publicId);
+    },
+    SLOW_TEST_TIMEOUT,
+  );
+
+  it(
+    "still joins a legacy 4-word phrase (sessions created before PHRASE_WORDS became 5)",
+    async () => {
+      // Same hashing path as production (`generateSessionCredentials` → normalizePhrase →
+      // hmacIndex/hashVerifier); only the generator is swapped for a 4-word draw, exactly
+      // what a session created under the old PHRASE_WORDS = 4 looks like in the database.
+      const legacyPhrase = WORDLIST.slice(10, 14).join("-");
+      expect(legacyPhrase.split("-")).toHaveLength(4);
+      const { session, phrase } = await createSession(
+        db,
+        config,
+        { name: "Legacy", baseCurrency: "SEK", participantNames: ["Alice", "Bob"] },
+        { generatePhrase: () => legacyPhrase },
+      );
+      expect(phrase).toBe(legacyPhrase);
+
+      const joined = await joinSession(db, config, legacyPhrase);
+      expect(joined?.publicId).toBe(session.publicId);
+
+      // Legacy phrases get the same input tolerance as new ones.
+      const spaced = joinSession(db, config, ` ${legacyPhrase.split("-").join("  ")} `.toUpperCase());
+      expect((await spaced)?.publicId).toBe(session.publicId);
+
+      // ...and a legacy phrase does not join with a 5th word appended, nor with one removed.
+      expect(await joinSession(db, config, `${legacyPhrase}-${WORDLIST[20]}`)).toBeNull();
+      expect(await joinSession(db, config, WORDLIST.slice(10, 13).join("-"))).toBeNull();
+    },
+    SLOW_TEST_TIMEOUT,
+  );
+
+  it(
+    "rejects a 5-word phrase with any single word changed",
+    async () => {
+      const { session, phrase } = await makeSession();
+      const words = phrase.split("-");
+      expect(words).toHaveLength(5);
+      // Pick a substitute that is guaranteed to differ from every word in the phrase.
+      const substitute = WORDLIST.find((w) => !words.includes(w));
+      expect(substitute).toBeDefined();
+
+      for (let i = 0; i < words.length; i += 1) {
+        const tampered = words.map((w, j) => (j === i ? substitute : w)).join("-");
+        expect(await joinSession(db, config, tampered)).toBeNull();
+      }
+      // Dropping the last word (i.e. presenting it as a 4-word phrase) must not match either.
+      expect(await joinSession(db, config, words.slice(0, 4).join("-"))).toBeNull();
+
+      // Control: the untampered phrase still joins.
+      expect((await joinSession(db, config, phrase))?.publicId).toBe(session.publicId);
     },
     SLOW_TEST_TIMEOUT,
   );
