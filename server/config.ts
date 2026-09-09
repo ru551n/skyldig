@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { parseTrustProxy } from "./trust-proxy.ts";
+
 const DEV_PEPPER =
   "dev-only-pepper-not-for-production-use-please-change-me-1234";
 
@@ -60,7 +62,8 @@ export const config = {
   databaseUrl: parsed.DATABASE_URL,
   accessKeyPepper,
   publicOrigin: parsed.PUBLIC_ORIGIN,
-  trustProxy: parsed.TRUST_PROXY,
+  /** Express `trust proxy` setting derived from `TRUST_PROXY` (see server/trust-proxy.ts). */
+  trustProxy: parseTrustProxy(parsed.TRUST_PROXY),
   cookieSecure: parsed.COOKIE_SECURE ?? isProduction,
   logLevel: parsed.LOG_LEVEL,
   /**

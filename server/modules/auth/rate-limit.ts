@@ -291,11 +291,6 @@ export const limiters = {
 
 export const ELEVATE_PER_SESSION_LOCK_MS = 15 * MINUTE;
 
-interface RequestLike {
-  ip?: string;
-  headers: Record<string, string | string[] | undefined>;
-}
-
 function collapseIpv6(ip: string): string {
   // Expand shorthand "::" is unnecessary for a stable /64 key: we only need the first 4
   // hextets (64 bits), which are never elided by "::" unless the address has fewer than 4
@@ -321,24 +316,16 @@ function isIpv6(ip: string): boolean {
   return ip.includes(":");
 }
 
-function firstForwardedFor(value: string | string[]): string {
-  const raw = Array.isArray(value) ? value[0] : value;
-  return raw.split(",")[0].trim();
-}
-
 /**
- * Derives the rate-limit client key for a request: IPv4 address as-is, IPv6 collapsed to its
- * /64 prefix. `X-Forwarded-For`'s first hop is honoured only when `config.trustProxy` is set
- * (a truthy string/boolean, matching how `TRUST_PROXY` is read from the environment).
+ * Derives the rate-limit client key for a request from Express's resolved `req.ip`: IPv4
+ * address as-is, IPv6 collapsed to its /64 prefix. `X-Forwarded-For` is deliberately NOT read
+ * here — Express already applied the `trust proxy` setting (server/trust-proxy.ts) when it
+ * resolved `req.ip`, walking the header from the proxy side and stopping at the first untrusted
+ * hop, so a client cannot mint itself a fresh key by sending its own `X-Forwarded-For`. (Before
+ * this, any truthy `TRUST_PROXY` made the *leftmost* — client-controlled — entry the key.)
  */
-export function clientKey(req: RequestLike, config: { trustProxy?: string | boolean }): string {
-  let ip = req.ip ?? "";
-  if (config.trustProxy) {
-    const xff = req.headers["x-forwarded-for"];
-    if (xff) {
-      ip = firstForwardedFor(xff);
-    }
-  }
+export function clientKey(req: { ip?: string | undefined }): string {
+  const ip = req.ip ?? "";
   if (!ip) return "unknown";
   return isIpv6(ip) ? `v6:${collapseIpv6(ip)}` : ip;
 }

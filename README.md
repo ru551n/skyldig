@@ -115,7 +115,7 @@ Read and validated in `server/config.ts`.
 | `ACCESS_KEY_PEPPER` | Yes in production (≥ 32 chars); optional in dev/test | Fixed dev-only value (dev/test only) | Server-side secret mixed into every access-phrase and admin-key hash (HMAC index + input to the verifier). Never store this in the database or in a database backup — a backup taken without it is fine, but if the pepper itself is lost, every existing access phrase and admin key becomes unverifiable and every group becomes permanently inaccessible. |
 | `PORT` | No | `3000` | HTTP port the server listens on. |
 | `PUBLIC_ORIGIN` | No | `http://localhost:3000` | The externally-visible origin, used for CSRF origin checks. Must exactly match what users' browsers see in production. |
-| `TRUST_PROXY` | No | unset (not trusted) | When set, `X-Forwarded-For` is honored for rate-limiting/client-key purposes; set this when running behind a reverse proxy. |
+| `TRUST_PROXY` | No | unset (not trusted) | How many reverse proxies in front of the app to trust for `X-Forwarded-For` (client IP for rate limiting). `1` (or `true`) for one proxy, `2` for e.g. CDN → nginx → app; or a comma-separated list of `loopback`, `linklocal`, `uniquelocal`, IPs or CIDRs (`loopback,10.0.0.0/8`). Never trusts every hop; an invalid value fails startup. |
 | `COOKIE_SECURE` | No | `true` if `NODE_ENV=production`, else `false` | Forces the `Secure` attribute on the session cookie on or off, overriding the `NODE_ENV`-based default. |
 | `LOG_LEVEL` | No | `info` | pino log level (`fatal`\|`error`\|`warn`\|`info`\|`debug`\|`trace`\|`silent`). |
 | `NODE_ENV` | No | `development` | `development`\|`production`\|`test`. Also gates the `ACCESS_KEY_PEPPER` requirement and the `COOKIE_SECURE` default. |
@@ -273,9 +273,12 @@ Playwright's config does the same for the e2e run.
 ## Production notes
 
 Run the app behind a reverse proxy that terminates TLS. Set `PUBLIC_ORIGIN` to the exact external
-origin (used for CSRF checks — a mismatch will reject legitimate requests), set `TRUST_PROXY` so
-`X-Forwarded-For` is trusted for rate limiting, and set `COOKIE_SECURE` explicitly if your setup
-doesn't match the `NODE_ENV`-based default.
+origin (used for CSRF checks — a mismatch will reject legitimate requests), set `TRUST_PROXY` to
+the number of proxies in front of the app (`1` for a single nginx/Caddy/Traefik) so rate limiting
+sees the real client IP rather than the proxy's, and set `COOKIE_SECURE` explicitly if your setup
+doesn't match the `NODE_ENV`-based default. Make sure that proxy overwrites or appends to
+`X-Forwarded-For` (all mainstream ones do) — never trust more hops than you actually run, or
+clients can pick their own rate-limit identity.
 
 For backups, dump the Postgres database (session, participant, expense, payment, and revision
 data all live there) on your normal schedule. `ACCESS_KEY_PEPPER` must **not** be included in

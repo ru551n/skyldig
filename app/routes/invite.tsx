@@ -43,14 +43,6 @@ export function headers({ actionHeaders, loaderHeaders }: Route.HeadersArgs) {
   return [...actionHeaders.keys()].length > 0 ? actionHeaders : loaderHeaders;
 }
 
-function headersOf(request: Request): Record<string, string> {
-  const headers: Record<string, string> = {};
-  request.headers.forEach((value, key) => {
-    headers[key] = value;
-  });
-  return headers;
-}
-
 /**
  * Redeems an invite token. The token itself never reaches this action via the URL — it
  * travels only in the fragment, which the browser never sends to any server — the client
@@ -65,7 +57,7 @@ export async function action({ request, params, context }: Route.ActionArgs) {
   const db = getDb();
 
   const clientIp = context.get(requestContext)?.clientIp;
-  const key = clientKey({ ip: clientIp, headers: headersOf(request) }, config);
+  const key = clientKey({ ip: clientIp });
 
   const rateResult = checkThenGlobal(limiters.invite, limiters.inviteGlobal, key);
   if (!rateResult.allowed) {

@@ -83,7 +83,7 @@ export function rateLimit(
   key?: string,
 ): string {
   const limiter = limiters[limiterName];
-  const effectiveKey = key ?? computeClientKey(requestLike(request, context), appConfig);
+  const effectiveKey = key ?? computeClientKey({ ip: context?.get(requestContext)?.clientIp });
   const result = limiter.check(effectiveKey);
   if (!result.allowed) {
     const retryAfterSeconds = Math.max(1, Math.ceil(result.retryAfterMs / 1000));
@@ -96,18 +96,6 @@ export function rateLimit(
 }
 
 /** Adapts a web `Request` (plus the request context's client IP) to the shape `clientKey` expects. */
-function requestLike(
-  request: Request,
-  context?: RouterContextProvider,
-): { ip?: string; headers: Record<string, string | string[] | undefined> } {
-  const headers: Record<string, string> = {};
-  request.headers.forEach((value, key) => {
-    headers[key] = value;
-  });
-  const ip = context?.get(requestContext)?.clientIp;
-  return { ip, headers };
-}
-
 /**
  * Awaits until at least `floorMs` has elapsed since `startedAt` (a
  * `performance.now()`/`Date.now()` timestamp), so failure responses (e.g. a

@@ -108,7 +108,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   }
 
   const clientIp = context.get(requestContext)?.clientIp;
-  const key = clientKey({ ip: clientIp, headers: headersOf(request) }, config);
+  const key = clientKey({ ip: clientIp });
 
   const rateResult = checkThenGlobal(limiters.createSession, limiters.createSessionGlobal, key);
   if (!rateResult.allowed) {
@@ -186,14 +186,6 @@ export async function action({ request, context }: Route.ActionArgs) {
       { status: actionError.code === "UNEXPECTED" ? 500 : 422 },
     );
   }
-}
-
-function headersOf(request: Request): Record<string, string> {
-  const headers: Record<string, string> = {};
-  request.headers.forEach((value, key) => {
-    headers[key] = value;
-  });
-  return headers;
 }
 
 /** Looks up a `validation.<code>` message, falling back to the generic error copy. */

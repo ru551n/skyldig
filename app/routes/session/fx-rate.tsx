@@ -20,14 +20,6 @@ function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-function headersOf(request: Request): Record<string, string> {
-  const headers: Record<string, string> = {};
-  request.headers.forEach((value, key) => {
-    headers[key] = value;
-  });
-  return headers;
-}
-
 /**
  * Resource route (no UI, GET only): live daily exchange-rate lookup used to PREFILL the
  * expense/payment rate field, alongside (never instead of) the "last used in this session"
@@ -57,7 +49,7 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
   }
 
   const clientIp = context.get(requestContext)?.clientIp;
-  const key = clientKey({ ip: clientIp, headers: headersOf(request) }, config);
+  const key = clientKey({ ip: clientIp });
   const check = limiters.fx.check(key);
   if (!check.allowed) {
     return data<FxRateLoaderData>({ rate: null });

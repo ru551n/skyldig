@@ -47,7 +47,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   const db = getDb();
 
   const clientIp = context.get(requestContext)?.clientIp;
-  const key = clientKey({ ip: clientIp, headers: headersOf(request) }, config);
+  const key = clientKey({ ip: clientIp });
 
   const rateResult = checkThenGlobal(limiters.join, limiters.joinGlobal, key);
   if (!rateResult.allowed) {
@@ -98,14 +98,6 @@ export async function action({ request, context }: Route.ActionArgs) {
 
   await enforceResponseFloor(startedAt);
   return redirect(`/s/${joinResult.publicId}`, { headers });
-}
-
-function headersOf(request: Request): Record<string, string> {
-  const headers: Record<string, string> = {};
-  request.headers.forEach((value, key) => {
-    headers[key] = value;
-  });
-  return headers;
 }
 
 export default function JoinSessionPage({ actionData }: Route.ComponentProps) {

@@ -59,7 +59,7 @@ export async function action({ request, params, context }: Route.ActionArgs) {
   if (!resolved) throw new Response("Not Found", { status: 404 });
 
   const clientIp = context.get(requestContext)?.clientIp;
-  const key = clientKey({ ip: clientIp, headers: headersOf(request) }, config);
+  const key = clientKey({ ip: clientIp });
   const rateResult = checkThenGlobal(limiters.invite, limiters.inviteGlobal, key);
   if (!rateResult.allowed) {
     const retryAfterSeconds = Math.max(1, Math.ceil(rateResult.retryAfterMs / 1000));
@@ -95,14 +95,6 @@ export async function action({ request, params, context }: Route.ActionArgs) {
     expiresAt: created.invite.expiresAt.toISOString(),
     ttlMs: INVITE_TTL_MS,
   });
-}
-
-function headersOf(request: Request): Record<string, string> {
-  const result: Record<string, string> = {};
-  request.headers.forEach((value, key) => {
-    result[key] = value;
-  });
-  return result;
 }
 
 /** No GET handler and no default export — this route is action-only. */

@@ -193,36 +193,25 @@ describe("checkThenGlobal", () => {
 
 describe("clientKey", () => {
   it("uses req.ip as-is for IPv4", () => {
-    expect(clientKey({ ip: "203.0.113.5", headers: {} }, { trustProxy: false })).toBe("203.0.113.5");
+    expect(clientKey({ ip: "203.0.113.5" })).toBe("203.0.113.5");
   });
 
-  it("collapses IPv6 to a /64 prefix", () => {
-    const key = clientKey({ ip: "2001:db8:abcd:1234:5678::1", headers: {} }, { trustProxy: false });
+  it("collapses IPv6 to its /64 prefix so one host cannot rotate through its whole /64", () => {
+    const key = clientKey({ ip: "2001:db8:abcd:1234:5678::1" });
     expect(key).toBe("v6:2001:db8:abcd:1234");
+    expect(clientKey({ ip: "2001:db8:abcd:1234:ffff::2" })).toBe(key);
   });
 
-  it("collapses shorthand IPv6 correctly", () => {
-    const key = clientKey({ ip: "2001:db8::1", headers: {} }, { trustProxy: false });
-    expect(key).toBe("v6:2001:db8:0:0");
+  it("handles a leading '::' shorthand", () => {
+    expect(clientKey({ ip: "2001:db8::1" })).toBe("v6:2001:db8:0:0");
   });
 
-  it("ignores X-Forwarded-For when trustProxy is off", () => {
-    const key = clientKey(
-      { ip: "203.0.113.5", headers: { "x-forwarded-for": "198.51.100.9" } },
-      { trustProxy: false },
-    );
-    expect(key).toBe("203.0.113.5");
+  it("strips an IPv6 zone id", () => {
+    expect(clientKey({ ip: "fe80::1%eth0" })).toBe("v6:fe80:0:0:0");
   });
 
-  it("honours the first hop of X-Forwarded-For when trustProxy is on", () => {
-    const key = clientKey(
-      { ip: "10.0.0.1", headers: { "x-forwarded-for": "198.51.100.9, 10.0.0.1" } },
-      { trustProxy: true },
-    );
-    expect(key).toBe("198.51.100.9");
-  });
-
-  it("returns 'unknown' when no ip is available", () => {
-    expect(clientKey({ headers: {} }, { trustProxy: false })).toBe("unknown");
+  it("falls back to a shared 'unknown' key when no address is available", () => {
+    expect(clientKey({})).toBe("unknown");
+    expect(clientKey({ ip: "" })).toBe("unknown");
   });
 });

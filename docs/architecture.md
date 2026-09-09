@@ -136,8 +136,14 @@ from the client bundle). Path aliases: `~/*` → `app/*`, `@domain/*`, `@server/
   it must be `same-origin`; otherwise `Origin` must equal the configured `PUBLIC_ORIGIN`
   exactly; if neither is present → 403. There are no mutating GET routes.
 - Rate limiting (`server/modules/auth/rate-limit.ts`): sliding-window counters in a bounded
-  LRU (50k keys, fail-closed under eviction pressure). Client key = IPv4 address or IPv6 /64;
-  `X-Forwarded-For` is honoured only when `TRUST_PROXY` is set. Every route with both a
+  LRU (50k keys, fail-closed under eviction pressure). Client key = IPv4 address or IPv6 /64,
+  taken from Express's own `req.ip` and nothing else: `TRUST_PROXY` (server/trust-proxy.ts) is
+  parsed into Express's `trust proxy` setting — a hop count (`true` means exactly 1), or a list
+  of `loopback`/`linklocal`/`uniquelocal`/IP/CIDR peers — so Express walks `X-Forwarded-For`
+  from the proxy side and stops at the first untrusted hop. The app never reads the header
+  itself; "trust every hop" is not expressible, and an unknown value fails startup. Without
+  `TRUST_PROXY` the socket peer is the key (behind a proxy that means every client shares the
+  proxy's bucket — fail-safe, but set it). Every route with both a
   per-client and a global limiter MUST check them via `checkThenGlobal`: per-client first, and
   the global bucket only checked (and thereby only charged a hit) when the per-client check
   already passed. Checking both unconditionally — as an earlier version of this code did —

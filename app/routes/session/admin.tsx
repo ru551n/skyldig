@@ -99,7 +99,7 @@ export async function action({ request, params, context }: Route.ActionArgs) {
     const access = await requireSessionAccess(db, request, config, params.sid);
 
     const clientIp = context.get(requestContext)?.clientIp;
-    const key = clientKey({ ip: clientIp, headers: headersOf(request) }, config);
+    const key = clientKey({ ip: clientIp });
 
     const clientCheck = limiters.elevate.check(key);
     const sessionCheck = limiters.elevatePerSession.check(access.session.publicId);
@@ -208,14 +208,6 @@ function mergeHeaders(base: Headers, extra: Headers): Headers {
   const merged = new Headers(base);
   extra.forEach((value, key) => merged.set(key, value));
   return merged;
-}
-
-function headersOf(request: Request): Record<string, string> {
-  const headers: Record<string, string> = {};
-  request.headers.forEach((value, key) => {
-    headers[key] = value;
-  });
-  return headers;
 }
 
 /** Looks up a `validation.<code>` message, falling back to the generic error copy. */

@@ -26,14 +26,16 @@ logger.info(
     port: config.port,
     publicOrigin: config.publicOrigin,
     cookieSecure: config.cookieSecure,
-    trustProxy: Boolean(config.trustProxy),
+    trustProxy: config.trustProxy,
     phraseEntropyBits: phraseEntropyBits(),
   },
   "skyldig server starting",
 );
 
 app.disable("x-powered-by");
-if (config.trustProxy) {
+// `req.ip` (the only client identity the rate limiters use, see `clientKey`) is resolved by
+// Express from this setting — hop count or trusted-peer list, never "trust everything".
+if (config.trustProxy !== false) {
   app.set("trust proxy", config.trustProxy);
 }
 
