@@ -145,6 +145,11 @@ export const sv = {
     history: "Historik",
     historyEmpty: "Ingen historik än.",
     participantsLabel: "Delas mellan",
+    selectAllShort: "Alla",
+    selectNoneShort: "Ingen",
+    selectNoneLabel: "Ingen – avmarkera alla",
+    selectedCount: (params: { selected: number; total: number }) =>
+      `${params.selected} av ${params.total}`,
     participantsGroupLabel: "Vilka delar på utgiften?",
     whenLabel: "När?",
     splitPreviewLabel: "Så här delas det",

@@ -318,12 +318,27 @@ export function ExpenseForm({
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-3">
           <span className="text-body text-pine font-medium">{t("expense.participantsLabel")}</span>
-          <div className="flex gap-2">
-            <Button type="button" variant="ghost" size="md" onClick={() => toggleAll(true)}>
-              {t("common.selectAll")}
+          <div className="flex items-center gap-1">
+            <span aria-live="polite" className="text-meta text-pine-soft tabular pr-[4px]">
+              {t("expense.selectedCount", { selected: selected.size, total: participants.length })}
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="md"
+              aria-label={t("common.selectAll")}
+              onClick={() => toggleAll(true)}
+            >
+              {t("expense.selectAllShort")}
             </Button>
-            <Button type="button" variant="ghost" size="md" onClick={() => toggleAll(false)}>
-              {t("common.deselectAll")}
+            <Button
+              type="button"
+              variant="ghost"
+              size="md"
+              aria-label={t("expense.selectNoneLabel")}
+              onClick={() => toggleAll(false)}
+            >
+              {t("expense.selectNoneShort")}
             </Button>
           </div>
         </div>

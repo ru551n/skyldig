@@ -141,6 +141,11 @@ export const en: typeof sv = {
     history: "History",
     historyEmpty: "No history yet.",
     participantsLabel: "Split between",
+    selectAllShort: "All",
+    selectNoneShort: "None",
+    selectNoneLabel: "None – deselect all",
+    selectedCount: (params: { selected: number; total: number }) =>
+      `${params.selected} of ${params.total}`,
     participantsGroupLabel: "Who's splitting this expense?",
     whenLabel: "When?",
     splitPreviewLabel: "How it's split",
