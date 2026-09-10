@@ -207,6 +207,15 @@ export async function action({ request, params, context }: Route.ActionArgs) {
     }
   }
 
+  if (intent === "dismiss-admin-key") {
+    // Backs the acknowledgement gate on the freshly-rotated admin key above: just confirms
+    // the caller still has access to this group and redirects back to this same page. The
+    // redirect (rather than a GET form resubmission) is what clears `adminKeyResult` from the
+    // screen, and does so without a trailing `?` on the URL.
+    await requireSessionAccess(db, request, config, params.sid);
+    return redirect(`/s/${params.sid}/admin`, { headers });
+  }
+
   if (intent === "delete-session") {
     const access = await requireAdmin(db, request, config, params.sid);
     const parsed = z
@@ -423,12 +432,14 @@ export default function AdminPage({ loaderData, actionData }: Route.ComponentPro
           </div>
           {/*
             Same deliberate acknowledgement gate as the creation flow (app/routes/new.tsx): a
-            plain GET form back to this page with a `required`, unnamed checkbox. Submitting it
-            reloads the route without action data, which is what clears the key from the screen
-            — so the key can only be dismissed after an explicit confirmation, with or without
-            JavaScript.
+            `required`, unnamed checkbox in a plain `<form>`, so the browser's own constraint
+            validation enforces it with JavaScript disabled. It POSTs the `dismiss-admin-key`
+            intent back to this route's own action, which redirects to `/s/:sid/admin` — that
+            redirect (not a GET form resubmission) is what clears the key from the screen, and
+            it lands cleanly with no trailing `?`, unlike a GET form would.
           */}
-          <form method="get" className="flex flex-col gap-3 pt-1">
+          <Form method="post" className="flex flex-col gap-3 pt-1">
+            <input type="hidden" name="_intent" value="dismiss-admin-key" />
             <label htmlFor="ack-new-admin-key" className="text-body text-pine flex items-start gap-3">
               <input
                 id="ack-new-admin-key"
@@ -443,7 +454,7 @@ export default function AdminPage({ loaderData, actionData }: Route.ComponentPro
                 {t("admin.doneClose")}
               </Button>
             </div>
-          </form>
+          </Form>
         </section>
       )}
 

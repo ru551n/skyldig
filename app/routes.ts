@@ -24,6 +24,7 @@ export default [
     ]),
     route("lamna", "routes/session/leave.tsx"),
     route("bjud-in", "routes/session/invite-create.tsx"),
+    route("bekrafta-nyckel", "routes/session/create-ack.tsx"),
     route("fx-rate", "routes/session/fx-rate.tsx"),
   ]),
 

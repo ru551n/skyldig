@@ -293,12 +293,19 @@ function ResultView({ result }: { result: CreateSuccess }) {
         Deliberate acknowledgement gate. The admin key is stored only as an HMAC under the
         server pepper, so it is unrecoverable, and admin elevation lapses after
         ADMIN_ELEVATION_TTL_MINUTES — a creator who clicks past this page without saving the
-        key is locked out of admin for good. The gate is a plain GET form with a `required`
-        checkbox, so the browser's own constraint validation enforces it with JavaScript
-        disabled; the checkbox has no `name`, so it is validated but never submitted and the
-        group URL stays clean.
+        key is locked out of admin for good. The gate is a `required` checkbox in a plain
+        `<form>`, so the browser's own constraint validation enforces it with JavaScript
+        disabled. It POSTs to the dedicated `bekrafta-nyckel` resource route
+        (`app/routes/session/create-ack.tsx`), which just checks access and redirects to
+        `/s/:sid` — a GET form here would re-append the (empty) query string on submit and
+        land the user on `/s/:sid?`, and that URL is the only way back into an account-less
+        group, so it has to stay clean.
       */}
-      <form method="get" action={`/s/${result.publicId}`} className="flex flex-col gap-4">
+      <form
+        method="post"
+        action={`/s/${result.publicId}/bekrafta-nyckel`}
+        className="flex flex-col gap-4"
+      >
         <label
           htmlFor="ack-admin-key"
           className="rounded-card border-line bg-paper text-body text-pine flex items-start gap-3 border p-4"
