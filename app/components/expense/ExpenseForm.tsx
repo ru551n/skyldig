@@ -102,7 +102,7 @@ export function ExpenseForm({
   const [amountText, setAmountText] = useState(defaults.amountText);
   const [currencyCode, setCurrencyCode] = useState(defaults.currencyCode);
   const [rateText, setRateText] = useState(defaults.rateText);
-  const [rateDirection, setRateDirection] = useState<RateDirection>(defaults.rateDirection);
+  const rateDirection: RateDirection = defaults.rateDirection;
   const [payerPublicId, setPayerPublicId] = useState(defaults.payerPublicId);
   const [selected, setSelected] = useState<Set<string>>(new Set(defaults.participantPublicIds));
   const [noteOpen, setNoteOpen] = useState(Boolean(defaults.note));
@@ -288,7 +288,6 @@ export function ExpenseForm({
           rateText={effectiveRateText}
           rateDirection={effectiveRateDirection}
           onRateTextChange={setRateText}
-          onRateDirectionChange={setRateDirection}
           error={fieldError("rateText")}
           sourceCaption={sourceCaption}
         />

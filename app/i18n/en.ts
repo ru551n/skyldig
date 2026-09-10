@@ -26,7 +26,6 @@ export const en: typeof sv = {
     noteLabel: "Note",
     addNote: "Add a note",
     rateLabel: "Exchange rate",
-    rateLockedHint: "The rate is locked to this transaction and won't change if later rates move.",
     rateSourceLive: "Today's rate",
     rateSourceSession: "Last used rate",
     rateExamplePlaceholder: "e.g. 11.45",

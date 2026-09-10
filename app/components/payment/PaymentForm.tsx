@@ -64,7 +64,7 @@ export function PaymentForm({
   const [amountText, setAmountText] = useState(defaults.amountText);
   const [currencyCode, setCurrencyCode] = useState(defaults.currencyCode);
   const [rateText, setRateText] = useState(defaults.rateText);
-  const [rateDirection, setRateDirection] = useState<RateDirection>(defaults.rateDirection);
+  const rateDirection: RateDirection = defaults.rateDirection;
   const [payerPublicId, setPayerPublicId] = useState(defaults.payerPublicId);
   const [recipientPublicId, setRecipientPublicId] = useState(defaults.recipientPublicId);
   const [noteOpen, setNoteOpen] = useState(Boolean(defaults.note));
@@ -183,7 +183,6 @@ export function PaymentForm({
           rateText={effectiveRateText}
           rateDirection={effectiveRateDirection}
           onRateTextChange={setRateText}
-          onRateDirectionChange={setRateDirection}
           error={fieldError("rateText")}
         />
       )}

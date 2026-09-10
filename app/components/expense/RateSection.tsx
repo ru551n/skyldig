@@ -1,4 +1,4 @@
-import { Field, Input, Select } from "~/components/ui/index.ts";
+import { Field, Input } from "~/components/ui/index.ts";
 import { useT } from "~/i18n";
 
 export type RateDirection = "base_per_unit" | "units_per_base";
@@ -7,23 +7,24 @@ export interface RateSectionProps {
   currency: string;
   baseCurrency: string;
   rateText: string;
+  /**
+   * Which way round the rate reads. New entries are always `base_per_unit` ("1 JPY = x SEK");
+   * an entry saved the other way keeps its direction when edited, since converting the
+   * displayed number would quietly change a rate that is meant to stay locked.
+   */
   rateDirection: RateDirection;
   onRateTextChange: (value: string) => void;
-  onRateDirectionChange: (value: RateDirection) => void;
   error?: string;
   /**
-   * Small caption distinguishing where the prefilled rate came from — the live daily rate
-   * for the expense date ("Dagens kurs") vs. the last rate used in this session ("Senast
-   * använda kursen") — so the user knows what they're looking at and that it's editable
-   * either way. Omitted once the user has typed their own value.
+   * Where the prefilled rate came from — the live daily rate ("Dagens kurs") or the last rate
+   * used in this group ("Senast använda kursen"). Omitted once the user has typed their own.
    */
   sourceCaption?: string;
 }
 
 /**
- * Shown when the chosen transaction currency differs from the session's base
- * currency: a rate text input plus a direction toggle with both readings
- * spelled out in Swedish, per docs/design.md's plain-language copy rule.
+ * Shown when the transaction currency differs from the group's base currency: just the rate,
+ * read as "1 JPY = [0,0625] SEK".
  */
 export function RateSection({
   currency,
@@ -31,47 +32,40 @@ export function RateSection({
   rateText,
   rateDirection,
   onRateTextChange,
-  onRateDirectionChange,
   error,
   sourceCaption,
 }: RateSectionProps) {
   const t = useT();
+  const [from, to] = rateDirection === "base_per_unit" ? [currency, baseCurrency] : [baseCurrency, currency];
+  const reading =
+    rateDirection === "base_per_unit"
+      ? t("common.rateDirectionBasePerUnit", { unit: currency, base: baseCurrency })
+      : t("common.rateDirectionUnitsPerBase", { unit: currency, base: baseCurrency });
 
   return (
-    <div className="rounded-card border-line bg-frost flex flex-col gap-3 border p-4">
-      <Field htmlFor="rateDirection" label={t("common.rateLabel")} error={error}>
-        {(ids) => (
-          <div className="flex flex-col gap-2">
-            <Select
-              {...ids}
-              name="rateDirection"
-              value={rateDirection}
-              onChange={(e) => onRateDirectionChange(e.target.value as RateDirection)}
-            >
-              <option value="base_per_unit">
-                {t("common.rateDirectionBasePerUnit", { unit: currency, base: baseCurrency })}
-              </option>
-              <option value="units_per_base">
-                {t("common.rateDirectionUnitsPerBase", { unit: currency, base: baseCurrency })}
-              </option>
-            </Select>
-            <label htmlFor="rateText" className="sr-only">
-              {t("common.rateLabel")}
-            </label>
-            <Input
-              id="rateText"
-              name="rateText"
-              inputMode="decimal"
-              autoComplete="off"
-              value={rateText}
-              onChange={(e) => onRateTextChange(e.target.value)}
-              placeholder={t("common.rateExamplePlaceholder")}
-            />
-            {sourceCaption && <p className="text-meta text-pine-soft">{sourceCaption}</p>}
-          </div>
-        )}
-      </Field>
-      <p className="text-meta text-pine-soft">{t("common.rateLockedHint")}</p>
-    </div>
+    <Field htmlFor="rateText" label={t("common.rateLabel")} hint={sourceCaption} error={error}>
+      {(ids) => (
+        <div className="flex items-center gap-2">
+          <input type="hidden" name="rateDirection" value={rateDirection} />
+          <span aria-hidden className="text-body text-pine shrink-0 font-medium tabular-nums">
+            1 {from} =
+          </span>
+          <Input
+            {...ids}
+            name="rateText"
+            inputMode="decimal"
+            autoComplete="off"
+            aria-label={`${t("common.rateLabel")}, ${reading}`}
+            value={rateText}
+            onChange={(e) => onRateTextChange(e.target.value)}
+            placeholder={t("common.rateExamplePlaceholder")}
+            className="min-w-0 flex-1"
+          />
+          <span aria-hidden className="text-body text-pine shrink-0 font-medium">
+            {to}
+          </span>
+        </div>
+      )}
+    </Field>
   );
 }

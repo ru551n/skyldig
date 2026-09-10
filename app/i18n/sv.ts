@@ -30,7 +30,6 @@ export const sv = {
     noteLabel: "Anteckning",
     addNote: "Lägg till anteckning",
     rateLabel: "Växelkurs",
-    rateLockedHint: "Kursen låses till den här transaktionen och påverkas inte av senare kurser.",
     rateSourceLive: "Dagens kurs",
     rateSourceSession: "Senast använda kursen",
     rateExamplePlaceholder: "t.ex. 11,45",
