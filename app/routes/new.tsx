@@ -4,8 +4,13 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { sessions } from "@server/db/schema.ts";
-import { adminElevationExpiry, createBrowserSession, grantAccess } from "@server/modules/auth/browser-session.ts";
-import { withSetCookie } from "@server/modules/auth/session-auth.ts";
+import {
+  adminElevationExpiry,
+  createBrowserSession,
+  grantAccess,
+  rotateBrowserSession,
+} from "@server/modules/auth/browser-session.ts";
+import { resolveBrowserSession, withSetCookie } from "@server/modules/auth/session-auth.ts";
 import { limiters, clientKey, checkThenGlobal } from "@server/modules/auth/rate-limit.ts";
 import { issueFormToken, verifyFormToken } from "@server/modules/auth/form-token.ts";
 import { createSession } from "@server/modules/session/index.ts";
@@ -166,7 +171,14 @@ export async function action({ request, context }: Route.ActionArgs) {
       if (!sessionRow) {
         throw new Error("new: created session row not found immediately after insert");
       }
-      const browserSession = await createBrowserSession(tx);
+      // Reuse this browser's session when it already has one, as joining and invite links do:
+      // starting a fresh session here replaced the cookie and silently dropped this browser's
+      // access to every group it had already joined. The token is rotated on the grant change
+      // (docs/architecture.md §4.3).
+      const existing = await resolveBrowserSession(tx, request, config);
+      const browserSession = existing
+        ? await rotateBrowserSession(tx, existing.browserSession.id)
+        : await createBrowserSession(tx);
       // The creator starts out elevated for one TTL window (the admin key is shown once on
       // this page); afterwards they re-elevate on /s/:sid/admin like any other member.
       await grantAccess(tx, browserSession.id, sessionRow.id, "admin", adminElevationExpiry(config));
