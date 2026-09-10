@@ -33,6 +33,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
       expiresAt: access.session.expiresAt.toISOString(),
     },
     role: access.grant.role,
+    showAdminNav: access.grant.storedRole === "admin",
     participants: participantRows.map((p) => ({
       publicId: p.publicId,
       displayName: p.displayName,
@@ -77,7 +78,7 @@ export default function SessionLayout({ loaderData }: Route.ComponentProps) {
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
 
-  const { session, role, participants, balances } = loaderData;
+  const { session, showAdminNav, participants, balances } = loaderData;
   const expiringSoon = isExpiringSoon(session.expiresAt);
   const isSubRoute = location.pathname !== `/s/${session.publicId}`;
   const showActionBar = !isFormRoute(location.pathname);
@@ -88,7 +89,7 @@ export default function SessionLayout({ loaderData }: Route.ComponentProps) {
     { to: `/s/${session.publicId}/aktivitet`, label: t("dashboard.nav.activity") },
     { to: `/s/${session.publicId}/gor-upp`, label: t("dashboard.nav.settle") },
     { to: `/s/${session.publicId}/deltagare`, label: t("dashboard.nav.participants") },
-    ...(role === "admin"
+    ...(showAdminNav
       ? [{ to: `/s/${session.publicId}/admin`, label: t("dashboard.nav.admin") }]
       : []),
   ];
@@ -128,52 +129,21 @@ export default function SessionLayout({ loaderData }: Route.ComponentProps) {
             className="rounded-control text-pine hover:bg-frost focus-visible:outline-pine flex h-11 w-11 shrink-0 items-center justify-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
           >
             <svg viewBox="0 0 20 20" width="18" height="18" fill="none" aria-hidden="true">
-              <rect
-                x="3"
-                y="3"
-                width="6"
-                height="6"
-                rx="1"
+              <path
+                d="M10 2.5v10"
                 stroke="currentColor"
                 strokeWidth="1.5"
-              />
-              <rect
-                x="11"
-                y="3"
-                width="6"
-                height="6"
-                rx="1"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              />
-              <rect
-                x="3"
-                y="11"
-                width="6"
-                height="6"
-                rx="1"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              />
-              <rect x="13" y="13" width="2" height="2" fill="currentColor" />
-              <rect
-                x="17"
-                y="13"
-                width="0.01"
-                height="0.01"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              />
-              <rect
-                x="13"
-                y="17"
-                width="0.01"
-                height="0.01"
-                stroke="currentColor"
-                strokeWidth="1.5"
+                strokeLinecap="round"
               />
               <path
-                d="M15 11v2M17 15h2M11 15h2"
+                d="M6.75 5.75 10 2.5l3.25 3.25"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M7.5 8H6a1.5 1.5 0 0 0-1.5 1.5V16A1.5 1.5 0 0 0 6 17.5h8a1.5 1.5 0 0 0 1.5-1.5V9.5A1.5 1.5 0 0 0 14 8h-1.5"
                 stroke="currentColor"
                 strokeWidth="1.5"
                 strokeLinecap="round"
@@ -221,7 +191,7 @@ export default function SessionLayout({ loaderData }: Route.ComponentProps) {
             {t("dashboard.actions.newPayment")}
           </ButtonLink>
           <ButtonLink to={`/s/${session.publicId}/deltagare`} variant="secondary" fullWidth>
-            {t("dashboard.actions.newParticipant")}
+            {t("dashboard.actions.participants")}
           </ButtonLink>
         </ActionBar>
       )}

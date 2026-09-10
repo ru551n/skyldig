@@ -32,6 +32,9 @@ export interface LayoutSession {
 export interface SessionLayoutData {
   session: LayoutSession;
   role: "member" | "admin";
+  /** True for an admin grant even after its elevation has lapsed, so the Admin page — the
+   *  only place to re-enter the admin key or delete the group — stays reachable. */
+  showAdminNav: boolean;
   participants: LayoutParticipant[];
   balances: {
     baseCurrency: string;
