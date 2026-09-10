@@ -15,7 +15,8 @@ import {
   toActionError,
   type ActionError,
 } from "~/lib/session-context.server.ts";
-import { useT } from "~/i18n";
+import { requestContext } from "~/context.ts";
+import { localeFromMatches, t, useT } from "~/i18n";
 
 import type { Route } from "./+types/payment-new";
 
@@ -23,9 +24,10 @@ function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-export async function loader({ request, params }: Route.LoaderArgs) {
+export async function loader({ request, params, context }: Route.LoaderArgs) {
   const db = getDb();
   const config = getConfig();
+  const locale = context.get(requestContext)?.locale ?? "sv";
   const access = await requireSessionAccess(db, request, config, params.sid);
   const participants = await listParticipants(db, access.session.id);
 
@@ -40,7 +42,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
     sessionPublicId: access.session.publicId,
     baseCurrency: access.session.baseCurrency,
     participants: participants.map((p) => ({ publicId: p.publicId, displayName: p.displayName })),
-    currencies: listCurrencies(),
+    currencies: listCurrencies(locale),
     suggestedRate,
     prefill: {
       from: url.searchParams.get("from") ?? "",
@@ -91,8 +93,8 @@ export async function action({ request, params }: Route.ActionArgs) {
   return redirect(`/s/${params.sid}`);
 }
 
-export function meta(_args: Route.MetaArgs) {
-  return [{ title: "Ny betalning — Skyldig" }];
+export function meta({ matches }: Route.MetaArgs) {
+  return [{ title: `${t(localeFromMatches(matches), "payment.newTitle")} — Skyldig` }];
 }
 
 function errorMessage(t: ReturnType<typeof useT>, code: string): string {

@@ -9,51 +9,56 @@ export type CurrencyCode = string;
 /** Minor-unit decimal places a currency can express. */
 export type CurrencyDecimals = 0 | 1 | 2 | 3;
 
-/** A registry entry: minor-unit decimals plus a Swedish display name. */
+/** The two interface languages the domain layer knows display names in (see app/i18n). Kept
+ *  as a plain literal union rather than importing `~/i18n`'s `Locale` — the domain layer stays
+ *  free of any dependency on the app layer. */
+export type CurrencyLocale = "sv" | "en";
+
+/** A registry entry: minor-unit decimals plus a display name per interface language. */
 interface CurrencyEntry {
   decimals: CurrencyDecimals;
-  name: string;
+  name: Record<CurrencyLocale, string>;
 }
 
 /**
- * Static table of supported ISO 4217 codes, their minor-unit decimals, and
- * their Swedish display name. JPY/KRW/VND/ISK have 0 decimals, KWD/BHD/TND
- * have 3 decimals, everything else here has 2.
+ * Static table of supported ISO 4217 codes, their minor-unit decimals, and their display name
+ * in each interface language. JPY/KRW/VND/ISK have 0 decimals, KWD/BHD/TND have 3 decimals,
+ * everything else here has 2.
  *
  * Backed by a `Map` (not a plain object) so lookups can never resolve to an
  * inherited `Object.prototype` member (e.g. `"constructor"`, `"toString"`).
  */
 const CURRENCIES = new Map<string, CurrencyEntry>([
-  ["SEK", { decimals: 2, name: "Svenska kronor" }],
-  ["EUR", { decimals: 2, name: "Euro" }],
-  ["USD", { decimals: 2, name: "US-dollar" }],
-  ["GBP", { decimals: 2, name: "Brittiska pund" }],
-  ["NOK", { decimals: 2, name: "Norska kronor" }],
-  ["DKK", { decimals: 2, name: "Danska kronor" }],
-  ["JPY", { decimals: 0, name: "Japanska yen" }],
-  ["CHF", { decimals: 2, name: "Schweizerfranc" }],
-  ["PLN", { decimals: 2, name: "Polska zloty" }],
-  ["CZK", { decimals: 2, name: "Tjeckiska kronor" }],
-  ["HUF", { decimals: 2, name: "Ungerska forint" }],
-  ["THB", { decimals: 2, name: "Thailändska baht" }],
-  ["AUD", { decimals: 2, name: "Australiska dollar" }],
-  ["CAD", { decimals: 2, name: "Kanadensiska dollar" }],
-  ["NZD", { decimals: 2, name: "Nyzeeländska dollar" }],
-  ["KRW", { decimals: 0, name: "Sydkoreanska won" }],
-  ["VND", { decimals: 0, name: "Vietnamesiska dong" }],
-  ["ISK", { decimals: 0, name: "Isländska kronor" }],
-  ["KWD", { decimals: 3, name: "Kuwaitiska dinarer" }],
-  ["BHD", { decimals: 3, name: "Bahrainska dinarer" }],
-  ["TND", { decimals: 3, name: "Tunisiska dinarer" }],
-  ["IDR", { decimals: 2, name: "Indonesiska rupier" }],
-  ["INR", { decimals: 2, name: "Indiska rupier" }],
-  ["TRY", { decimals: 2, name: "Turkiska lira" }],
-  ["MXN", { decimals: 2, name: "Mexikanska pesos" }],
-  ["BRL", { decimals: 2, name: "Brasilianska real" }],
-  ["ZAR", { decimals: 2, name: "Sydafrikanska rand" }],
-  ["CNY", { decimals: 2, name: "Kinesiska yuan" }],
-  ["HKD", { decimals: 2, name: "Hongkongdollar" }],
-  ["SGD", { decimals: 2, name: "Singaporedollar" }],
+  ["SEK", { decimals: 2, name: { sv: "Svenska kronor", en: "Swedish krona" } }],
+  ["EUR", { decimals: 2, name: { sv: "Euro", en: "Euro" } }],
+  ["USD", { decimals: 2, name: { sv: "US-dollar", en: "US dollar" } }],
+  ["GBP", { decimals: 2, name: { sv: "Brittiska pund", en: "British pound" } }],
+  ["NOK", { decimals: 2, name: { sv: "Norska kronor", en: "Norwegian krone" } }],
+  ["DKK", { decimals: 2, name: { sv: "Danska kronor", en: "Danish krone" } }],
+  ["JPY", { decimals: 0, name: { sv: "Japanska yen", en: "Japanese yen" } }],
+  ["CHF", { decimals: 2, name: { sv: "Schweizerfranc", en: "Swiss franc" } }],
+  ["PLN", { decimals: 2, name: { sv: "Polska zloty", en: "Polish zloty" } }],
+  ["CZK", { decimals: 2, name: { sv: "Tjeckiska kronor", en: "Czech koruna" } }],
+  ["HUF", { decimals: 2, name: { sv: "Ungerska forint", en: "Hungarian forint" } }],
+  ["THB", { decimals: 2, name: { sv: "Thailändska baht", en: "Thai baht" } }],
+  ["AUD", { decimals: 2, name: { sv: "Australiska dollar", en: "Australian dollar" } }],
+  ["CAD", { decimals: 2, name: { sv: "Kanadensiska dollar", en: "Canadian dollar" } }],
+  ["NZD", { decimals: 2, name: { sv: "Nyzeeländska dollar", en: "New Zealand dollar" } }],
+  ["KRW", { decimals: 0, name: { sv: "Sydkoreanska won", en: "South Korean won" } }],
+  ["VND", { decimals: 0, name: { sv: "Vietnamesiska dong", en: "Vietnamese dong" } }],
+  ["ISK", { decimals: 0, name: { sv: "Isländska kronor", en: "Icelandic krona" } }],
+  ["KWD", { decimals: 3, name: { sv: "Kuwaitiska dinarer", en: "Kuwaiti dinar" } }],
+  ["BHD", { decimals: 3, name: { sv: "Bahrainska dinarer", en: "Bahraini dinar" } }],
+  ["TND", { decimals: 3, name: { sv: "Tunisiska dinarer", en: "Tunisian dinar" } }],
+  ["IDR", { decimals: 2, name: { sv: "Indonesiska rupier", en: "Indonesian rupiah" } }],
+  ["INR", { decimals: 2, name: { sv: "Indiska rupier", en: "Indian rupee" } }],
+  ["TRY", { decimals: 2, name: { sv: "Turkiska lira", en: "Turkish lira" } }],
+  ["MXN", { decimals: 2, name: { sv: "Mexikanska pesos", en: "Mexican peso" } }],
+  ["BRL", { decimals: 2, name: { sv: "Brasilianska real", en: "Brazilian real" } }],
+  ["ZAR", { decimals: 2, name: { sv: "Sydafrikanska rand", en: "South African rand" } }],
+  ["CNY", { decimals: 2, name: { sv: "Kinesiska yuan", en: "Chinese yuan" } }],
+  ["HKD", { decimals: 2, name: { sv: "Hongkongdollar", en: "Hong Kong dollar" } }],
+  ["SGD", { decimals: 2, name: { sv: "Singaporedollar", en: "Singapore dollar" } }],
 ]);
 
 /** Currencies listed first, in this order, before the alphabetical remainder. */
@@ -77,23 +82,25 @@ export function getCurrencyDecimals(code: string): CurrencyDecimals {
 }
 
 /**
- * Returns the Swedish display name for `code`.
+ * Returns the display name for `code` in the given interface language (Swedish by default).
  * Throws `DomainError` with code `UNKNOWN_CURRENCY` if the code is not in the registry.
  */
-export function getCurrencyName(code: string): string {
+export function getCurrencyName(code: string, locale: CurrencyLocale = "sv"): string {
   const entry = CURRENCIES.get(code);
   if (entry === undefined) {
     throw new DomainError("UNKNOWN_CURRENCY", `Unknown currency code: ${code}`);
   }
-  return entry.name;
+  return entry.name[locale];
 }
 
 /**
  * Lists all known currencies as `{code, decimals, name}`, sorted with
  * SEK, EUR, USD, GBP, NOK, DKK first (in that order), then the rest
- * alphabetically by code.
+ * alphabetically by code. `name` is in the given interface language (Swedish by default).
  */
-export function listCurrencies(): { code: CurrencyCode; decimals: CurrencyDecimals; name: string }[] {
+export function listCurrencies(
+  locale: CurrencyLocale = "sv",
+): { code: CurrencyCode; decimals: CurrencyDecimals; name: string }[] {
   const codes = [...CURRENCIES.keys()];
   codes.sort((a, b) => {
     const ia = PRIORITY_ORDER.indexOf(a);
@@ -107,6 +114,6 @@ export function listCurrencies(): { code: CurrencyCode; decimals: CurrencyDecima
   });
   return codes.map((code) => {
     const entry = CURRENCIES.get(code)!;
-    return { code, decimals: entry.decimals, name: entry.name };
+    return { code, decimals: entry.decimals, name: entry.name[locale] };
   });
 }

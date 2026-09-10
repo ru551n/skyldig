@@ -24,13 +24,15 @@ import {
   toActionError,
   type ActionError,
 } from "~/lib/session-context.server.ts";
-import { toIntlLocale, useLocale, useT } from "~/i18n";
+import { requestContext } from "~/context.ts";
+import { localeFromMatches, t, toIntlLocale, useLocale, useT } from "~/i18n";
 
 import type { Route } from "./+types/expense-edit";
 
-export async function loader({ request, params }: Route.LoaderArgs) {
+export async function loader({ request, params, context }: Route.LoaderArgs) {
   const db = getDb();
   const config = getConfig();
+  const locale = context.get(requestContext)?.locale ?? "sv";
   const access = await requireSessionAccess(db, request, config, params.sid);
   const [participants, expense] = await Promise.all([
     listParticipants(db, access.session.id),
@@ -52,7 +54,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
       displayName: p.displayName,
       position: p.position,
     })),
-    currencies: listCurrencies(),
+    currencies: listCurrencies(locale),
     suggestedRate,
     expense,
   };
@@ -125,8 +127,8 @@ export async function action({ request, params }: Route.ActionArgs) {
   return redirect(`/s/${params.sid}/utgifter/${params.eid}`);
 }
 
-export function meta(_args: Route.MetaArgs) {
-  return [{ title: "Ändra utgift — Skyldig" }];
+export function meta({ matches }: Route.MetaArgs) {
+  return [{ title: `${t(localeFromMatches(matches), "expense.editTitle")} — Skyldig` }];
 }
 
 function errorMessage(t: ReturnType<typeof useT>, code: string): string {

@@ -23,13 +23,15 @@ import {
   toActionError,
   type ActionError,
 } from "~/lib/session-context.server.ts";
-import { toIntlLocale, useLocale, useT } from "~/i18n";
+import { requestContext } from "~/context.ts";
+import { localeFromMatches, t, toIntlLocale, useLocale, useT } from "~/i18n";
 
 import type { Route } from "./+types/payment-edit";
 
-export async function loader({ request, params }: Route.LoaderArgs) {
+export async function loader({ request, params, context }: Route.LoaderArgs) {
   const db = getDb();
   const config = getConfig();
+  const locale = context.get(requestContext)?.locale ?? "sv";
   const access = await requireSessionAccess(db, request, config, params.sid);
   const [participants, payment] = await Promise.all([
     listParticipants(db, access.session.id),
@@ -47,7 +49,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
     sessionPublicId: access.session.publicId,
     baseCurrency: access.session.baseCurrency,
     participants: participants.map((p) => ({ publicId: p.publicId, displayName: p.displayName })),
-    currencies: listCurrencies(),
+    currencies: listCurrencies(locale),
     suggestedRate,
     payment,
   };
@@ -119,8 +121,8 @@ export async function action({ request, params }: Route.ActionArgs) {
   return redirect(`/s/${params.sid}/betalningar/${params.pid}`);
 }
 
-export function meta(_args: Route.MetaArgs) {
-  return [{ title: "Ändra betalning — Skyldig" }];
+export function meta({ matches }: Route.MetaArgs) {
+  return [{ title: `${t(localeFromMatches(matches), "payment.editTitle")} — Skyldig` }];
 }
 
 function errorMessage(t: ReturnType<typeof useT>, code: string): string {

@@ -21,7 +21,7 @@ import {
   toActionError,
   type ActionError,
 } from "~/lib/session-context.server.ts";
-import { toIntlLocale, useLocale, useT } from "~/i18n";
+import { localeFromMatches, t, toIntlLocale, useLocale, useT } from "~/i18n";
 
 import type { Route } from "./+types/new";
 
@@ -43,9 +43,10 @@ interface CreateSuccess {
 type ActionResult =
   CreateSuccess | (ActionError & { name?: string; baseCurrency?: string; participants?: string[] });
 
-export function loader(_args: Route.LoaderArgs) {
+export function loader({ context }: Route.LoaderArgs) {
   const config = getConfig();
-  return { currencies: listCurrencies(), formToken: issueFormToken(config.accessKeyPepper) };
+  const locale = context.get(requestContext)?.locale ?? "sv";
+  return { currencies: listCurrencies(locale), formToken: issueFormToken(config.accessKeyPepper) };
 }
 
 /**
@@ -58,14 +59,15 @@ export function headers({ actionHeaders, loaderHeaders }: Route.HeadersArgs) {
   return [...actionHeaders.keys()].length > 0 ? actionHeaders : loaderHeaders;
 }
 
-export function meta(_args: Route.MetaArgs) {
-  return [{ title: "Skapa grupp — Skyldig" }];
+export function meta({ matches }: Route.MetaArgs) {
+  return [{ title: `${t(localeFromMatches(matches), "create.title")} — Skyldig` }];
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
   mutationGuard(request);
   const config = getConfig();
   const db = getDb();
+  const locale = context.get(requestContext)?.locale ?? "sv";
 
   const formData = await request.formData();
 
@@ -79,7 +81,7 @@ export async function action({ request, context }: Route.ActionArgs) {
         ok: false,
         code: "NAME_REQUIRED",
         field: "name",
-        message: "Namn krävs.",
+        message: t(locale, "validation.NAME_REQUIRED"),
         name: rawName,
         baseCurrency: rawCurrency,
         participants: rawParticipants,
@@ -114,7 +116,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   if (!rateResult.allowed) {
     const retryAfterSeconds = Math.max(1, Math.ceil(rateResult.retryAfterMs / 1000));
     return data<ActionResult>(
-      { ok: false, code: "RATE_LIMITED", message: "Too many attempts." },
+      { ok: false, code: "RATE_LIMITED", message: t(locale, "validation.RATE_LIMITED") },
       {
         status: 429,
         headers: { "Retry-After": String(retryAfterSeconds) },
@@ -447,7 +449,7 @@ export default function NewSessionPage({ loaderData, actionData }: Route.Compone
                 <Button
                   type="button"
                   variant="ghost"
-                  aria-label={`Ta bort deltagare ${index + 1}`}
+                  aria-label={t("create.removeParticipant", { n: index + 1 })}
                   onClick={() => removeParticipant(index)}
                 >
                   {t("common.delete")}
