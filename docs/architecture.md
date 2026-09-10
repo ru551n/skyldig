@@ -452,8 +452,11 @@ pino JSON logs (pretty in dev) with request id and redaction; `/health` and `/re
 diagnostics with secrets redacted; generic Swedish error page for unhandled errors.
 
 ## 14. Docker
-Multi-stage Dockerfile (deps → build → runtime `node:24-alpine`, non-root); entrypoint runs
-migrations then starts the server; `compose.yaml`: `skyldig-db` (postgres:17-alpine, named volume,
+Multi-stage Dockerfile (deps → build → runtime `node:24-alpine`, non-root); `CMD` starts the server directly. The runtime image
+**cannot apply migrations**: it installs production dependencies only, so it has neither
+`tsx` nor `server/db/migrate.ts`, even though `drizzle/*.sql` is copied in. Apply them out
+of band before first start — `pnpm db:migrate` from a checkout, or a one-shot container
+built from the Dockerfile's `build` stage running the same script; `compose.yaml`: `skyldig-db` (postgres:17-alpine, named volume,
 `pg_isready` healthcheck) and `app` (`depends_on: condition: service_healthy`, `/health`
 healthcheck, `restart: unless-stopped`). Config via env only: `PORT`, `DATABASE_URL`,
 `ACCESS_KEY_PEPPER`, `PUBLIC_ORIGIN`, `TRUST_PROXY`, `LOG_LEVEL`, `NODE_ENV`.
