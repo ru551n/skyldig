@@ -108,13 +108,13 @@ export default function SessionLayout({ loaderData }: Route.ComponentProps) {
             <Link
               to={`/s/${session.publicId}`}
               aria-label={t("common.back")}
-              className="rounded-control text-pine hover:bg-frost focus-visible:outline-pine flex h-11 w-11 shrink-0 items-center justify-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+              className="border-line bg-paper text-pine hover:bg-frost focus-visible:outline-pine flex h-11 w-11 shrink-0 items-center justify-center rounded-full border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
             >
-              <svg viewBox="0 0 20 20" width="18" height="18" fill="none" aria-hidden="true">
+              <svg viewBox="0 0 20 20" width="20" height="20" fill="none" aria-hidden="true">
                 <path
-                  d="M12 4l-6 6 6 6"
+                  d="M12.5 4l-6 6 6 6"
                   stroke="currentColor"
-                  strokeWidth="1.75"
+                  strokeWidth="2.25"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
