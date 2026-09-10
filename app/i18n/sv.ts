@@ -346,11 +346,11 @@ export const sv = {
   invite: {
     action: "Bjud in",
     title: "Bjud in till gruppen",
-    description: "Alla som skannar koden eller öppnar länken kommer med i gruppen. Länken slutar fungera efter 30 minuter eller när den använts en gång.",
+    description: "Alla som skannar koden eller öppnar länken kommer med i gruppen. Länken slutar fungera efter ett dygn eller när den använts en gång.",
     qrAlt: "QR-kod som leder till att gå med i gruppen",
     share: "Dela",
     shareTitle: "Gå med i gruppen på Skyldig",
-    hint: "Länken kan bara användas en gång och slutar fungera efter 30 minuter.",
+    hint: "Länken kan bara användas en gång och slutar fungera efter ett dygn.",
     creating: "Skapar en engångslänk…",
     rateLimited: "För många länkar har skapats. Vänta en stund och försök igen.",
     redeemTitle: "Går med i gruppen…",

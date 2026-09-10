@@ -30,7 +30,8 @@ The MVP is complete and verified end to end. What works today:
 
 - Create a group, share a five-word Swedish access phrase, join from another browser.
 - Invite people with a single-use QR code or link instead of dictating the phrase; the phrase
-  itself never travels in a URL.
+  itself never travels in a URL. An invite link is redeemable once, for 24 hours, and is
+  retired early if the access phrase is rotated.
 - A separate admin key unlocks rotating either key and deleting the group. It is shown once,
   behind a required "I have saved the admin key" acknowledgement, and is stored only as a
   peppered HMAC — so it cannot be recovered. While still elevated, an admin can mint a

@@ -170,6 +170,10 @@ from the client bundle). Path aliases: `~/*` → `app/*`, `@domain/*`, `@server/
   UPDATE — every invite is stamped with the generation it was issued under and is redeemable
   only while it still matches, so rotation also retires every outstanding invite link/QR
   atomically), rotate admin key.
+- Invite lifetime: `INVITE_TTL_MS` = 24 hours. Long enough for the real sharing pattern (a
+  QR/link posted in a group chat and opened the next morning); acceptable because what bounds
+  an invite is not its lifetime but that it is single-use, capped per group, and retired by
+  access-phrase rotation via `access_generation`.
 - Outstanding-invite cap: `createInvite` locks the group row (`SELECT … FOR UPDATE`) and refuses
   a new invite once the group has `MAX_OUTSTANDING_INVITES_PER_SESSION` (20) unused, unrevoked,
   unexpired invites — a hard bound on live single-use credentials per group that the per-client

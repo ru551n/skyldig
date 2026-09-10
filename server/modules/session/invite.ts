@@ -9,16 +9,26 @@ import { logger } from "../../logger.ts";
 
 const inviteLogger = logger.child({ module: "session-invite" });
 
-/** How long a generated invite link/QR stays redeemable. */
-export const INVITE_TTL_MS = 30 * 60 * 1000;
+/**
+ * How long a generated invite link/QR stays redeemable.
+ *
+ * 24 hours, raised from 30 minutes: the real sharing pattern is posting a QR or link into a
+ * group chat at dinner and someone opening it the next morning, which a 30-minute window
+ * simply cannot serve. The longer window is acceptable because none of the properties that
+ * actually bound an invite's blast radius changed — invites stay single-use
+ * (`redeemInvite` claims the row atomically), the per-group outstanding cap still applies
+ * (`MAX_OUTSTANDING_INVITES_PER_SESSION`), and rotating the access phrase still invalidates
+ * every outstanding invite through `sessions.access_generation`.
+ */
+export const INVITE_TTL_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Upper bound on outstanding (unused, unrevoked, unexpired) invites per group, enforced
  * atomically in `createInvite`. Per-client rate limiting already throttles how fast one member
  * can mint invites, but a group with many members (or one member rotating IPs) could still
  * accumulate an unbounded pile of live single-use credentials between cleanup runs. 20 is
- * deliberately conservative: a member shares one link/QR at a time and each link lives 30
- * minutes, so even a large party inviting people in parallel stays well below it.
+ * deliberately conservative: a member shares one link/QR at a time, so even a large party
+ * inviting people in parallel stays well below it.
  */
 export const MAX_OUTSTANDING_INVITES_PER_SESSION = 20;
 
@@ -95,7 +105,9 @@ export async function createInvite(
       role,
       accessGeneration: session.accessGeneration,
       createdByBrowserSessionId,
-      expiresAt: sql`now() + interval '30 minutes'`,
+      // Derived from `INVITE_TTL_MS` rather than a literal interval so the constant the UI
+      // renders and the expiry the database stores can never drift apart.
+      expiresAt: sql`now() + make_interval(secs => ${INVITE_TTL_MS / 1000})`,
     })
     .returning();
   if (!row) throw new Error("failed to create invite");

@@ -10,6 +10,7 @@ import {
   burnInvite,
   createInvite,
   findRedeemableInvite,
+  INVITE_TTL_MS,
   InviteLimitError,
   MAX_OUTSTANDING_INVITES_PER_SESSION,
   purgeExpiredInvites,
@@ -34,6 +35,27 @@ async function makeGroup() {
 }
 
 describe("session invites", () => {
+  it(
+    "stores an expiry exactly INVITE_TTL_MS (24 hours) in the future",
+    async () => {
+      // The TTL was raised from 30 minutes to 24 hours for the real sharing pattern (a link
+      // posted in a group chat and opened the next morning). This pins both the value and the
+      // fact that the row's `expires_at` is derived from the constant the UI renders, so the
+      // two cannot drift apart.
+      expect(INVITE_TTL_MS).toBe(24 * 60 * 60 * 1000);
+
+      const { session, browserSessionId } = await makeGroup();
+      const before = Date.now();
+      const created = await db.transaction((tx) => createInvite(tx, session.id, browserSessionId));
+      const after = Date.now();
+
+      const ttl = created.invite.expiresAt.getTime();
+      expect(ttl).toBeGreaterThanOrEqual(before + INVITE_TTL_MS - 5_000);
+      expect(ttl).toBeLessThanOrEqual(after + INVITE_TTL_MS + 5_000);
+    },
+    15_000,
+  );
+
   it(
     "creates a redeemable invite, and redeeming it grants access and burns it",
     async () => {

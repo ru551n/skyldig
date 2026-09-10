@@ -342,11 +342,11 @@ export const en: typeof sv = {
   invite: {
     action: "Invite",
     title: "Invite to the group",
-    description: "Anyone who scans the code or opens the link joins the group. The link stops working after 30 minutes or once it's been used once.",
+    description: "Anyone who scans the code or opens the link joins the group. The link stops working after 24 hours or once it's been used once.",
     qrAlt: "QR code that leads to joining the group",
     share: "Share",
     shareTitle: "Join the group on Skyldig",
-    hint: "The link can only be used once and stops working after 30 minutes.",
+    hint: "The link can only be used once and stops working after 24 hours.",
     creating: "Creating a one-time link…",
     rateLimited: "Too many links created. Wait a moment and try again.",
     redeemTitle: "Joining the group…",
