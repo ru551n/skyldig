@@ -4,7 +4,7 @@
 # `pnpm build` emits plain JavaScript that is identical for every target, so it only needs to
 # run once, natively. Running it under QEMU for linux/arm64 crashed Vite's native bundler with
 # "qemu: uncaught target signal 4 (Illegal instruction)" and hung the release build.
-FROM --platform=$BUILDPLATFORM node:24-alpine@sha256:50c8e8ca1d27439048670df5883f32d57cf81cff6233222c893fd0d9884cbd81 AS build-base
+FROM --platform=$BUILDPLATFORM node:26-alpine@sha256:ef24c5053d50fdc3e4e56eb4e7ddb7861874ab0fdc797046ba897581deb8e868 AS build-base
 WORKDIR /app
 RUN corepack enable
 
@@ -19,13 +19,13 @@ RUN pnpm build
 
 # Production dependencies are installed per target architecture, so any native module matches
 # the image it ships in.
-FROM node:24-alpine@sha256:50c8e8ca1d27439048670df5883f32d57cf81cff6233222c893fd0d9884cbd81 AS prod-deps
+FROM node:26-alpine@sha256:ef24c5053d50fdc3e4e56eb4e7ddb7861874ab0fdc797046ba897581deb8e868 AS prod-deps
 WORKDIR /app
 RUN corepack enable
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile --prod
 
-FROM node:24-alpine@sha256:50c8e8ca1d27439048670df5883f32d57cf81cff6233222c893fd0d9884cbd81 AS runtime
+FROM node:26-alpine@sha256:ef24c5053d50fdc3e4e56eb4e7ddb7861874ab0fdc797046ba897581deb8e868 AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 RUN corepack enable
