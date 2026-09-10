@@ -10,9 +10,25 @@ table).
 
 # Planned changes
 
-Nothing currently queued here — the logo and English localisation both shipped. The QR/invite
-feature and the shorter access phrase, requested earlier, also shipped and are described in
-the git history rather than kept here.
+The logo and English localisation both shipped. The QR/invite feature and the shorter access
+phrase, requested earlier, also shipped and are described in the git history rather than kept
+here.
+
+## Regenerate the guide and docs screenshots
+
+The beta usability pass changed three things every screenshot in `docs/screenshots/`,
+`docs/screenshots/en/`, `public/guide-screens/` and `public/guide-screens/en/` still shows the
+old version of:
+
+- access phrases are now English (BIP-39) words, so every captured phrase reads as a stale
+  Swedish one;
+- the invite dialog says 24 hours, not 30 minutes;
+- the creation result now carries an "I have saved the admin key" acknowledgement checkbox and
+  a submit button instead of a plain link.
+
+Regenerate them with `node scripts/screenshots.mjs` (both locales) and commit the results. The
+script was updated to tick the acknowledgement checkbox, so it runs as-is; only the images are
+stale.
 
 # Known gaps
 

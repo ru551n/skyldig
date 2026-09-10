@@ -2,7 +2,7 @@
  * Access phrase generation, per docs/architecture.md §4.1.
  *
  * The word list is imported from `wordlist.generated.ts` (built by `pnpm build:wordlist` from
- * `wordlist.sv.txt`) rather than read from disk at runtime. See scripts/build-wordlist.ts for
+ * the vendored BIP-39 English `wordlist.en.txt`) rather than read from disk at runtime. See scripts/build-wordlist.ts for
  * why: reading a plain-text asset via `node:fs` relative to `import.meta.url` is not reliable
  * once the server is bundled for SSR, while a generated `.ts` module bundles like any other
  * source file.
@@ -15,6 +15,17 @@
 import { randomInt } from "node:crypto";
 
 import { WORDLIST } from "./wordlist.generated.ts";
+
+/**
+ * The list is **English regardless of the interface language** — a Swedish UI still issues an
+ * English phrase. Typing five Swedish words on a mobile keyboard was a real burden, and BIP-39
+ * English is built for exactly this: short, unambiguous, ASCII-only words, no two of which
+ * share their first four letters.
+ *
+ * This is a *generation-only* switch. `normalizePhrase` performs no wordlist-membership and no
+ * word-count check, so every phrase issued from the previous Swedish list keeps verifying and
+ * joining unchanged; see the legacy-phrase regression tests in tests/integration/session.test.ts.
+ */
 
 const WORD_RE = /^[a-z]{3,8}$/;
 
@@ -37,8 +48,9 @@ function validateWordlist(words: readonly string[]): void {
 validateWordlist(WORDLIST);
 
 /**
- * Number of words drawn per *newly generated* access phrase. Raised from 4 to 5 (~44.5 → ~55.7
- * bits for the ~2250-word list) in the security-hardening pass. Nothing on the verification path
+ * Number of words drawn per *newly generated* access phrase. Raised from 4 to 5 in the
+ * security-hardening pass; with the 2048-word BIP-39 list that is exactly 5 × 11 = 55 bits
+ * (it was ~55.7 with the previous ~2250-word Swedish list). Nothing on the verification path
  * (`normalizePhrase` → HMAC blind index → scrypt verifier) depends on this number, so phrases
  * issued while it was 4 keep joining until their session expires or the phrase is rotated. Do
  * not add a word-count check to `joinSession`/`normalizePhrase` without an explicit migration.
@@ -49,7 +61,7 @@ export const PHRASE_WORDS = 5;
  * Draws `PHRASE_WORDS` words uniformly at random *with replacement* from the wordlist, using
  * `crypto.randomInt` (rejection-free, no modulo bias), joined with `-`. Words may repeat: the
  * entropy accounting (`phraseEntropyBits`) assumes a with-replacement draw, i.e.
- * log2(wordlist.length ^ PHRASE_WORDS), which for ~2250 words and 5 draws is ~55.7 bits.
+ * log2(wordlist.length ^ PHRASE_WORDS), which for 2048 words and 5 draws is exactly 55 bits.
  */
 export function generatePhrase(): string {
   const words: string[] = [];

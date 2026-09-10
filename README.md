@@ -4,7 +4,7 @@
 
 Skyldig ("owing" in Swedish) is an account-less, self-hosted web app for splitting shared
 expenses within a group. There is no signup and no login: a group ("session") is identified by a
-five-word Swedish access phrase that you share with the people in it. Anyone with the phrase can
+five-word English access phrase that you share with the people in it. Anyone with the phrase can
 add expenses and repayments and see who should pay whom. Groups are temporary and disappear on
 their own.
 
@@ -12,14 +12,16 @@ How it works:
 
 - Create a group: give it a name, a base currency, and the participants.
 - Share the five-word access phrase with the group (and keep the one-time admin key for yourself).
+  The phrase is always English words, whatever language the interface is in — they are short
+  and quick to type on a phone.
 - Everyone with the phrase adds expenses (who paid, how much, split between whom) and repayments.
 - The app computes a settlement plan: the shortest list of "X pays Y this much" transfers that
   clears every balance.
 - The group and all its data expire and are deleted 90 days after creation, whether or not anyone
   visits.
 
-The interface is available in Swedish and English (the access phrase itself is always Swedish
-words, regardless of interface language). See `docs/design.md` for the visual direction and
+The interface is available in Swedish and English (the access phrase itself is always English
+words, regardless of interface language — they are short and quick to type on a phone). See `docs/design.md` for the visual direction and
 `docs/architecture.md`
 for the full architecture decision record — this README summarizes and links to it rather than
 repeating it.
@@ -28,7 +30,7 @@ repeating it.
 
 The MVP is complete and verified end to end. What works today:
 
-- Create a group, share a five-word Swedish access phrase, join from another browser.
+- Create a group, share a five-word English access phrase, join from another browser.
 - Invite people with a single-use QR code or link instead of dictating the phrase; the phrase
   itself never travels in a URL. An invite link is redeemable once, for 24 hours, and is
   retired early if the access phrase is rotated.
@@ -230,10 +232,12 @@ suggestion, since adding one more expense can reshape the whole plan.
 ## Security
 
 The access phrase is the sole credential for reading or editing a group — anyone who has it can
-see and change everything in that group. It is five words from a curated Swedish wordlist
-(≥ 2048 words), giving roughly 55 bits of entropy (groups created before the change to five
-words have four-word phrases, ~44 bits, and keep working until they expire or the phrase is
-rotated — verification never checks the word count). It is never stored in plaintext: the database
+see and change everything in that group. It is five words from the 2048-word BIP-39
+English wordlist (vendored into the repo), giving exactly 55 bits of entropy. Phrases are
+generated in English regardless of the interface language. Groups created before that change
+have Swedish phrases, and groups created before the change to five words have four-word
+phrases (~44 bits); both keep working until they expire or the phrase is rotated, because
+verification never checks the wordlist or the word count. It is never stored in plaintext: the database
 holds an HMAC-SHA256 blind index (keyed by `ACCESS_KEY_PEPPER`) for lookup, plus a separate
 scrypt verifier (also keyed by the pepper, so a database dump alone reveals nothing) checked with
 a timing-safe comparison. A dump *together with* the pepper does let an attacker guess phrases

@@ -74,7 +74,7 @@ export const en: typeof sv = {
     resultTitle: "Group created",
     resultLead: "Save this page or send the key to the others — it's shown only once.",
     phraseLabel: "Group key",
-    phraseLanguageNote: "The group key is always Swedish words, whatever language you're using.",
+    phraseLanguageNote: "The group key is always English words, whatever language you're using — they're short and easy to type on a phone.",
     adminKeyLabel: "Admin key",
     adminKeySaveNotice: "Save this now — it's shown only once.",
     adminKeyCannotRecover: "The admin key can't be recovered. Without it you can't change the keys or delete the group. You can generate a new one under Admin while you're still signed in as admin.",
@@ -89,8 +89,9 @@ export const en: typeof sv = {
     title: "Join a group",
     lead: "Paste the group key someone in the group sent you.",
     phraseLabel: "Group key",
-    phraseHint: "Paste it exactly as you got it — spaces or dots work just as well as hyphens.",
-    phraseLanguageNote: "The group key is always Swedish words, whatever language you're using.",
+    phraseHint: "Paste it exactly as you got it — spaces or dots work just as well as hyphens. Upper or lower case makes no difference.",
+    phraseLanguageNote: "The group key is always English words, whatever language you're using. Older groups may have a key made of Swedish words — that still works exactly as before.",
+    phrasePlaceholder: "word-word-word-word-word",
     submit: "Join",
   },
 
@@ -312,7 +313,7 @@ export const en: typeof sv = {
     step2Body1:
       "Once the group is created, two keys are shown, once. The group key is what everyone in the group uses to join and add expenses. The admin key is separate and more powerful — it can rotate the keys and delete the group.",
     step2Body2:
-      "Anyone with the group key can see and change everything in the group, so only share it with people who should actually be in the group.",
+      "Anyone with the group key can see and change everything in the group, so only share it with people who should actually be in the group. The group key is always English words, even when the app is in Swedish — they are shorter and quicker to type on a phone.",
     step2ImageAlt: "The page showing the group key and admin key right after the group is created",
     step3Title: "Add expenses",
     step3Body1:

@@ -12,6 +12,17 @@ describe("generatePhrase", () => {
     expect(PHRASE_WORDS).toBe(5);
   });
 
+  it("draws from the vendored 2048-word BIP-39 English list", () => {
+    // Generation is English regardless of the interface language (see phrase.ts). Pinned on
+    // purpose: the count is what makes each word exactly 11 bits, and the anchors catch a
+    // wordlist that was swapped or regenerated from the wrong source.
+    expect(WORDLIST).toHaveLength(2048);
+    expect(WORDLIST[0]).toBe("abandon");
+    expect(WORDLIST[WORDLIST.length - 1]).toBe("zoo");
+    // The old Swedish list is gone from generation; nothing on the verification path cares.
+    expect(WORDLIST).not.toContain("abborre");
+  });
+
   it("produces PHRASE_WORDS hyphen-separated lowercase words, all from the wordlist", () => {
     const phrase = generatePhrase();
     const words = phrase.split("-");
@@ -44,8 +55,8 @@ describe("phraseEntropyBits", () => {
     expect(phraseEntropyBits()).toBeCloseTo(PHRASE_WORDS * Math.log2(WORDLIST.length), 10);
   });
 
-  it("is at least 55 bits (5 words from >= 2048 words)", () => {
-    expect(phraseEntropyBits()).toBeGreaterThanOrEqual(55);
+  it("is exactly 55 bits (5 words from the 2048-word BIP-39 English list)", () => {
+    expect(phraseEntropyBits()).toBe(55);
   });
 });
 

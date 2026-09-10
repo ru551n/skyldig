@@ -90,6 +90,38 @@ describe("createSession / joinSession", () => {
     SLOW_TEST_TIMEOUT,
   );
 
+  it.each([
+    // 4-word and 5-word draws from the *old Swedish* wordlist, which generation no longer uses
+    // (see server/modules/session/phrase.ts — the list is now BIP-39 English). These words are
+    // hard-coded rather than taken from WORDLIST precisely so the test keeps standing after
+    // the switch. `normalizePhrase` does no membership and no word-count check, which is what
+    // makes every phrase issued before the switch keep working; adding either check here would
+    // silently invalidate every existing group's blind index and verifier.
+    ["four-word Swedish", "abborre-fjäril-höstlov-vinterdag"],
+    ["five-word Swedish", "abborre-fjäril-höstlov-vinterdag-sjöstjärna"],
+  ])(
+    "still joins a legacy %s phrase after the wordlist switched to English",
+    async (_label, legacyPhrase) => {
+      const { session, phrase } = await createSession(
+        db,
+        config,
+        { name: "Legacy sv", baseCurrency: "SEK", participantNames: ["Alice", "Bob"] },
+        { generatePhrase: () => legacyPhrase },
+      );
+      expect(phrase).toBe(legacyPhrase);
+
+      expect((await joinSession(db, config, legacyPhrase))?.publicId).toBe(session.publicId);
+
+      // Sloppy mobile input still normalizes to the same phrase: stray outer whitespace,
+      // collapsed/expanded separators and case differences.
+      const sloppy = ` ${legacyPhrase.split("-").join("  ")} `.toUpperCase();
+      expect((await joinSession(db, config, sloppy))?.publicId).toBe(session.publicId);
+      const dotted = legacyPhrase.split("-").join(".");
+      expect((await joinSession(db, config, dotted))?.publicId).toBe(session.publicId);
+    },
+    SLOW_TEST_TIMEOUT,
+  );
+
   it(
     "rejects a 5-word phrase with any single word changed",
     async () => {

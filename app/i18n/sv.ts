@@ -78,7 +78,7 @@ export const sv = {
     resultTitle: "Gruppen är skapad",
     resultLead: "Spara den här sidan eller skicka nyckeln till de andra — den visas bara en gång.",
     phraseLabel: "Gruppnyckel",
-    phraseLanguageNote: "Gruppnyckeln består alltid av svenska ord, oavsett språkval.",
+    phraseLanguageNote: "Gruppnyckeln består alltid av engelska ord, oavsett språkval — de är korta och lätta att skriva på en mobil.",
     adminKeyLabel: "Adminnyckel",
     adminKeySaveNotice: "Spara den här — den visas bara en gång.",
     adminKeyCannotRecover: "Adminnyckeln går inte att ta fram igen. Utan den kan du inte byta nycklar eller ta bort gruppen. Skapa en ny nyckel under Admin så länge du fortfarande är inloggad som admin.",
@@ -93,8 +93,9 @@ export const sv = {
     title: "Gå med i grupp",
     lead: "Klistra in gruppnyckeln du fått av någon i gruppen.",
     phraseLabel: "Gruppnyckel",
-    phraseHint: "Klistra in den precis som du fick den — mellanslag eller punkter funkar lika bra som bindestreck.",
-    phraseLanguageNote: "Gruppnyckeln består alltid av svenska ord, oavsett språkval.",
+    phraseHint: "Klistra in den precis som du fick den — mellanslag eller punkter funkar lika bra som bindestreck. Stora och små bokstäver spelar ingen roll.",
+    phraseLanguageNote: "Gruppnyckeln består alltid av engelska ord, oavsett språkval. Äldre grupper kan ha en nyckel med svenska ord — den funkar precis som förut.",
+    phrasePlaceholder: "ord-ord-ord-ord-ord",
     submit: "Gå med",
   },
 
@@ -316,7 +317,7 @@ export const sv = {
     step2Body1:
       "När gruppen är skapad visas två nycklar, en enda gång. Gruppnyckeln är vad alla i gruppen använder för att gå med och lägga till utgifter. Adminnyckeln är separat och mer kraftfull — den kan byta ut nycklarna och ta bort gruppen.",
     step2Body2:
-      "Vem som helst med gruppnyckeln kan se och ändra allt i gruppen, så dela den bara med de som faktiskt ska vara med i gruppen.",
+      "Vem som helst med gruppnyckeln kan se och ändra allt i gruppen, så dela den bara med de som faktiskt ska vara med i gruppen. Gruppnyckeln är alltid på engelska, även när appen är på svenska — engelska ord är kortare och går snabbare att skriva på en mobil.",
     step2ImageAlt: "Sidan som visar gruppnyckeln och adminnyckeln direkt efter att gruppen skapats",
     step3Title: "Lägg till utgifter",
     step3Body1:

@@ -343,6 +343,7 @@ export default function AdminPage({ loaderData, actionData }: Route.ComponentPro
                 autoComplete="off"
                 spellCheck={false}
                 autoCapitalize="none"
+                autoCorrect="off"
                 required
               />
             )}

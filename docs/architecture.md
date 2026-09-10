@@ -8,7 +8,7 @@ belong to the lead; implementers must not redefine them silently.
 
 Skyldig is a temporary, account-less shared-expense tracker. A *session* ("Japan 2026") owns
 everything: participants, expenses, repayments, history, settlement. Access is by possession of
-a Swedish word phrase (bearer credential); a separate admin key allows destructive operations.
+an English word phrase (bearer credential); a separate admin key allows destructive operations.
 Sessions expire 90 days after creation regardless of activity. Priorities: financial correctness,
 data integrity, simplicity, security, maintainability, mobile UX, operational simplicity.
 
@@ -77,17 +77,26 @@ from the client bundle). Path aliases: `~/*` → `app/*`, `@domain/*`, `@server/
 ## 4. Credentials and browser sessions
 
 ### 4.1 Access phrase
-- **5 words** drawn with rejection-sampled `crypto.randomInt` from a curated Swedish wordlist of
-  ≥ 2048 words (`server/modules/session/wordlist.sv.txt`, validated by
-  `scripts/check-wordlist.py`) → ≥ 55 bits (~55.7 with the current ~2250-word list; the
-  server logs the exact `phraseEntropyBits` at startup). Originally 6 words, shortened to 4 on
+- **5 words** drawn with rejection-sampled `crypto.randomInt` from the 2048-word BIP-39
+  **English** wordlist (`server/modules/session/wordlist.en.txt`, vendored verbatim, validated
+  by `scripts/check-wordlist.py`) → exactly 5 × 11 = 55 bits (the server logs the exact
+  `phraseEntropyBits` at startup). The phrase is English **regardless of the interface
+  language**: five Swedish words are a real burden to type on a mobile keyboard, and BIP-39
+  English is built for this job — short, unambiguous, ASCII-only, and no two words share their
+  first four letters. It replaced a curated ~2250-word Swedish list (~55.7 bits), so the
+  entropy is essentially unchanged. Originally 6 words, shortened to 4 on
   request (quicker to dictate; the join rate limits below were tightened to compensate, because
   a guess is tested against every active group at once through the blind index), then raised to
   5 in the security-hardening pass. Phrases generated while it was 4 words (~44.5 bits) stay
   valid until their session expires or the phrase is rotated: the verification path never
-  inspects the word count, and it must stay that way. See `docs/todo.md` for the full trade-off. Wordlist rules: lowercase ASCII a–z only (typeable
-  on any keyboard; å/ä/ö words excluded), 3–8 letters, no prefix relationships, pairwise edit
-  distance ≥ 2, no confusable inflections, nothing offensive.
+  inspects the word count, and it must stay that way. See `docs/todo.md` for the full
+  trade-off.
+- **The wordlist is used for generation only.** `normalizePhrase` does no membership check and
+  no word-count check, so every phrase issued from the old Swedish list keeps verifying and
+  joining unchanged after the switch to English (regression tests in
+  `tests/integration/session.test.ts`). Adding either check would silently invalidate every
+  existing group's blind index and verifier. Wordlist rules: lowercase ASCII a–z only, 3–8
+  letters, no two words sharing their first four letters, exactly 2048 entries.
 - Format `w-w-w-w-w`. Input normalization: NFKC, trim, lowercase, replace any run of
   whitespace/`,`/`.`/`_`/`-`/`/` with a single hyphen, strip leading/trailing hyphens.
 - Storage (two-stage): `sessions.access_key_index bytea UNIQUE` =
