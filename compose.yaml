@@ -12,6 +12,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    networks:
+      - skyldig-internal
     restart: unless-stopped
 
   app:
@@ -39,7 +41,19 @@ services:
       timeout: 5s
       start_period: 10s
       retries: 3
+    networks:
+      - skyldig-internal
+      - skyldig-edge
     restart: unless-stopped
 
 volumes:
   skyldig-pgdata:
+
+networks:
+  # Postgres attaches to this one only. `internal` gives it no gateway, so it has
+  # no route off the host and is reachable only by the app container beside it.
+  skyldig-internal:
+    internal: true
+  # The app additionally joins this one, which carries its published port and the
+  # outbound calls the daily FX-rate lookup makes.
+  skyldig-edge:
