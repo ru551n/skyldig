@@ -40,14 +40,9 @@
   --text-money-hero: 3rem;
   --text-money-hero--line-height: 1.15;
 
-  /* Spacing scale */
-  --spacing-4: 4px;
-  --spacing-8: 8px;
-  --spacing-12: 12px;
-  --spacing-16: 16px;
-  --spacing-24: 24px;
-  --spacing-32: 32px;
-  --spacing-48: 48px;
+  /* Spacing uses Tailwind's default scale (p-4 = 1rem = 16px). Don't define --spacing-<n>
+     tokens here: in Tailwind v4 a key like --spacing-4 replaces the utility of the same number,
+     so a pixel-named scale silently turned every p-4 into 4px and min-h-12 into 12px. */
 }
 
 html {
