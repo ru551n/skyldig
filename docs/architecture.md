@@ -133,6 +133,14 @@ from the client bundle). Path aliases: `~/*` → `app/*`, `@domain/*`, `@server/
 - Shown once on the creation result page (rendered from the action response; never in a URL,
   cookie, or log). That page and the admin page send `Cache-Control: no-store` and
   `Referrer-Policy: no-referrer`.
+- Because only the HMAC is stored, the plaintext is **unrecoverable**. The creation result page
+  therefore gates its "go to the group" action behind a required "I have saved the admin key"
+  checkbox — a plain GET form to `/s/:sid`, so the browser's own constraint validation enforces
+  it with JavaScript disabled.
+- **Recovery path:** an already-elevated admin can mint a fresh key on `/s/:sid/admin`
+  (`rotateAdminKey`), which invalidates the old key immediately and downgrades every other
+  browser session's admin grant to member. The new key is shown once behind the same
+  acknowledgement gate. There is deliberately no recovery once elevation has lapsed.
 
 ### 4.3 Browser session and grants
 - Successful join creates `browser_sessions(id, token_hash UNIQUE, created_at, last_seen_at,
@@ -150,7 +158,10 @@ from the client bundle). Path aliases: `~/*` → `app/*`, `@domain/*`, `@server/
   `requireAdmin`, `getGrant`/`listGrants` and every admin-UI decision) treats a grant as admin
   only while `role = 'admin'` *and* `admin_until` is strictly in the future; once it lapses the
   browser session is a plain member again (row untouched — membership survives; the admin UI
-  shows the elevation form) and must re-enter the admin key, which refreshes `admin_until`. A
+  shows the elevation form) and must re-enter the admin key, which refreshes `admin_until`.
+  Elevation is **never** extended by activity — only a successful elevation writes a new
+  `admin_until`. `/s/:sid/admin` surfaces the expiry time while elevated, and tells a browser
+  whose grant is still stored as `admin` that its elevation lapsed so re-entry is the fix. A
   NULL `admin_until` (rows elevated before the column existed) counts as expired rather than
   unbounded. The group's creator gets the same initial window at creation. Before this, an
   `admin` grant stayed effective for the browser session's whole 90-day sliding lifetime.

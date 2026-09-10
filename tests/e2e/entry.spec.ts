@@ -35,9 +35,10 @@ test.describe("create a group", () => {
 
     // TODO: once the /s/:sid dashboard route exists (added by the next agent), assert the
     // page actually renders instead of just the link target — it may 404 until then.
-    const sessionLink = page.getByRole("link", { name: "Till gruppen" });
+    await page.getByLabel("Jag har sparat adminnyckeln").check();
+    const sessionLink = page.getByRole("button", { name: "Till gruppen" });
     await expect(sessionLink).toBeVisible();
-    const href = await sessionLink.getAttribute("href");
+    const href = await page.locator('form[action^="/s/"]').getAttribute("action");
     expect(href).toMatch(/^\/s\/[a-z0-9]+$/);
 
     // Stash the phrase for the join test via a global (Playwright workers are separate

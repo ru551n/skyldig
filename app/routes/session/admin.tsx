@@ -23,7 +23,7 @@ import {
 
 import { Button, ConfirmDialog, Dialog, Field, Input, PageHeader } from "~/components/ui/index.ts";
 import { requestContext } from "~/context.ts";
-import { formatExpiryLong } from "~/lib/format.ts";
+import { formatExpiryLong, formatTimeOfDay } from "~/lib/format.ts";
 import {
   enforceResponseFloor,
   getConfig,
@@ -39,6 +39,14 @@ import type { Route } from "./+types/admin";
 interface LoaderData {
   isAdmin: boolean;
   adminTtlMinutes: number;
+  /** When the current admin elevation lapses, ISO-8601; null when not elevated. */
+  adminUntil: string | null;
+  /**
+   * True when the grant is stored as 'admin' but the elevation window has already lapsed —
+   * i.e. this browser *was* an admin and only needs to re-enter the key. Lets the elevate
+   * screen say so instead of reading as "you were never an admin".
+   */
+  elevationLapsed: boolean;
   sessionName: string;
   expiresAt: string;
 }
@@ -82,6 +90,11 @@ export async function loader({ request, params }: Route.LoaderArgs) {
     {
       isAdmin: isActiveAdmin(access.grant),
       adminTtlMinutes: Math.round(config.adminElevationTtlMs / 60_000),
+      // Elevation is never extended by activity: only a successful `elevate` calls
+      // `grantAccess` with a fresh `adminElevationExpiry`, so this timestamp is stable for the
+      // whole window and is safe to render.
+      adminUntil: isActiveAdmin(access.grant) ? (access.grant.adminUntil?.toISOString() ?? null) : null,
+      elevationLapsed: access.grant.storedRole === "admin" && !isActiveAdmin(access.grant),
       sessionName: access.session.name,
       expiresAt: access.session.expiresAt.toISOString(),
     },
@@ -230,6 +243,7 @@ function errorMessage(t: ReturnType<typeof useT>, code: string): string {
 }
 
 function CopyButton({ value }: { value: string }) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
@@ -255,7 +269,7 @@ function CopyButton({ value }: { value: string }) {
 
   return (
     <Button type="button" variant="secondary" onClick={handleCopy}>
-      {copied ? "Kopierad!" : "Kopiera"}
+      {copied ? t("common.copied") : t("common.copy")}
     </Button>
   );
 }
@@ -297,6 +311,15 @@ export default function AdminPage({ loaderData, actionData }: Route.ComponentPro
     return (
       <div className="mx-auto flex min-h-screen max-w-[65ch] flex-col gap-6 p-6 pb-16">
         <PageHeader title={t("admin.title")} lead={t("admin.elevateLead")} />
+
+        {loaderData.elevationLapsed && (
+          <p
+            role="status"
+            className="rounded-control border-sol bg-sol/20 text-body text-pine border p-3"
+          >
+            {t("admin.elevationExpiredNotice")}
+          </p>
+        )}
 
         {elevateError && (
           <p
@@ -346,6 +369,22 @@ export default function AdminPage({ loaderData, actionData }: Route.ComponentPro
         {t("admin.grantedNotice")}
       </p>
 
+      {loaderData.adminUntil && (
+        <p className="text-meta text-pine-soft">
+          {/*
+            `formatTimeOfDay` renders in the renderer's timezone, which is the server's during
+            SSR and the visitor's after hydration; the two legitimately differ, so the mismatch
+            is expected rather than a bug.
+          */}
+          <span suppressHydrationWarning>
+            {t("admin.elevationExpiresLabel", {
+              time: formatTimeOfDay(loaderData.adminUntil, toIntlLocale(locale)),
+            })}
+          </span>{" "}
+          {t("admin.elevateTtlHint", { minutes: loaderData.adminTtlMinutes })}
+        </p>
+      )}
+
       {phraseResult && (
         <section className="rounded-card border-sol bg-sol/20 flex flex-col gap-2 border-2 p-5">
           <h2
@@ -381,6 +420,29 @@ export default function AdminPage({ loaderData, actionData }: Route.ComponentPro
           <div>
             <CopyButton value={adminKeyResult.adminKey} />
           </div>
+          {/*
+            Same deliberate acknowledgement gate as the creation flow (app/routes/new.tsx): a
+            plain GET form back to this page with a `required`, unnamed checkbox. Submitting it
+            reloads the route without action data, which is what clears the key from the screen
+            — so the key can only be dismissed after an explicit confirmation, with or without
+            JavaScript.
+          */}
+          <form method="get" className="flex flex-col gap-3 pt-1">
+            <label htmlFor="ack-new-admin-key" className="text-body text-pine flex items-start gap-3">
+              <input
+                id="ack-new-admin-key"
+                type="checkbox"
+                required
+                className="accent-pine mt-1 h-5 w-5 shrink-0"
+              />
+              <span className="font-medium">{t("admin.newAdminKeyAckLabel")}</span>
+            </label>
+            <div>
+              <Button type="submit" variant="secondary">
+                {t("admin.doneClose")}
+              </Button>
+            </div>
+          </form>
         </section>
       )}
 
@@ -408,6 +470,7 @@ export default function AdminPage({ loaderData, actionData }: Route.ComponentPro
           >
             {t("admin.rotateAdminKey")}
           </Button>
+          <p className="text-meta text-pine-soft">{t("admin.rotateAdminKeyBody")}</p>
         </div>
 
         <div className="border-line flex flex-col gap-2 border-t pt-4">

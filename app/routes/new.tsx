@@ -283,22 +283,50 @@ function ResultView({ result }: { result: CreateSuccess }) {
           {result.adminKey}
         </p>
         <p className="text-meta text-rust">{t("create.adminKeySaveNotice")}</p>
+        <p className="text-meta text-pine-soft">{t("create.adminKeyCannotRecover")}</p>
         <div className="flex gap-3">
           <CopyButton value={result.adminKey} label={t("common.copy")} copiedLabel={t("common.copied")} />
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 min-[480px]:flex-row">
-        <Button type="button" variant="secondary" onClick={handleShare} fullWidth>
-          {t("invite.share")}
-        </Button>
-        <a
-          href={`/s/${result.publicId}`}
-          className="rounded-control bg-pine text-lead text-paper hover:bg-pine/90 inline-flex min-h-12 w-full items-center justify-center gap-2 px-6 font-medium"
+      {/*
+        Deliberate acknowledgement gate. The admin key is stored only as an HMAC under the
+        server pepper, so it is unrecoverable, and admin elevation lapses after
+        ADMIN_ELEVATION_TTL_MINUTES — a creator who clicks past this page without saving the
+        key is locked out of admin for good. The gate is a plain GET form with a `required`
+        checkbox, so the browser's own constraint validation enforces it with JavaScript
+        disabled; the checkbox has no `name`, so it is validated but never submitted and the
+        group URL stays clean.
+      */}
+      <form method="get" action={`/s/${result.publicId}`} className="flex flex-col gap-4">
+        <label
+          htmlFor="ack-admin-key"
+          className="rounded-card border-line bg-paper text-body text-pine flex items-start gap-3 border p-4"
         >
-          {t("create.goToSession")}
-        </a>
-      </div>
+          <input
+            id="ack-admin-key"
+            type="checkbox"
+            required
+            className="accent-pine mt-1 h-5 w-5 shrink-0"
+          />
+          <span className="flex flex-col gap-1">
+            <span className="font-medium">{t("create.ackLabel")}</span>
+            <span className="text-meta text-pine-soft">{t("create.ackHint")}</span>
+          </span>
+        </label>
+
+        <div className="flex flex-col gap-3 min-[480px]:flex-row">
+          <Button type="button" variant="secondary" onClick={handleShare} fullWidth>
+            {t("invite.share")}
+          </Button>
+          <button
+            type="submit"
+            className="rounded-control bg-pine text-lead text-paper hover:bg-pine/90 inline-flex min-h-12 w-full items-center justify-center gap-2 px-6 font-medium"
+          >
+            {t("create.goToSession")}
+          </button>
+        </div>
+      </form>
     </main>
   );
 }

@@ -30,7 +30,8 @@ test("expense edit split preview orders the rounding remainder by position, matc
   await page.getByRole("button", { name: "Skapa grupp" }).click();
   await expect(page.getByText("Gruppen är skapad")).toBeVisible();
 
-  const sessionLink = page.getByRole("link", { name: "Till gruppen" });
+  await page.getByLabel("Jag har sparat adminnyckeln").check();
+  const sessionLink = page.getByRole("button", { name: "Till gruppen" });
   const href = await sessionLink.getAttribute("href");
   const groupUrl = href!;
   await sessionLink.click();

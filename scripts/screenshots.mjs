@@ -34,6 +34,7 @@ const TXT =
         addParticipant: /Add participant/i,
         createSubmit: /Create group|Create/i,
         goToSession: /Go to group/i,
+        ackAdminKey: /I have saved the admin key/i,
         inviteAction: /Invite/i,
         saveExpense: /Save expense/i,
         savePayment: /Save payment|Save/i,
@@ -43,6 +44,7 @@ const TXT =
         addParticipant: /Lägg till deltagare/i,
         createSubmit: /Skapa grupp|Skapa/i,
         goToSession: /Till gruppen|Öppna gruppen/i,
+        ackAdminKey: /Jag har sparat adminnyckeln/i,
         inviteAction: /Bjud in/i,
         saveExpense: /Spara utgift/i,
         savePayment: /Spara betalning|Spara/i,
@@ -86,7 +88,8 @@ await p.waitForLoadState("networkidle");
 await p.waitForTimeout(600);
 await shot("03-keys");
 
-await p.getByRole("link", { name: TXT.goToSession }).click();
+await p.getByLabel(TXT.ackAdminKey).check();
+await p.getByRole("button", { name: TXT.goToSession }).click();
 await p.waitForLoadState("networkidle");
 const sid = new URL(p.url()).pathname.split("/")[2];
 

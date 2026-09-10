@@ -79,8 +79,9 @@ test("full MVP flow: create, expenses, payment, edit, history, balances, settle,
     phrase = phraseText;
     adminKey = adminKeyText;
 
-    const sessionLink = page.getByRole("link", { name: "Till gruppen" });
-    const href = await sessionLink.getAttribute("href");
+    await page.getByLabel("Jag har sparat adminnyckeln").check();
+    const sessionLink = page.getByRole("button", { name: "Till gruppen" });
+    const href = await page.locator('form[action^="/s/"]').getAttribute("action");
     expect(href).toMatch(/^\/s\/[a-z0-9]+$/);
     groupUrl = href!;
 

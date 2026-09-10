@@ -16,3 +16,15 @@ export function formatExpiryLong(value: Date | string, locale = "sv-SE"): string
   const date = typeof value === "string" ? new Date(value) : value;
   return new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric" }).format(date);
 }
+
+/**
+ * Formats a timestamp as a time of day, e.g. "14:35" (`sv-SE`) or "14:35" (`en-GB`). Used for
+ * the admin-elevation expiry, which is minutes away rather than days. Note that this renders
+ * in the *renderer's* timezone: on the server that is the server's, in the browser the
+ * visitor's, so call sites must tolerate a hydration mismatch (see `suppressHydrationWarning`
+ * in app/routes/session/admin.tsx).
+ */
+export function formatTimeOfDay(value: Date | string, locale = "sv-SE"): string {
+  const date = typeof value === "string" ? new Date(value) : value;
+  return new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }).format(date);
+}

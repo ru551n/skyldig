@@ -31,7 +31,10 @@ The MVP is complete and verified end to end. What works today:
 - Create a group, share a five-word Swedish access phrase, join from another browser.
 - Invite people with a single-use QR code or link instead of dictating the phrase; the phrase
   itself never travels in a URL.
-- A separate admin key unlocks rotating either key and deleting the group.
+- A separate admin key unlocks rotating either key and deleting the group. It is shown once,
+  behind a required "I have saved the admin key" acknowledgement, and is stored only as a
+  peppered HMAC — so it cannot be recovered. While still elevated, an admin can mint a
+  replacement key from the admin page; the old one stops working immediately.
 - Participants, expenses and repayments with edit, delete and full revision history.
 - Multiple currencies with a user-entered exchange rate locked to each transaction.
 - Balances and a settlement plan that says who should pay whom.

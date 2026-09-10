@@ -74,7 +74,11 @@ test.describe("accessibility floor", () => {
     await page.waitForTimeout(1_600);
     await page.getByRole("button", { name: "Skapa grupp" }).click();
     await expect(page.getByText("Gruppen är skapad")).toBeVisible();
-    const href = await page.getByRole("link", { name: "Till gruppen" }).getAttribute("href");
+    // The creation result gates "Till gruppen" behind a required "I have saved the admin
+    // key" checkbox (a plain GET form, so it works without JavaScript) — tick it, then read
+    // the form's action for the group URL.
+    await page.getByLabel("Jag har sparat adminnyckeln").check();
+    const href = await page.locator('form[action^="/s/"]').getAttribute("action");
     expect(href, "expected a link to the created group").toBeTruthy();
     return href!;
   }

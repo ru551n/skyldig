@@ -8,6 +8,7 @@
     "server/**/*",
     "domain/**/*",
     "tests/integration/activity-loader.test.ts",
+    "tests/integration/admin-loader.test.ts",
     "tests/integration/fx-rate-loader.test.ts",
     "tests/integration/db.ts"
   ],

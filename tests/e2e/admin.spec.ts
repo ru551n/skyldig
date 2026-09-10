@@ -38,7 +38,8 @@ test("admin: elevate, wrong key, rotate phrase, delete group", async ({ browser 
 
     phrase = (await creatorPage.locator("p.tabular.select-all").first().innerText()).trim();
     adminKey = (await creatorPage.locator("p.tabular.select-all").nth(1).innerText()).trim();
-    const href = await creatorPage.getByRole("link", { name: "Till gruppen" }).getAttribute("href");
+    await creatorPage.getByLabel("Jag har sparat adminnyckeln").check();
+    const href = await creatorPage.locator('form[action^="/s/"]').getAttribute("action");
     groupUrl = href!;
   });
 

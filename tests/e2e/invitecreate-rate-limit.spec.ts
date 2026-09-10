@@ -26,9 +26,10 @@ async function createGroup(page: import("@playwright/test").Page) {
   await page.waitForTimeout(1_600);
   await page.getByRole("button", { name: "Skapa grupp" }).click();
   await expect(page.getByText("Gruppen är skapad")).toBeVisible();
-  const href = await page.getByRole("link", { name: "Till gruppen" }).getAttribute("href");
+  await page.getByLabel("Jag har sparat adminnyckeln").check();
+  const href = await page.locator('form[action^="/s/"]').getAttribute("action");
   expect(href).toBeTruthy();
-  await page.getByRole("link", { name: "Till gruppen" }).click();
+  await page.getByRole("button", { name: "Till gruppen" }).click();
   await page.waitForURL(`**${href}`);
   return href!;
 }
