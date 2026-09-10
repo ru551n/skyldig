@@ -1,4 +1,23 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+
+async function createGroup(page: Page) {
+  await page.goto("/new");
+  await page.locator('input[name="name"]').fill("Language test");
+  const participantInputs = page.locator('input[name="participant"]');
+  await participantInputs.nth(0).fill("Ada");
+  await participantInputs.nth(1).fill("Bo");
+  // Past the anti-bot minimum-time-on-page threshold (server/modules/auth/form-token.ts).
+  await page.waitForTimeout(1_600);
+  await page.getByRole("button", { name: "Skapa grupp" }).click();
+  await expect(page.getByText("Gruppen är skapad")).toBeVisible();
+  await page.getByLabel("Jag har sparat adminnyckeln").check();
+  const href = await page.locator('form[action^="/s/"]').getAttribute("action");
+  expect(href).toBeTruthy();
+  const groupUrl = href!.replace(/\/bekrafta-nyckel$/, "");
+  await page.getByRole("button", { name: "Till gruppen" }).click();
+  await page.waitForURL(`**${groupUrl}`);
+  return groupUrl;
+}
 
 /**
  * Locale selection and persistence (docs/todo.md "Add English as a second language"): a first
@@ -43,5 +62,23 @@ test.describe("interface language", () => {
     await expect(page.getByRole("link", { name: "Skapa grupp" })).toBeVisible();
 
     await context.close();
+  });
+
+  test("inside a group, the mobile header toggle switches language and stays on the group", async ({ page }) => {
+    // The session header (and this toggle) is the phone layout; on wide screens the side
+    // rail carries the full two-flag switcher instead.
+    await page.setViewportSize({ width: 390, height: 844 });
+    const groupUrl = await createGroup(page);
+    await expect(page.locator("html")).toHaveAttribute("lang", "sv");
+
+    const header = page.locator("header");
+    await Promise.all([
+      page.waitForResponse((res) => res.request().method() === "POST" && res.url().endsWith("/lang")),
+      header.getByRole("button", { name: "Språk: English" }).click(),
+    ]);
+
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    expect(new URL(page.url()).pathname).toBe(groupUrl);
+    await expect(header.getByRole("button", { name: "Language: Svenska" })).toBeVisible();
   });
 });

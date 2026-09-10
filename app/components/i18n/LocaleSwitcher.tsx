@@ -4,6 +4,8 @@ import { useLocale, useT } from "~/i18n";
 
 export interface LocaleSwitcherProps {
   className?: string;
+  /** A single button that switches to the other language, sized to sit in a cramped header. */
+  compact?: boolean;
 }
 
 const OPTIONS = [
@@ -19,11 +21,35 @@ const OPTIONS = [
  * option is a native submit button (`name="locale" value="sv"|"en"`), so this works with
  * JavaScript disabled with no separate fallback needed.
  */
-export function LocaleSwitcher({ className }: LocaleSwitcherProps) {
+export function LocaleSwitcher({ className, compact = false }: LocaleSwitcherProps) {
   const location = useLocation();
   const locale = useLocale();
   const t = useT();
   const redirectTo = `${location.pathname}${location.search}`;
+
+  if (compact) {
+    // Shows the flag of the language you would switch *to*, named as "Språk: English" so it
+    // reads as a language control rather than a bare flag.
+    const target = OPTIONS.find((option) => option.locale !== locale) ?? OPTIONS[0];
+    const label = `${t("common.languageLabel")}: ${t(
+      target.locale === "sv" ? "common.languageSwedish" : "common.languageEnglish",
+    )}`;
+    return (
+      <form method="post" action="/lang" className={className}>
+        <input type="hidden" name="redirectTo" value={redirectTo} />
+        <button
+          type="submit"
+          name="locale"
+          value={target.locale}
+          aria-label={label}
+          title={label}
+          className="rounded-control hover:bg-frost focus-visible:outline-pine flex h-11 w-11 items-center justify-center text-lg leading-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+        >
+          <span aria-hidden="true">{target.flag}</span>
+        </button>
+      </form>
+    );
+  }
 
   return (
     <form method="post" action="/lang" className={className}>

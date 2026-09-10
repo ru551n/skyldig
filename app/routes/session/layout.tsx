@@ -12,6 +12,7 @@ import { isExpiringSoon, type SessionLayoutData } from "~/components/session/typ
 import { getConfig, getDb } from "~/lib/session-context.server.ts";
 import { formatExpiryShort } from "~/lib/format.ts";
 import { useT } from "~/i18n";
+import { LocaleSwitcher } from "~/components/i18n/LocaleSwitcher.tsx";
 
 import type { Route } from "./+types/layout";
 
@@ -150,6 +151,7 @@ export default function SessionLayout({ loaderData }: Route.ComponentProps) {
               />
             </svg>
           </button>
+          <LocaleSwitcher compact className="shrink-0" />
           <Pill variant={expiringSoon ? "warning" : "neutral"} className="shrink-0">
             {t("admin.expiresLabel", { date: formatExpiryShort(session.expiresAt) })}
           </Pill>
