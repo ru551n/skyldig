@@ -46,6 +46,11 @@ export default defineConfig({
           ACCESS_KEY_PEPPER: process.env.ACCESS_KEY_PEPPER ?? "e2e-test-pepper-not-for-production-use-12345678",
           PUBLIC_ORIGIN: baseURL,
           NODE_ENV: "development",
+          // Trust the loopback hop, as production trusts its reverse proxy. Requests without
+          // X-Forwarded-For still resolve to the loopback address exactly as before; a spec can
+          // send its own X-Forwarded-For to get a rate-limit identity of its own (see
+          // tests/e2e/new-rate-limit.spec.ts).
+          TRUST_PROXY: "loopback",
           // Threaded through explicitly (not inherited automatically) so a verification run
           // like `FX_RATE_LOOKUP_ENABLED=false pnpm exec playwright test` actually disables
           // live exchange-rate lookups in the spawned `pnpm dev` server — see

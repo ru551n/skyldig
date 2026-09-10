@@ -4,18 +4,18 @@ import { expect, test } from "@playwright/test";
  * Regression for group creation (`POST /new`) rate limiting (`limiters.createSession` /
  * `createSessionGlobal` in server/modules/auth/rate-limit.ts, docs/architecture.md §4.4).
  *
- * Every other e2e spec file also creates a group or two as setup for its own assertions, all
- * from the same client key (one shared loopback IP, `playwright.config.ts` runs with
- * `workers: 1`) — the per-client `createSession` budget (18/10 min, 45/h) was sized with
- * headroom above that real, measured usage specifically so this file doesn't need to run
- * first. It still needs to run *after* every file that creates groups of its own, the same
- * way headers.spec.ts documents for the join limiter, since the second test below
- * deliberately exhausts what budget remains. "new-rate-limit.spec.ts" sorts after every other
- * current *.spec.ts file alphabetically, so this is safe as things stand; keep it last if new
- * spec files that create groups are added.
+ * This file uses a client identity of its own: the e2e server trusts the loopback hop
+ * (`TRUST_PROXY=loopback` in playwright.config.ts), so the X-Forwarded-For below becomes this
+ * file's rate-limit key. It therefore starts from a full per-client budget no matter how many
+ * groups other specs created as setup from the shared loopback address, and its deliberate
+ * flood below exhausts only its own budget — so it no longer has to run last.
  */
 
 test.describe.configure({ mode: "serial" });
+
+test.use({
+  extraHTTPHeaders: { "Accept-Language": "sv-SE,sv;q=0.9", "X-Forwarded-For": "198.51.100.18" },
+});
 
 async function fillAndSubmit(page: import("@playwright/test").Page, name: string) {
   await page.goto("/new");
@@ -41,6 +41,9 @@ test("a normal, infrequent group creation still succeeds", async ({ page }) => {
 });
 
 test("repeated POST /new from the same client trips the rate limiter with Retry-After", async ({ page }) => {
+  // Starting from this file's own full budget, tripping the 18/10 min limit takes ~18
+  // submissions, each held for the 1.6 s anti-bot wait — well past the default 30 s timeout.
+  test.setTimeout(90_000);
   let sawRateLimited = false;
 
   // Up to 20 attempts: enough to trip the 18/10min per-client limit even starting from a
