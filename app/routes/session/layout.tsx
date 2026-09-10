@@ -1,13 +1,14 @@
 import { useState } from "react";
-import { Form, isRouteErrorResponse, Link, Outlet, useLocation, useNavigation } from "react-router";
+import { Form, isRouteErrorResponse, Link, Outlet, useNavigation } from "react-router";
 
 import { requireSessionAccess } from "@server/modules/auth/session-auth.ts";
 import { getSessionBalances } from "@server/modules/balances/balances.ts";
 import { listParticipants } from "@server/modules/participants/participants.ts";
 
-import { ActionBar, ButtonLink, ConfirmDialog, Logo } from "~/components/ui/index.ts";
+import { ConfirmDialog, Logo } from "~/components/ui/index.ts";
 import { InviteDialog } from "~/components/session/InviteDialog.tsx";
 import { MobileMenu } from "~/components/session/MobileMenu.tsx";
+import { TabBar } from "~/components/session/TabBar.tsx";
 import { SessionRail, type NavItem } from "~/components/session/SessionRail.tsx";
 import { isExpiringSoon, type SessionLayoutData } from "~/components/session/types.ts";
 import { getConfig, getDb } from "~/lib/session-context.server.ts";
@@ -68,13 +69,9 @@ export function meta({ loaderData }: Route.MetaArgs) {
 
 
 /** True on the expense/payment form sub-routes, where the bottom action bar is redundant. */
-function isFormRoute(pathname: string): boolean {
-  return /\/(ny|andra)$/.test(pathname);
-}
 
 export default function SessionLayout({ loaderData }: Route.ComponentProps) {
   const t = useT();
-  const location = useLocation();
   const navigation = useNavigation();
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -82,8 +79,6 @@ export default function SessionLayout({ loaderData }: Route.ComponentProps) {
 
   const { session, showAdminNav, participants, balances } = loaderData;
   const expiringSoon = isExpiringSoon(session.expiresAt);
-  const isSubRoute = location.pathname !== `/s/${session.publicId}`;
-  const showActionBar = !isFormRoute(location.pathname);
   const leaving = navigation.formAction === `/s/${session.publicId}/lamna`;
   const submitLeave = () => {
     const form = document.getElementById("leave-form") as HTMLFormElement | null;
@@ -104,29 +99,11 @@ export default function SessionLayout({ loaderData }: Route.ComponentProps) {
     <div className="bg-frost min-h-screen">
       <div className="flex flex-col min-[880px]:mx-auto min-[880px]:max-w-[1100px] min-[880px]:flex-row">
         <header className="border-line bg-frost/95 sticky top-0 z-20 flex items-center gap-2 border-b p-4 backdrop-blur min-[880px]:hidden">
-          {isSubRoute && (
-            <Link
-              to={`/s/${session.publicId}`}
-              aria-label={t("common.back")}
-              className="border-line bg-paper text-pine hover:bg-frost focus-visible:outline-pine flex h-11 w-11 shrink-0 items-center justify-center rounded-full border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
-            >
-              <svg viewBox="0 0 20 20" width="20" height="20" fill="none" aria-hidden="true">
-                <path
-                  d="M12.5 4l-6 6 6 6"
-                  stroke="currentColor"
-                  strokeWidth="2.25"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </Link>
-          )}
           <Link
             to={`/s/${session.publicId}`}
             className="text-lead text-pine flex min-w-0 flex-1 items-center gap-2 truncate font-semibold"
           >
-            {/* On inner pages the back arrow already leads home, so the logo gives up its room. */}
-            {!isSubRoute && <Logo size={22} className="shrink-0" />}
+            <Logo size={22} className="shrink-0" />
             <span className="truncate">{session.name}</span>
           </Link>
           <button
@@ -206,19 +183,7 @@ export default function SessionLayout({ loaderData }: Route.ComponentProps) {
         </main>
       </div>
 
-      {showActionBar && (
-        <ActionBar className="mx-auto min-[880px]:hidden">
-          <ButtonLink to={`/s/${session.publicId}/utgifter/ny`} fullWidth>
-            {t("dashboard.actions.newExpense")}
-          </ButtonLink>
-          <ButtonLink to={`/s/${session.publicId}/betalningar/ny`} variant="secondary" fullWidth>
-            {t("dashboard.actions.newPayment")}
-          </ButtonLink>
-          <ButtonLink to={`/s/${session.publicId}/deltagare`} variant="secondary" fullWidth>
-            {t("dashboard.actions.participants")}
-          </ButtonLink>
-        </ActionBar>
-      )}
+      <TabBar sessionPublicId={session.publicId} />
 
       <MobileMenu
         open={menuOpen}

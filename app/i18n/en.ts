@@ -100,6 +100,7 @@ export const en: typeof sv = {
   },
 
   dashboard: {
+    tabsLabel: "Main group pages",
     title: "Overview",
     remainingToSettle: "Left to settle",
     allSettled: "Everyone's settled up. Nice work.",

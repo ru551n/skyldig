@@ -104,6 +104,7 @@ export const sv = {
   },
 
   dashboard: {
+    tabsLabel: "Gruppens huvudsidor",
     title: "Översikt",
     remainingToSettle: "Kvar att göra upp",
     allSettled: "Allt är uppgjort. Bra jobbat.",

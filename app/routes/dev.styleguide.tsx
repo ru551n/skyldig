@@ -1,7 +1,6 @@
 import { useState } from "react";
 
 import {
-  ActionBar,
   Arrow,
   Avatar,
   Button,
@@ -213,17 +212,6 @@ export default function StyleguidePage() {
         </Button>
       </Section>
 
-      <ActionBar>
-        <Button variant="primary" fullWidth>
-          Ny utgift
-        </Button>
-        <Button variant="secondary" fullWidth>
-          Betalning
-        </Button>
-        <Button variant="secondary" fullWidth>
-          Person
-        </Button>
-      </ActionBar>
     </main>
   );
 }

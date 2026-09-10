@@ -81,7 +81,9 @@ Chip (toggle, used for participant selection, `aria-pressed`), MoneyInput (text 
 inputmode="decimal", currency suffix), Dialog (Radix, focus trap, `aria-labelledby`),
 ConfirmDialog, Toast (aria-live polite), EmptyState (headline + one action), Pill (expiry),
 Avatar (initials on pine/sol/moss/rust rotation by position), Money (formats minor units with
-`formatMoney`, tabular), ActionBar.
+`formatMoney`, tabular). On phones a group's pages share a bottom TabBar (Översikt, Ny utgift,
+Ny betalning, Deltagare) whose highlight slides to the current page and which hides while a text
+field has focus; the header's ☰ menu holds every other group page.
 
 ## Copy rules (Swedish)
 
