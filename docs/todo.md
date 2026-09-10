@@ -64,3 +64,15 @@ storage for their 90-day lifetime and slowing admin/backup operations on `sessio
 already meaningfully blunted without it. A self-hoster who wants stronger bot resistance than a
 rate limiter provides can front the app with something like Cloudflare Turnstile at the reverse
 proxy layer, gating `/new` before it ever reaches the app; that requires no application change.
+
+## Smoke-test the production image in CI
+
+`qrcode` sat in `devDependencies` while the server bundle imported it at runtime, so the
+runtime stage's `pnpm install --prod` omitted it and every page render returned 500. The
+published v0.1.0, v0.1.1 and v0.2.0 images were all broken this way and nothing caught it:
+vitest and Playwright both run against a dev install where every dependency is present, so
+no test ever exercised what the Dockerfile actually ships.
+
+Add a CI step that builds the image, runs it against a throwaway Postgres, and asserts `/`
+returns 200 — not just `/health`, which stayed green throughout because it touches no
+bundled application code.
