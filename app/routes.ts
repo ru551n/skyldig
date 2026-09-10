@@ -29,4 +29,8 @@ export default [
   ]),
 
   route("dev/styleguide", "routes/dev.styleguide.tsx"),
+
+  // Must stay last: catches any path nothing else matched, so "root" stays an ancestor and its
+  // loader (locale resolution) runs for the 404 page too — see routes/not-found.tsx.
+  route("*", "routes/not-found.tsx"),
 ] satisfies RouteConfig;
