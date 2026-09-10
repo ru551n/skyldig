@@ -21,6 +21,8 @@ export const sv = {
     delete: "Ta bort",
     edit: "Ändra",
     back: "Tillbaka",
+    menu: "Meny",
+    menuExpiringSoon: "Meny – gruppen går snart ut",
     loading: "Laddar…",
     today: "idag",
     yesterday: "igår",

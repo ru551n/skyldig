@@ -17,6 +17,8 @@ export const en: typeof sv = {
     delete: "Delete",
     edit: "Edit",
     back: "Back",
+    menu: "Menu",
+    menuExpiringSoon: "Menu – the group expires soon",
     loading: "Loading…",
     today: "today",
     yesterday: "yesterday",

@@ -64,9 +64,8 @@ test.describe("interface language", () => {
     await context.close();
   });
 
-  test("inside a group, the mobile header toggle switches language and stays on the group", async ({ page }) => {
-    // The session header (and this toggle) is the phone layout; on wide screens the side
-    // rail carries the full two-flag switcher instead.
+  test("inside a group, the phone header's language slider switches language and stays on the group", async ({ page }) => {
+    // The session header is the phone layout; on wide screens the side rail carries the switcher.
     await page.setViewportSize({ width: 390, height: 844 });
     const groupUrl = await createGroup(page);
     await expect(page.locator("html")).toHaveAttribute("lang", "sv");
@@ -74,11 +73,11 @@ test.describe("interface language", () => {
     const header = page.locator("header");
     await Promise.all([
       page.waitForResponse((res) => res.request().method() === "POST" && res.url().endsWith("/lang")),
-      header.getByRole("button", { name: "Språk: English" }).click(),
+      header.getByRole("button", { name: "English" }).click(),
     ]);
 
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     expect(new URL(page.url()).pathname).toBe(groupUrl);
-    await expect(header.getByRole("button", { name: "Language: Svenska" })).toBeVisible();
+    await expect(header.getByRole("button", { name: "English" })).toHaveAttribute("aria-pressed", "true");
   });
 });

@@ -4,8 +4,8 @@ import { useLocale, useT } from "~/i18n";
 
 export interface LocaleSwitcherProps {
   className?: string;
-  /** A single button that switches to the other language, sized to sit in a cramped header. */
-  compact?: boolean;
+  /** `sm` shrinks the flag buttons to fit the phone group header beside its other controls. */
+  size?: "md" | "sm";
 }
 
 const OPTIONS = [
@@ -21,35 +21,11 @@ const OPTIONS = [
  * option is a native submit button (`name="locale" value="sv"|"en"`), so this works with
  * JavaScript disabled with no separate fallback needed.
  */
-export function LocaleSwitcher({ className, compact = false }: LocaleSwitcherProps) {
+export function LocaleSwitcher({ className, size = "md" }: LocaleSwitcherProps) {
   const location = useLocation();
   const locale = useLocale();
   const t = useT();
   const redirectTo = `${location.pathname}${location.search}`;
-
-  if (compact) {
-    // Shows the flag of the language you would switch *to*, named as "Språk: English" so it
-    // reads as a language control rather than a bare flag.
-    const target = OPTIONS.find((option) => option.locale !== locale) ?? OPTIONS[0];
-    const label = `${t("common.languageLabel")}: ${t(
-      target.locale === "sv" ? "common.languageSwedish" : "common.languageEnglish",
-    )}`;
-    return (
-      <form method="post" action="/lang" className={className}>
-        <input type="hidden" name="redirectTo" value={redirectTo} />
-        <button
-          type="submit"
-          name="locale"
-          value={target.locale}
-          aria-label={label}
-          title={label}
-          className="rounded-control hover:bg-frost focus-visible:outline-pine flex h-11 w-11 items-center justify-center text-lg leading-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
-        >
-          <span aria-hidden="true">{target.flag}</span>
-        </button>
-      </form>
-    );
-  }
 
   return (
     <form method="post" action="/lang" className={className}>
@@ -71,7 +47,7 @@ export function LocaleSwitcher({ className, compact = false }: LocaleSwitcherPro
               aria-label={label}
               aria-pressed={active}
               title={label}
-              className={`focus-visible:outline-pine flex h-9 w-9 items-center justify-center rounded-full text-lg leading-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${
+              className={`focus-visible:outline-pine flex ${size === "sm" ? "h-[32px] w-[32px] text-base" : "h-9 w-9 text-lg"} items-center justify-center rounded-full leading-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${
                 active ? "bg-sol/40 ring-pine/20 ring-1" : "opacity-60 hover:opacity-100"
               }`}
             >
