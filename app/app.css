@@ -64,10 +64,15 @@ h3 {
   line-height: 1.15;
 }
 
-:focus-visible {
-  outline: 2px solid var(--color-pine);
-  outline-offset: 2px;
-  border-radius: 2px;
+/* In the base layer so utilities can override it: unlayered CSS beats every Tailwind utility,
+   which made focus-visible:outline-none silently do nothing (the amount field drew a ring around
+   its inner input, over its own currency label). */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-pine);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
 }
 
 .tabular {

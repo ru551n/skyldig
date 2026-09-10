@@ -16,6 +16,8 @@ export const MoneyInput = forwardRef<HTMLInputElement, MoneyInputProps>(function
     <div
       className={cn(
         "rounded-control bg-paper flex min-h-11 items-center border pr-3",
+        // The ring goes around the whole control, currency label included, not the inner input.
+        "has-[:focus-visible]:outline-pine has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2",
         invalid ? "border-rust" : "border-line",
         className,
       )}
