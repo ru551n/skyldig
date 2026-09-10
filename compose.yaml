@@ -1,5 +1,5 @@
 services:
-  db:
+  skyldig-db:
     image: postgres:17-alpine
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-skyldig}
@@ -21,7 +21,7 @@ services:
         required: false
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgres://${POSTGRES_USER:-skyldig}:${POSTGRES_PASSWORD:-skyldig}@db:5432/${POSTGRES_DB:-skyldig}
+      DATABASE_URL: postgres://${POSTGRES_USER:-skyldig}:${POSTGRES_PASSWORD:-skyldig}@skyldig-db:5432/${POSTGRES_DB:-skyldig}
       PORT: ${PORT:-3000}
       PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-http://localhost:3000}
       ACCESS_KEY_PEPPER: ${ACCESS_KEY_PEPPER:?ACCESS_KEY_PEPPER must be set (min 32 chars) — export it or set it in .env}
@@ -29,7 +29,7 @@ services:
       TRUST_PROXY: ${TRUST_PROXY:-}
       LOG_LEVEL: ${LOG_LEVEL:-info}
     depends_on:
-      db:
+      skyldig-db:
         condition: service_healthy
     ports:
       - "${PORT:-3000}:${PORT:-3000}"

@@ -126,7 +126,7 @@ Read and validated in `server/config.ts`.
 | `ADMIN_ELEVATION_TTL_MINUTES` | No | `30` | How long an admin elevation (admin key entered on the group's admin page, or the creator's initial grant) stays effective before the browser session drops back to plain member and must re-enter the admin key. Integer 1–1440; membership is unaffected. |
 | `LOG_LEVEL` | No | `info` | pino log level (`fatal`\|`error`\|`warn`\|`info`\|`debug`\|`trace`\|`silent`). |
 | `NODE_ENV` | No | `development` | `development`\|`production`\|`test`. Also gates the `ACCESS_KEY_PEPPER` requirement and the `COOKIE_SECURE` default. |
-| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | No (Docker only) | `skyldig`/`skyldig`/`skyldig` | Used by `compose.yaml` to configure the `db` service and to build the app's `DATABASE_URL`; not read by the application code itself. |
+| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | No (Docker only) | `skyldig`/`skyldig`/`skyldig` | Used by `compose.yaml` to configure the `skyldig-db` service and to build the app's `DATABASE_URL`; not read by the application code itself. |
 
 ## Scripts
 

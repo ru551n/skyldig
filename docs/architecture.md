@@ -453,7 +453,7 @@ diagnostics with secrets redacted; generic Swedish error page for unhandled erro
 
 ## 14. Docker
 Multi-stage Dockerfile (deps → build → runtime `node:24-alpine`, non-root); entrypoint runs
-migrations then starts the server; `compose.yaml`: `db` (postgres:17-alpine, named volume,
+migrations then starts the server; `compose.yaml`: `skyldig-db` (postgres:17-alpine, named volume,
 `pg_isready` healthcheck) and `app` (`depends_on: condition: service_healthy`, `/health`
 healthcheck, `restart: unless-stopped`). Config via env only: `PORT`, `DATABASE_URL`,
 `ACCESS_KEY_PEPPER`, `PUBLIC_ORIGIN`, `TRUST_PROXY`, `LOG_LEVEL`, `NODE_ENV`.
