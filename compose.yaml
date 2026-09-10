@@ -17,7 +17,11 @@ services:
     restart: unless-stopped
 
   app:
-    build: .
+    # Self-hosters run the published image. Pin a release with SKYLDIG_TAG (e.g.
+    # SKYLDIG_TAG=v0.2.1) rather than tracking `latest`, if you prefer explicit
+    # upgrades. To build from a source checkout instead, add the override:
+    #   docker compose -f compose.yaml -f compose.build.yaml up -d
+    image: ru551n/skyldig:${SKYLDIG_TAG:-latest}
     env_file:
       - path: .env
         required: false

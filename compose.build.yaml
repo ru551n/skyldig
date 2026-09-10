@@ -1,0 +1,7 @@
+# Developer override: build the app image from this checkout instead of pulling
+# the published one. Usage:
+#   docker compose -f compose.yaml -f compose.build.yaml up -d --build
+services:
+  app:
+    build: .
+    image: skyldig:local

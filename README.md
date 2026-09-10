@@ -59,9 +59,10 @@ assertions, plus 3.4 million settlement assertions, with no failures. The securi
 found no exploitable authorization, injection or cross-site defect; its findings have been
 fixed.
 
-Docker deployment has not been executed here, because the development machine has no
-Docker. The image contents were verified by assembling the runtime file set by hand and
-booting it successfully, but `docker build` and `docker compose up` remain unrun.
+Docker deployment has been exercised on a real self-hosted server as of v0.2.1: the
+published image runs behind a reverse proxy alongside another site, applies its own
+migrations at startup and serves traffic. Note that v0.1.0-v0.2.0 images are unusable
+(see the v0.2.1 release notes); use v0.2.1 or later.
 
 Known open items are tracked in [docs/todo.md](docs/todo.md).
 
@@ -92,7 +93,15 @@ without one (see the Environment variables section).
 
 ```sh
 cp .env.example .env   # fill in ACCESS_KEY_PEPPER at minimum
-docker compose up --build
+docker compose up -d
+```
+
+This pulls the published `ru551n/skyldig` image. Set `SKYLDIG_TAG` in `.env` to pin a
+release (e.g. `SKYLDIG_TAG=v0.2.1`) instead of tracking `latest`. To build from a source
+checkout instead of pulling:
+
+```sh
+docker compose -f compose.yaml -f compose.build.yaml up -d --build
 ```
 
 This has not been exercised on the development machine, but is what `compose.yaml` and the
