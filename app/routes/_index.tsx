@@ -3,36 +3,30 @@ import { Link } from "react-router";
 import { listGrants } from "@server/modules/auth/browser-session.ts";
 import { resolveBrowserSession } from "@server/modules/auth/session-auth.ts";
 
-import { ButtonLink, Card, Logo, Pill } from "~/components/ui/index.ts";
+import { ButtonLink, Card, Logo } from "~/components/ui/index.ts";
 import { LocaleSwitcher } from "~/components/i18n/LocaleSwitcher.tsx";
+import { GroupList, type GroupSummary } from "~/components/session/GroupList.tsx";
 import { getConfig, getDb } from "~/lib/session-context.server.ts";
-import { formatExpiryShort } from "~/lib/format.ts";
-import { localeFromMatches, t, toIntlLocale, useLocale, useT } from "~/i18n";
+import { localeFromMatches, t, useT } from "~/i18n";
 
 import type { Route } from "./+types/_index";
 
-interface GroupSummary {
-  publicId: string;
-  name: string;
-  role: "member" | "admin";
-  expiresAt: string;
-}
 
 export async function loader({ request }: Route.LoaderArgs) {
   const db = getDb();
   const config = getConfig();
   const resolved = await resolveBrowserSession(db, request, config);
+  const left = new URL(request.url).searchParams.get("lamnad") === "1";
   if (!resolved) {
-    return { groups: [] as GroupSummary[] };
+    return { groups: [] as GroupSummary[], left };
   }
   const grants = await listGrants(db, resolved.browserSession.id);
   const groups: GroupSummary[] = grants.map((g) => ({
     publicId: g.sessionPublicId,
     name: g.sessionName,
-    role: g.role,
     expiresAt: g.expiresAt.toISOString(),
   }));
-  return { groups };
+  return { groups, left };
 }
 
 export function meta({ matches }: Route.MetaArgs) {
@@ -70,8 +64,7 @@ function HeroExample() {
 
 export default function LandingPage({ loaderData }: Route.ComponentProps) {
   const t = useT();
-  const locale = useLocale();
-  const { groups } = loaderData;
+  const { groups, left } = loaderData;
 
   return (
     <main
@@ -104,24 +97,16 @@ export default function LandingPage({ loaderData }: Route.ComponentProps) {
         </Link>
       </header>
 
+      {left && (
+        <p role="status" className="rounded-card border-line bg-paper text-body text-pine-soft border p-4">
+          {t("myGroups.leftNotice")}
+        </p>
+      )}
+
       {groups.length > 0 && (
         <section className="flex flex-col gap-3">
           <h2 className="text-h2 text-pine font-semibold">{t("landing.yourSessions")}</h2>
-          <ul className="flex flex-col gap-2">
-            {groups.map((group) => (
-              <li key={group.publicId}>
-                <Link
-                  to={`/s/${group.publicId}`}
-                  className="rounded-card border-line bg-paper hover:bg-frost focus-visible:outline-pine flex items-center justify-between gap-4 border p-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
-                >
-                  <span className="text-body text-pine font-medium">{group.name}</span>
-                  <Pill>
-                    {t("admin.expiresLabel", { date: formatExpiryShort(group.expiresAt, toIntlLocale(locale)) })}
-                  </Pill>
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <GroupList groups={groups} />
         </section>
       )}
 

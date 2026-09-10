@@ -358,6 +358,16 @@ export const en: typeof sv = {
     shareText: (params: { name: string; key: string }) =>
       `Admin key for ${params.name} on Skyldig: ${params.key}`,
   },
+  myGroups: {
+    title: "My groups",
+    lead: "The groups you've joined from this browser.",
+    emptyHeadline: "No groups yet",
+    emptyBody: "You haven't joined any groups from this browser.",
+    leave: "Leave",
+    leaveLabel: (params: { name: string }) => `Leave ${params.name}`,
+    leaveConfirmTitle: (params: { name: string }) => `Leave ${params.name}?`,
+    leftNotice: "You've left the group.",
+  },
   invite: {
     action: "Invite",
     title: "Invite to the group",

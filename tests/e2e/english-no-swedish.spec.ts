@@ -397,6 +397,16 @@ test("no Swedish text leaks into the English interface", async ({ browser }) => 
     await page.keyboard.press("Escape");
   });
 
+  await test.step("my groups page + its leave confirmation", async () => {
+    await page.goto("/mina-grupper");
+    await expect(page.getByRole("heading", { name: "My groups" })).toBeVisible();
+    await checkPage(page, "my groups");
+    await page.getByRole("button", { name: /^Leave / }).first().click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await checkPage(page, "my groups: leave confirm dialog");
+    await page.keyboard.press("Escape");
+  });
+
   await test.step("unknown URL (404)", async () => {
     await page.goto("/this-route-does-not-exist");
     await checkPage(page, "404 page");

@@ -364,6 +364,16 @@ export const sv = {
     shareText: (params: { name: string; key: string }) =>
       `Adminnyckel för ${params.name} i Skyldig: ${params.key}`,
   },
+  myGroups: {
+    title: "Mina grupper",
+    lead: "Grupperna du har gått med i från den här webbläsaren.",
+    emptyHeadline: "Inga grupper än",
+    emptyBody: "Du har inte gått med i någon grupp från den här webbläsaren.",
+    leave: "Lämna",
+    leaveLabel: (params: { name: string }) => `Lämna ${params.name}`,
+    leaveConfirmTitle: (params: { name: string }) => `Lämna ${params.name}?`,
+    leftNotice: "Du har lämnat gruppen.",
+  },
   invite: {
     action: "Bjud in",
     title: "Bjud in till gruppen",

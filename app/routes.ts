@@ -5,6 +5,7 @@ export default [
   route("new", "routes/new.tsx"),
   route("join", "routes/join.tsx"),
   route("guide", "routes/guide.tsx"),
+  route("mina-grupper", "routes/my-groups.tsx"),
   route("i/:iid", "routes/invite.tsx"),
   route("lang", "routes/set-locale.tsx"),
 

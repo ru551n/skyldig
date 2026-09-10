@@ -81,6 +81,13 @@ export function MobileMenu({
         ))}
       </nav>
       <div className="border-line mt-3 flex flex-col items-start gap-3 border-t pt-4">
+        <NavLink
+          to="/mina-grupper"
+          onClick={() => onOpenChange(false)}
+          className="rounded-control text-body text-pine-soft hover:bg-frost hover:text-pine min-h-11 w-full px-3 py-2 font-medium"
+        >
+          {t("myGroups.title")}
+        </NavLink>
         <Pill variant={expiringSoon ? "warning" : "neutral"}>
           {t("admin.expiresLabel", { date: formatExpiryShort(expiresAt, toIntlLocale(locale)) })}
         </Pill>

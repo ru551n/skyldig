@@ -1,4 +1,4 @@
-import { NavLink } from "react-router";
+import { NavLink, Link } from "react-router";
 
 import { Avatar, Logo, Money, Pill } from "~/components/ui/index.ts";
 import { LocaleSwitcher } from "~/components/i18n/LocaleSwitcher.tsx";
@@ -107,10 +107,16 @@ export function SessionRail({
         ))}
       </nav>
 
+      <Link
+        to="/mina-grupper"
+        className="rounded-control text-body text-pine-soft hover:bg-frost hover:text-pine mt-auto min-h-11 px-3 py-2 font-medium"
+      >
+        {t("myGroups.title")}
+      </Link>
       <button
         type="button"
         onClick={onLeaveClick}
-        className="rounded-control text-body text-rust hover:bg-rust/5 mt-auto min-h-11 px-3 py-2 text-left font-medium"
+        className="rounded-control text-body text-rust hover:bg-rust/5 min-h-11 px-3 py-2 text-left font-medium"
       >
         {t("common.leaveGroup")}
       </button>

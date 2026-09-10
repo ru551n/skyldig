@@ -18,9 +18,9 @@ import type { Route } from "./+types/leave";
 /**
  * Leaves the group: revokes this browser's grant, rotates the browser session token
  * (per docs/architecture.md §4.3 — token rotation on any grant change), and clears
- * the cookie entirely if no grants remain anywhere. Redirects to `/?lamnad=1` so the
- * landing page can show a toast; no UI of its own — the confirm dialog lives in the
- * session layout and posts here.
+ * the cookie entirely if no grants remain anywhere. Redirects to `/?lamnad=1`, or back to
+ * `/mina-grupper?lamnad=1` when leaving from that page, where a notice confirms it. No UI of
+ * its own — the confirm dialogs live in the session layout and on the My groups page.
  */
 export async function action({ request, params }: Route.ActionArgs) {
   mutationGuard(request);
@@ -49,7 +49,11 @@ export async function action({ request, params }: Route.ActionArgs) {
     }
   });
 
-  return redirect("/?lamnad=1", { headers });
+  // Where to land afterwards. An allowlist rather than a URL from the form, so the form can
+  // never be used to redirect somewhere else.
+  const formData = await request.formData();
+  const target = formData.get("returnTo") === "mina-grupper" ? "/mina-grupper?lamnad=1" : "/?lamnad=1";
+  return redirect(target, { headers });
 }
 
 export default function Leave() {
