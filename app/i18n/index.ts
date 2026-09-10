@@ -84,6 +84,18 @@ export function t<K extends MessageKey>(
   return entry;
 }
 
+/**
+ * Reads the active locale out of a route's `matches` (as passed to a `meta` function, which
+ * can't use hooks). The root route's loader always returns `{ locale, ... }`, so the first
+ * match in the array carries it — see `app/root.tsx`.
+ */
+export function localeFromMatches(
+  matches: readonly ({ loaderData?: unknown } | undefined)[],
+): Locale {
+  const rootData = matches[0]?.loaderData as { locale?: unknown } | undefined;
+  return isLocale(rootData?.locale as string | undefined) ? (rootData!.locale as Locale) : "sv";
+}
+
 /** The active interface locale, from the `LocaleContext` provided in `app/root.tsx`. */
 export function useLocale(): Locale {
   return useContext(LocaleContext);

@@ -2,6 +2,8 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef } from "react";
 import { Dialog as RadixDialog } from "radix-ui";
 
+import { useT } from "~/i18n";
+
 import { Button, type ButtonVariant } from "./Button.tsx";
 import { cn } from "./cn.ts";
 
@@ -19,6 +21,7 @@ export interface DialogProps {
 
 /** Radix dialog styled per the design system: 20px radius, focus trap, scale-in 0.96→1 over 160ms. */
 export function Dialog({ open, onOpenChange, title, description, children, trigger }: DialogProps) {
+  const t = useT();
   // Dialogs here are usually opened from a plain button that sets state rather than from a
   // Dialog.Trigger, so Radix has no trigger to hand focus back to and closing drops focus on
   // <body>. Remember what was focused when the dialog opened and restore it on close.
@@ -73,7 +76,7 @@ export function Dialog({ open, onOpenChange, title, description, children, trigg
                 <RadixDialog.Close asChild>
                   <button
                     type="button"
-                    aria-label="Stäng"
+                    aria-label={t("common.close")}
                     className={cn(
                       "rounded-control text-pine-soft hover:bg-frost absolute top-4 right-4 flex h-9 w-9 items-center justify-center",
                     )}
@@ -116,17 +119,18 @@ export function ConfirmDialog({
   title,
   body,
   confirmLabel,
-  cancelLabel = "Avbryt",
+  cancelLabel,
   destructive = false,
   pending = false,
   onConfirm,
 }: ConfirmDialogProps) {
+  const t = useT();
   const confirmVariant: ButtonVariant = destructive ? "danger" : "primary";
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title={title} description={body}>
       <div className="mt-2 flex justify-end gap-3">
         <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={pending}>
-          {cancelLabel}
+          {cancelLabel ?? t("common.cancel")}
         </Button>
         <Button variant={confirmVariant} onClick={onConfirm} loading={pending}>
           {confirmLabel}

@@ -12,7 +12,7 @@ import {
 } from "~/components/session/activity.ts";
 import { SESSION_LAYOUT_ROUTE_ID, type SessionLayoutData } from "~/components/session/types.ts";
 import { getConfig, getDb } from "~/lib/session-context.server.ts";
-import { useT } from "~/i18n";
+import { localeFromMatches, t, useLocale, useT } from "~/i18n";
 
 import type { Route } from "./+types/activity";
 
@@ -53,19 +53,20 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   return { items, hasMore, nextBefore };
 }
 
-export function meta() {
-  return [{ title: "Aktivitet — Skyldig" }];
+export function meta({ matches }: Route.MetaArgs) {
+  return [{ title: `${t(localeFromMatches(matches), "activity.title")} — Skyldig` }];
 }
 
 export default function Activity({ loaderData }: Route.ComponentProps) {
   const t = useT();
+  const locale = useLocale();
   const layoutData = useRouteLoaderData(SESSION_LAYOUT_ROUTE_ID) as SessionLayoutData;
   const [searchParams] = useSearchParams();
   const navigation = useNavigation();
   const { items, hasMore, nextBefore } = loaderData;
 
-  const displayItems = items.map((row, index) => toDisplayItem(row, index));
-  const groups = groupByDay(displayItems);
+  const displayItems = items.map((row, index) => toDisplayItem(row, index, locale));
+  const groups = groupByDay(displayItems, locale);
   const loadingMore =
     navigation.state === "loading" && navigation.location?.search.includes("before=");
 

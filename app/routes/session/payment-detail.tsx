@@ -25,7 +25,7 @@ import {
   toActionError,
   type ActionError,
 } from "~/lib/session-context.server.ts";
-import { toIntlLocale, useLocale, useT } from "~/i18n";
+import { localeFromMatches, t, toIntlLocale, useLocale, useT } from "~/i18n";
 
 import type { Route } from "./+types/payment-detail";
 
@@ -84,8 +84,8 @@ export async function action({ request, params }: Route.ActionArgs) {
   return redirect(`/s/${params.sid}`);
 }
 
-export function meta(_args: Route.MetaArgs) {
-  return [{ title: "Betalning — Skyldig" }];
+export function meta({ matches }: Route.MetaArgs) {
+  return [{ title: `${t(localeFromMatches(matches), "payment.detailTitle")} — Skyldig` }];
 }
 
 function errorMessage(t: ReturnType<typeof useT>, code: string): string {

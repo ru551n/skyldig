@@ -9,7 +9,7 @@ import { toDisplayItem, type SerializedActivityRow } from "~/components/session/
 import { SettleRow } from "~/components/session/SettleRow.tsx";
 import { SESSION_LAYOUT_ROUTE_ID, type SessionLayoutData } from "~/components/session/types.ts";
 import { getConfig, getDb } from "~/lib/session-context.server.ts";
-import { useT } from "~/i18n";
+import { localeFromMatches, t, useLocale, useT } from "~/i18n";
 
 import type { Route } from "./+types/dashboard";
 
@@ -48,12 +48,13 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   return { recent };
 }
 
-export function meta() {
-  return [{ title: "Översikt — Skyldig" }];
+export function meta({ matches }: Route.MetaArgs) {
+  return [{ title: `${t(localeFromMatches(matches), "dashboard.title")} — Skyldig` }];
 }
 
 export default function Dashboard({ loaderData }: Route.ComponentProps) {
   const t = useT();
+  const locale = useLocale();
   const layoutData = useRouteLoaderData(SESSION_LAYOUT_ROUTE_ID) as SessionLayoutData;
   const { session, participants, balances } = layoutData;
   const { recent } = loaderData;
@@ -65,7 +66,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
   const visibleTransfers = balances.transfers.slice(0, MAX_VISIBLE_TRANSFERS);
   const hasMoreTransfers = balances.transfers.length > MAX_VISIBLE_TRANSFERS;
 
-  const recentItems = recent.map((row, index) => toDisplayItem(row, index));
+  const recentItems = recent.map((row, index) => toDisplayItem(row, index, locale));
 
   if (participants.length === 0) {
     return (

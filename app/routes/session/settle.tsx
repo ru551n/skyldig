@@ -7,10 +7,12 @@ import { formatMinorAsDecimal } from "@domain/money/money.ts";
 import { Button, ButtonLink, EmptyState, Money } from "~/components/ui/index.ts";
 import { SettleRow } from "~/components/session/SettleRow.tsx";
 import { SESSION_LAYOUT_ROUTE_ID, type SessionLayoutData } from "~/components/session/types.ts";
-import { useT } from "~/i18n";
+import { localeFromMatches, t, useT } from "~/i18n";
 
-export function meta() {
-  return [{ title: "Gör upp — Skyldig" }];
+import type { Route } from "./+types/settle";
+
+export function meta({ matches }: Route.MetaArgs) {
+  return [{ title: `${t(localeFromMatches(matches), "settle.title")} — Skyldig` }];
 }
 
 /** Builds the payment-form prefill URL: `betalningar/ny?from=&to=&amount=&currency=`. */

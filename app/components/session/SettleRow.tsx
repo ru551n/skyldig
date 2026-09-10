@@ -1,6 +1,7 @@
 import { motion } from "motion/react";
 
 import { Arrow, Card, Money } from "~/components/ui/index.ts";
+import { useT } from "~/i18n";
 
 export interface SettleRowProps {
   from: string;
@@ -15,6 +16,7 @@ export interface SettleRowProps {
 
 /** The settle-up row motif: two names, an arrow, the amount, on a sol tint. */
 export function SettleRow({ from, to, amountMinor, currency, index = 0, action }: SettleRowProps) {
+  const t = useT();
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -29,7 +31,7 @@ export function SettleRow({ from, to, amountMinor, currency, index = 0, action }
           */}
           <p className="text-body text-pine flex min-w-0 items-center gap-3 font-medium">
             <span className="truncate">{from}</span>
-            <span className="sr-only"> betalar </span>
+            <span className="sr-only"> {t("settle.payConnector")} </span>
             <Arrow className="text-pine-soft shrink-0" aria-hidden />
             <span className="truncate">{to}</span>
           </p>

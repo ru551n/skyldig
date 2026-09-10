@@ -30,7 +30,8 @@ import {
   toActionError,
   type ActionError,
 } from "~/lib/session-context.server.ts";
-import { useT } from "~/i18n";
+import { requestContext } from "~/context.ts";
+import { t, useT } from "~/i18n";
 
 import type { Route } from "./+types/participants";
 
@@ -84,11 +85,12 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   });
 }
 
-export async function action({ request, params }: Route.ActionArgs) {
+export async function action({ request, params, context }: Route.ActionArgs) {
   mutationGuard(request);
   const db = getDb();
   const config = getConfig();
   const access = await requireSessionAccess(db, request, config, params.sid);
+  const locale = context.get(requestContext)?.locale ?? "sv";
   const formData = await request.formData();
   const intent = String(formData.get("_intent") ?? "");
 
@@ -101,7 +103,7 @@ export async function action({ request, params }: Route.ActionArgs) {
             ok: false,
             code: "NAME_REQUIRED",
             field: "displayName",
-            message: "Namn krävs.",
+            message: t(locale, "validation.NAME_REQUIRED"),
             intent,
           },
           { status: 422 },
@@ -125,7 +127,7 @@ export async function action({ request, params }: Route.ActionArgs) {
             ok: false,
             code: "NAME_REQUIRED",
             field: "displayName",
-            message: "Namn krävs.",
+            message: t(locale, "validation.NAME_REQUIRED"),
             intent,
             participantId: String(formData.get("participantId") ?? ""),
           },

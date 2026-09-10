@@ -16,7 +16,7 @@ import { eq } from "drizzle-orm";
 import { ButtonLink } from "~/components/ui/index.ts";
 import { requestContext } from "~/context.ts";
 import { enforceResponseFloor, getConfig, getDb, mutationGuard } from "~/lib/session-context.server.ts";
-import { useT } from "~/i18n";
+import { localeFromMatches, t, useT } from "~/i18n";
 
 import type { Route } from "./+types/invite";
 
@@ -31,8 +31,8 @@ interface RedeemSuccess {
   sessionPublicId: string;
 }
 
-export function meta(_args: Route.MetaArgs) {
-  return [{ title: "Gå med i grupp — Skyldig" }];
+export function meta({ matches }: Route.MetaArgs) {
+  return [{ title: `${t(localeFromMatches(matches), "join.title")} — Skyldig` }];
 }
 
 /**

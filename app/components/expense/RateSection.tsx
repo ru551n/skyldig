@@ -65,7 +65,7 @@ export function RateSection({
               autoComplete="off"
               value={rateText}
               onChange={(e) => onRateTextChange(e.target.value)}
-              placeholder="t.ex. 11,45"
+              placeholder={t("common.rateExamplePlaceholder")}
             />
             {sourceCaption && <p className="text-meta text-pine-soft">{sourceCaption}</p>}
           </div>

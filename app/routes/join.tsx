@@ -17,7 +17,7 @@ import {
   getDb,
   mutationGuard,
 } from "~/lib/session-context.server.ts";
-import { useT } from "~/i18n";
+import { localeFromMatches, t, useT } from "~/i18n";
 
 import type { Route } from "./+types/join";
 
@@ -27,8 +27,8 @@ interface JoinFailure {
   retryAfterSeconds?: number;
 }
 
-export function meta(_args: Route.MetaArgs) {
-  return [{ title: "Gå med i grupp — Skyldig" }];
+export function meta({ matches }: Route.MetaArgs) {
+  return [{ title: `${t(localeFromMatches(matches), "join.title")} — Skyldig` }];
 }
 
 /**
@@ -108,7 +108,7 @@ export default function JoinSessionPage({ actionData }: Route.ComponentProps) {
   const error = actionData;
   const errorMessage =
     error?.code === "RATE_LIMITED"
-      ? "För många försök. Vänta en stund och försök igen."
+      ? t("admin.tooManyAttempts")
       : error?.code === "INVALID_KEY"
         ? t("errors.keyMismatch")
         : undefined;

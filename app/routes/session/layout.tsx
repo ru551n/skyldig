@@ -11,7 +11,7 @@ import { SessionRail, type NavItem } from "~/components/session/SessionRail.tsx"
 import { isExpiringSoon, type SessionLayoutData } from "~/components/session/types.ts";
 import { getConfig, getDb } from "~/lib/session-context.server.ts";
 import { formatExpiryShort } from "~/lib/format.ts";
-import { useT } from "~/i18n";
+import { toIntlLocale, useLocale, useT } from "~/i18n";
 import { LocaleSwitcher } from "~/components/i18n/LocaleSwitcher.tsx";
 
 import type { Route } from "./+types/layout";
@@ -74,6 +74,7 @@ function isFormRoute(pathname: string): boolean {
 
 export default function SessionLayout({ loaderData }: Route.ComponentProps) {
   const t = useT();
+  const locale = useLocale();
   const location = useLocation();
   const navigation = useNavigation();
   const [leaveOpen, setLeaveOpen] = useState(false);
@@ -153,7 +154,7 @@ export default function SessionLayout({ loaderData }: Route.ComponentProps) {
           </button>
           <LocaleSwitcher compact className="shrink-0" />
           <Pill variant={expiringSoon ? "warning" : "neutral"} className="shrink-0">
-            {t("admin.expiresLabel", { date: formatExpiryShort(session.expiresAt) })}
+            {t("admin.expiresLabel", { date: formatExpiryShort(session.expiresAt, toIntlLocale(locale)) })}
           </Pill>
         </header>
 

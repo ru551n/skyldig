@@ -31,6 +31,7 @@ export const sv = {
     rateLockedHint: "Kursen låses till den här transaktionen och påverkas inte av senare kurser.",
     rateSourceLive: "Dagens kurs",
     rateSourceSession: "Senast använda kursen",
+    rateExamplePlaceholder: "t.ex. 11,45",
     rateDirectionBasePerUnit: (params: { unit: string; base: string }) => `1 ${params.unit} = ? ${params.base}`,
     rateDirectionUnitsPerBase: (params: { unit: string; base: string }) => `1 ${params.base} = ? ${params.unit}`,
     selectAll: "Markera alla",
@@ -73,6 +74,7 @@ export const sv = {
     namePlaceholder: "t.ex. Japan 2026",
     baseCurrencyLabel: "Valuta",
     participantsLabel: "Deltagare",
+    removeParticipant: (params: { n: number }) => `Ta bort deltagare ${params.n}`,
     addParticipant: "Lägg till deltagare",
     submit: "Skapa grupp",
     resultTitle: "Gruppen är skapad",
@@ -218,6 +220,9 @@ export const sv = {
     lead: "Så här löser ni skulderna med så få betalningar som möjligt.",
     empty: "Inget att göra upp. Alla är kvitt.",
     pay: (params: { from: string; to: string }) => `${params.from} betalar ${params.to}`,
+    /** The connecting word rendered between the two (visible) names in a settle-up row — see
+     *  SettleRow.tsx, which reads "{from} betalar {to}" once concatenated. */
+    payConnector: "betalar",
     detailsToggle: "Detaljer",
     detailName: "Namn",
     detailPaid: "Betalat",

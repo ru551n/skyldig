@@ -7,7 +7,7 @@ import { ButtonLink, Card, Logo, Pill } from "~/components/ui/index.ts";
 import { LocaleSwitcher } from "~/components/i18n/LocaleSwitcher.tsx";
 import { getConfig, getDb } from "~/lib/session-context.server.ts";
 import { formatExpiryShort } from "~/lib/format.ts";
-import { toIntlLocale, useLocale, useT } from "~/i18n";
+import { localeFromMatches, t, toIntlLocale, useLocale, useT } from "~/i18n";
 
 import type { Route } from "./+types/_index";
 
@@ -35,10 +35,11 @@ export async function loader({ request }: Route.LoaderArgs) {
   return { groups };
 }
 
-export function meta(_args: Route.MetaArgs) {
+export function meta({ matches }: Route.MetaArgs) {
+  const locale = localeFromMatches(matches);
   return [
-    { title: "Skyldig" },
-    { name: "description", content: "Dela utgifter enkelt, utan konto." },
+    { title: t(locale, "landing.title") },
+    { name: "description", content: t(locale, "landing.lead") },
   ];
 }
 

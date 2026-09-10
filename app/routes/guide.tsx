@@ -1,13 +1,14 @@
 import { GuideStep } from "~/components/guide/GuideStep.tsx";
 import { ButtonLink, EmptyState, PageHeader } from "~/components/ui/index.ts";
-import { useLocale, useT } from "~/i18n";
+import { localeFromMatches, t, useLocale, useT } from "~/i18n";
 
 import type { Route } from "./+types/guide";
 
-export function meta(_args: Route.MetaArgs) {
+export function meta({ matches }: Route.MetaArgs) {
+  const locale = localeFromMatches(matches);
   return [
-    { title: "Så funkar det – Skyldig" },
-    { name: "description", content: "En snabb genomgång av hur Skyldig fungerar." },
+    { title: `${t(locale, "guide.title")} – Skyldig` },
+    { name: "description", content: t(locale, "guide.lead") },
   ];
 }
 
