@@ -40,7 +40,7 @@ test("admin: elevate, wrong key, rotate phrase, delete group", async ({ browser 
     adminKey = (await creatorPage.locator("p.tabular.select-all").nth(1).innerText()).trim();
     await creatorPage.getByLabel("Jag har sparat adminnyckeln").check();
     const href = await creatorPage.locator('form[action^="/s/"]').getAttribute("action");
-    groupUrl = href!;
+    groupUrl = href!.replace(/\/bekrafta-nyckel$/, "");
   });
 
   const memberContext = await browser.newContext();

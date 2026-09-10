@@ -31,8 +31,8 @@ async function createGroup(page: import("@playwright/test").Page) {
 
   await page.getByLabel("Jag har sparat adminnyckeln").check();
   const sessionLink = page.getByRole("button", { name: "Till gruppen" });
-  const href = await sessionLink.getAttribute("href");
-  const groupUrl = href!;
+  const href = await page.locator('form[action^="/s/"]').getAttribute("action");
+  const groupUrl = href!.replace(/\/bekrafta-nyckel$/, "");
   await sessionLink.click();
   await expect(page).toHaveURL(new RegExp(`${groupUrl}$`));
   return groupUrl;

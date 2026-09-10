@@ -19,9 +19,10 @@ async function createGroup(page: import("@playwright/test").Page) {
   await page.getByLabel("Jag har sparat adminnyckeln").check();
   const href = await page.locator('form[action^="/s/"]').getAttribute("action");
   expect(href).toBeTruthy();
+  const groupUrl = href!.replace(/\/bekrafta-nyckel$/, "");
   await page.getByRole("button", { name: "Till gruppen" }).click();
-  await page.waitForURL(`**${href}`);
-  return href!;
+  await page.waitForURL(`**${groupUrl}`);
+  return groupUrl;
 }
 
 test("inviting shows a QR code and a link that a stranger can redeem once", async ({ page, browser }) => {

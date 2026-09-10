@@ -39,7 +39,7 @@ test.describe("create a group", () => {
     const sessionLink = page.getByRole("button", { name: "Till gruppen" });
     await expect(sessionLink).toBeVisible();
     const href = await page.locator('form[action^="/s/"]').getAttribute("action");
-    expect(href).toMatch(/^\/s\/[a-z0-9]+$/);
+    expect(href).toMatch(/^\/s\/[a-z0-9]+\/bekrafta-nyckel$/);
 
     // Stash the phrase for the join test via a global (Playwright workers are separate
     // processes per file but this spec runs serially within one file/worker).

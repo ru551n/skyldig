@@ -32,8 +32,8 @@ test("expense edit split preview orders the rounding remainder by position, matc
 
   await page.getByLabel("Jag har sparat adminnyckeln").check();
   const sessionLink = page.getByRole("button", { name: "Till gruppen" });
-  const href = await sessionLink.getAttribute("href");
-  const groupUrl = href!;
+  const href = await page.locator('form[action^="/s/"]').getAttribute("action");
+  const groupUrl = href!.replace(/\/bekrafta-nyckel$/, "");
   await sessionLink.click();
   await expect(page).toHaveURL(new RegExp(`${groupUrl}$`));
 
