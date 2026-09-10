@@ -345,6 +345,14 @@ export const en: typeof sv = {
     createSession: "Create a group",
     joinSession: "Join a group",
   },
+  adminKey: {
+    saveToPasswordManager: "Save to password manager",
+    share: "Share admin key",
+    shareHint: "Send it only to yourself – whoever has the admin key controls the group.",
+    shareTitle: (params: { name: string }) => `Admin key – ${params.name}`,
+    shareText: (params: { name: string; key: string }) =>
+      `Admin key for ${params.name} on Skyldig: ${params.key}`,
+  },
   invite: {
     action: "Invite",
     title: "Invite to the group",

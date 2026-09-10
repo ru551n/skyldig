@@ -12,6 +12,7 @@ import { createSession } from "@server/modules/session/index.ts";
 import { listCurrencies } from "@domain/currency/registry.ts";
 
 import { Button, Field, Input, PageHeader, Select } from "~/components/ui/index.ts";
+import { AdminKeySaveActions } from "~/components/session/AdminKeySaveActions.tsx";
 import { formatExpiryLong } from "~/lib/format.ts";
 import { requestContext } from "~/context.ts";
 import {
@@ -289,6 +290,7 @@ function ResultView({ result }: { result: CreateSuccess }) {
         <div className="flex gap-3">
           <CopyButton value={result.adminKey} label={t("common.copy")} copiedLabel={t("common.copied")} />
         </div>
+        <AdminKeySaveActions groupName={result.name} publicId={result.publicId} adminKey={result.adminKey} />
       </div>
 
       {/*

@@ -22,6 +22,7 @@ import {
 } from "@server/modules/session/index.ts";
 
 import { Button, ConfirmDialog, Dialog, Field, Input, PageHeader } from "~/components/ui/index.ts";
+import { AdminKeySaveActions, adminKeyCredentialId } from "~/components/session/AdminKeySaveActions.tsx";
 import { requestContext } from "~/context.ts";
 import { formatExpiryLong, formatTimeOfDay } from "~/lib/format.ts";
 import {
@@ -48,6 +49,7 @@ interface LoaderData {
    */
   elevationLapsed: boolean;
   sessionName: string;
+  sessionPublicId: string;
   expiresAt: string;
 }
 
@@ -96,6 +98,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
       adminUntil: isActiveAdmin(access.grant) ? (access.grant.adminUntil?.toISOString() ?? null) : null,
       elevationLapsed: access.grant.storedRole === "admin" && !isActiveAdmin(access.grant),
       sessionName: access.session.name,
+      sessionPublicId: access.session.publicId,
       expiresAt: access.session.expiresAt.toISOString(),
     },
     { headers: NO_STORE_HEADERS },
@@ -343,13 +346,23 @@ export default function AdminPage({ loaderData, actionData }: Route.ComponentPro
 
         <Form method="post" className="flex flex-col gap-4">
           <input type="hidden" name="_intent" value="elevate" />
+          {/* Lets password managers file and later fill the key under this group's entry
+              (see adminKeyCredentialId). Unnamed, so it is never submitted. */}
+          <input
+            type="text"
+            autoComplete="username"
+            value={adminKeyCredentialId(loaderData.sessionName, loaderData.sessionPublicId)}
+            readOnly
+            hidden
+            aria-hidden="true"
+          />
           <Field htmlFor="adminKey" label={t("admin.elevateLabel")}>
             {(ids) => (
               <Input
                 {...ids}
                 name="adminKey"
-                type="text"
-                autoComplete="off"
+                type="password"
+                autoComplete="current-password"
                 spellCheck={false}
                 autoCapitalize="none"
                 autoCorrect="off"
@@ -429,6 +442,13 @@ export default function AdminPage({ loaderData, actionData }: Route.ComponentPro
           </p>
           <div>
             <CopyButton value={adminKeyResult.adminKey} />
+          </div>
+          <div>
+            <AdminKeySaveActions
+              groupName={loaderData.sessionName}
+              publicId={loaderData.sessionPublicId}
+              adminKey={adminKeyResult.adminKey}
+            />
           </div>
           {/*
             Same deliberate acknowledgement gate as the creation flow (app/routes/new.tsx): a

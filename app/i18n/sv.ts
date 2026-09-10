@@ -351,6 +351,14 @@ export const sv = {
     createSession: "Skapa grupp",
     joinSession: "Gå med i grupp",
   },
+  adminKey: {
+    saveToPasswordManager: "Spara i lösenordshanteraren",
+    share: "Dela adminnyckeln",
+    shareHint: "Skicka den bara till dig själv – den som har adminnyckeln kan styra gruppen.",
+    shareTitle: (params: { name: string }) => `Adminnyckel – ${params.name}`,
+    shareText: (params: { name: string; key: string }) =>
+      `Adminnyckel för ${params.name} i Skyldig: ${params.key}`,
+  },
   invite: {
     action: "Bjud in",
     title: "Bjud in till gruppen",
