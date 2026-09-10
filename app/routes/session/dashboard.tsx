@@ -7,6 +7,7 @@ import { ButtonLink, EmptyState, Money } from "~/components/ui/index.ts";
 import { ActivityRow } from "~/components/session/ActivityRow.tsx";
 import { toDisplayItem, type SerializedActivityRow } from "~/components/session/activity.ts";
 import { SettleRow } from "~/components/session/SettleRow.tsx";
+import { paymentPrefillUrl } from "~/lib/payment-prefill.ts";
 import { SESSION_LAYOUT_ROUTE_ID, type SessionLayoutData } from "~/components/session/types.ts";
 import { getConfig, getDb } from "~/lib/session-context.server.ts";
 import { localeFromMatches, t, useLocale, useT } from "~/i18n";
@@ -124,6 +125,13 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
                 amountMinor={transfer.amountMinor}
                 currency={balances.baseCurrency}
                 index={index}
+                href={paymentPrefillUrl(
+                  session.publicId,
+                  transfer.from.publicId,
+                  transfer.to.publicId,
+                  transfer.amountMinor,
+                  balances.baseCurrency,
+                )}
               />
             ))}
           </div>

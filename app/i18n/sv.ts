@@ -231,6 +231,7 @@ export const sv = {
     /** The connecting word rendered between the two (visible) names in a settle-up row — see
      *  SettleRow.tsx, which reads "{from} betalar {to}" once concatenated. */
     payConnector: "betalar",
+    markPaid: "Markera betald",
     detailsToggle: "Detaljer",
     detailName: "Namn",
     detailPaid: "Betalat",

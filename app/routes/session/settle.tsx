@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { useRouteLoaderData } from "react-router";
 
-import { getCurrencyDecimals } from "@domain/currency/registry.ts";
-import { formatMinorAsDecimal } from "@domain/money/money.ts";
 
-import { Button, ButtonLink, EmptyState, Money } from "~/components/ui/index.ts";
+import { Button, EmptyState, Money } from "~/components/ui/index.ts";
 import { SettleRow } from "~/components/session/SettleRow.tsx";
+import { paymentPrefillUrl } from "~/lib/payment-prefill.ts";
 import { SESSION_LAYOUT_ROUTE_ID, type SessionLayoutData } from "~/components/session/types.ts";
 import { localeFromMatches, t, useT } from "~/i18n";
 
@@ -13,19 +12,6 @@ import type { Route } from "./+types/settle";
 
 export function meta({ matches }: Route.MetaArgs) {
   return [{ title: `${t(localeFromMatches(matches), "settle.title")} — Skyldig` }];
-}
-
-/** Builds the payment-form prefill URL: `betalningar/ny?from=&to=&amount=&currency=`. */
-function paymentPrefillUrl(
-  from: string,
-  to: string,
-  amountMinor: string,
-  currency: string,
-): string {
-  const decimals = getCurrencyDecimals(currency);
-  const amount = formatMinorAsDecimal(BigInt(amountMinor), decimals);
-  const params = new URLSearchParams({ from, to, amount, currency });
-  return `betalningar/ny?${params.toString()}`;
 }
 
 function DetailsTable({
@@ -106,20 +92,13 @@ export default function Settle() {
               amountMinor={transfer.amountMinor}
               currency={balances.baseCurrency}
               index={index}
-              action={
-                <ButtonLink
-                  to={paymentPrefillUrl(
-                    transfer.from.publicId,
-                    transfer.to.publicId,
-                    transfer.amountMinor,
-                    balances.baseCurrency,
-                  )}
-                  size="md"
-                  variant="secondary"
-                >
-                  {t("common.registerPayment")}
-                </ButtonLink>
-              }
+              href={paymentPrefillUrl(
+                layoutData.session.publicId,
+                transfer.from.publicId,
+                transfer.to.publicId,
+                transfer.amountMinor,
+                balances.baseCurrency,
+              )}
             />
           ))}
         </section>

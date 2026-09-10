@@ -225,6 +225,7 @@ export const en: typeof sv = {
     empty: "Nothing to settle. Everyone's even.",
     pay: (params: { from: string; to: string }) => `${params.from} pays ${params.to}`,
     payConnector: "pays",
+    markPaid: "Mark paid",
     detailsToggle: "Details",
     detailName: "Name",
     detailPaid: "Paid",
