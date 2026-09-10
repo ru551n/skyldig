@@ -144,7 +144,7 @@ export function PaymentForm({
           htmlFor="amountText"
           label={t("payment.amountLabel")}
           error={fieldError("amountText")}
-          className="flex-1"
+          className="min-w-0 flex-1"
         >
           {(ids) => (
             <MoneyInput
