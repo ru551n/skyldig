@@ -487,10 +487,11 @@ export default function AdminPage({ loaderData, actionData }: Route.ComponentPro
             variant="secondary"
             loading={pendingIntent === "rotate-phrase"}
             onClick={() => setRotatePhraseOpen(true)}
+            fullWidth
           >
             {t("admin.rotatePhrase")}
           </Button>
-          <p className="text-meta text-pine-soft">{t("admin.rotatePhraseBody")}</p>
+          <p className="text-meta text-pine-soft text-center">{t("admin.rotatePhraseBody")}</p>
         </div>
 
         <div className="flex flex-col gap-2">
@@ -499,10 +500,11 @@ export default function AdminPage({ loaderData, actionData }: Route.ComponentPro
             variant="secondary"
             loading={pendingIntent === "rotate-admin-key"}
             onClick={() => setRotateAdminKeyOpen(true)}
+            fullWidth
           >
             {t("admin.rotateAdminKey")}
           </Button>
-          <p className="text-meta text-pine-soft">{t("admin.rotateAdminKeyBody")}</p>
+          <p className="text-meta text-pine-soft text-center">{t("admin.rotateAdminKeyBody")}</p>
         </div>
 
         <div className="border-line flex flex-col gap-2 border-t pt-4">
@@ -513,10 +515,11 @@ export default function AdminPage({ loaderData, actionData }: Route.ComponentPro
               setConfirmName("");
               setDeleteOpen(true);
             }}
+            fullWidth
           >
             {t("admin.deleteSession")}
           </Button>
-          <p className="text-meta text-rust">{t("admin.deleteConfirmBody")}</p>
+          <p className="text-meta text-rust text-center">{t("admin.deleteConfirmBody")}</p>
         </div>
       </section>
 

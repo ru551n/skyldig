@@ -7,7 +7,7 @@ export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 export type ButtonSize = "md" | "lg";
 
 const base =
-  "inline-flex items-center justify-center gap-2 rounded-control font-medium transition-colors " +
+  "items-center justify-center gap-2 rounded-control font-medium transition-colors " +
   "disabled:cursor-not-allowed disabled:opacity-60";
 
 const variants: Record<ButtonVariant, string> = {
@@ -17,9 +17,15 @@ const variants: Record<ButtonVariant, string> = {
   danger: "bg-rust text-paper hover:bg-rust/90",
 };
 
+/**
+ * A "full-width" button fills its column up to a comfortable width and centres itself, rather
+ * than stretching edge to edge on a wide screen.
+ */
+export const FULL_WIDTH = "flex w-full max-w-[22rem] mx-auto";
+
 const sizes: Record<ButtonSize, string> = {
-  md: "min-h-11 px-4 text-body",
-  lg: "min-h-12 px-6 text-lead",
+  md: "min-h-12 px-5 text-body",
+  lg: "min-h-14 px-8 text-lead",
 };
 
 export interface ButtonOwnProps {
@@ -65,7 +71,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       type={rest.type ?? "button"}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
-      className={cn(base, variants[variant], sizes[size], fullWidth && "w-full", className)}
+      className={cn(base, variants[variant], sizes[size], fullWidth ? FULL_WIDTH : "inline-flex", className)}
       {...rest}
     >
       {loading && <Spinner />}
@@ -93,7 +99,7 @@ export const ButtonLink = forwardRef<HTMLAnchorElement, ButtonLinkProps>(functio
     <Link
       ref={ref}
       aria-busy={loading || undefined}
-      className={cn(base, variants[variant], sizes[size], fullWidth && "w-full", className)}
+      className={cn(base, variants[variant], sizes[size], fullWidth ? FULL_WIDTH : "inline-flex", className)}
       {...rest}
     >
       {loading && <Spinner />}

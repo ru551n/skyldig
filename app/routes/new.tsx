@@ -342,12 +342,9 @@ function ResultView({ result }: { result: CreateSuccess }) {
           <Button type="button" variant="secondary" onClick={handleShare} fullWidth>
             {t("invite.share")}
           </Button>
-          <button
-            type="submit"
-            className="rounded-control bg-pine text-lead text-paper hover:bg-pine/90 inline-flex min-h-12 w-full items-center justify-center gap-2 px-6 font-medium"
-          >
+          <Button type="submit" size="lg" fullWidth>
             {t("create.goToSession")}
-          </button>
+          </Button>
         </div>
       </form>
     </main>
@@ -471,7 +468,7 @@ export default function NewSessionPage({ loaderData, actionData }: Route.Compone
               )}
             </div>
           ))}
-          <Button type="button" variant="secondary" onClick={addParticipant}>
+          <Button type="button" variant="secondary" onClick={addParticipant} fullWidth>
             {t("create.addParticipant")}
           </Button>
         </div>
