@@ -116,8 +116,8 @@ export const sv = {
     },
     actions: {
       newExpense: "Ny utgift",
-      newPayment: "Betalning",
-      newParticipant: "Person",
+      newPayment: "Ny betalning",
+      participants: "Deltagare",
     },
   },
 

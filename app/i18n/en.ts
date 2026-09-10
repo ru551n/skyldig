@@ -112,8 +112,8 @@ export const en: typeof sv = {
     },
     actions: {
       newExpense: "New expense",
-      newPayment: "Payment",
-      newParticipant: "Person",
+      newPayment: "New payment",
+      participants: "Participants",
     },
   },
 
