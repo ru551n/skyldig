@@ -52,13 +52,17 @@ export function resolveLocaleFromAcceptLanguage(header: string | null | undefine
 }
 
 /**
- * Resolves the active locale for a request: an explicit `skyldig_lang` cookie wins (the user's
- * override via the switcher), otherwise `Accept-Language`, otherwise Swedish. Works before
- * anyone has joined a group since it depends on neither the session cookie nor the database.
+ * Resolves the active locale for a request: a `?lang=sv|en` query parameter wins (it gives each
+ * language its own URL, which search engines need — crawlers send neither the cookie nor a useful
+ * Accept-Language), then an explicit `skyldig_lang` cookie (the user's override via the switcher),
+ * then `Accept-Language`, then Swedish. Works before anyone has joined a group since it depends
+ * on neither the session cookie nor the database.
  */
 export function resolveLocale(
   cookieHeader: string | null | undefined,
   acceptLanguageHeader: string | null | undefined,
+  langParam?: string | null,
 ): Locale {
+  if (langParam === "sv" || langParam === "en") return langParam;
   return readLangCookie(cookieHeader) ?? resolveLocaleFromAcceptLanguage(acceptLanguageHeader);
 }

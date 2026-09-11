@@ -40,6 +40,16 @@ if (config.trustProxy !== false) {
 }
 
 app.use(assignCspNonce);
+
+// Keep every page that belongs to a group or a browser out of search results: group pages, invite
+// links, My groups, the language switch, and developer pages. robots.txt disallows the same paths,
+// but a disallowed URL can still be indexed if linked from elsewhere; this header prevents that
+// for anything a crawler does fetch.
+const PRIVATE_PATH = /^\/(s|i|mina-grupper|lang|dev)(\/|$)/;
+app.use((req, res, next) => {
+  if (PRIVATE_PATH.test(req.path)) res.setHeader("X-Robots-Tag", "noindex, nofollow");
+  next();
+});
 app.use(buildSecurityMiddleware(config));
 
 // Every request that reaches this app has already had its chance to be served by
@@ -149,7 +159,11 @@ app.use(
         logger,
         clientIp: req.ip,
         cspNonce: (res.locals.cspNonce as string | undefined) ?? "",
-        locale: resolveLocale(req.headers.cookie, req.headers["accept-language"]),
+        locale: resolveLocale(
+          req.headers.cookie,
+          req.headers["accept-language"],
+          new URL(req.originalUrl, "http://localhost").searchParams.get("lang"),
+        ),
       });
       return context;
     },

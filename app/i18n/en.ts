@@ -369,6 +369,32 @@ export const en: typeof sv = {
     leaveConfirmTitle: (params: { name: string }) => `Leave ${params.name}?`,
     leftNotice: "You've left the group.",
   },
+  seo: {
+    landingTitle: "Skyldig – split group expenses, no account needed",
+    landingDescription:
+      "Keep track of who owes whom on a trip, in a shared flat or after dinner. Free, no sign-up and no app to install – create a group and share the key.",
+    guideTitle: "How Skyldig works – splitting expenses step by step",
+    guideDescription:
+      "A quick walkthrough of creating a group, adding expenses in different currencies and settling up with as few payments as possible.",
+    newTitle: "Create a group – Skyldig",
+    newDescription: "Set up a group for a trip, a shared flat or a dinner in seconds. No account needed.",
+    joinTitle: "Join a group – Skyldig",
+    joinDescription: "Got a group key? Paste it in and join straight from your browser.",
+    imageAlt: "Skyldig – split expenses with friends",
+  },
+  faq: {
+    title: "Questions and answers",
+    q1: "Does it cost anything?",
+    a1: "No. Skyldig is free to use.",
+    q2: "Does everyone need an account?",
+    a2: "No. Whoever creates the group gets a group key to share. Anyone with the key can join straight from their browser – no account, no app.",
+    q3: "Can we split expenses in different currencies?",
+    a3: "Yes. Add an expense in euros or yen, say – Skyldig suggests today's exchange rate and locks it for that expense.",
+    q4: "How do we settle up?",
+    a4: "Skyldig works out how to settle up with as few payments as possible. When someone has paid, mark it as paid and the balances add up.",
+    q5: "How long does a group last?",
+    a5: "For 90 days. After that the group and everything in it is deleted automatically.",
+  },
   invite: {
     action: "Invite",
     title: "Invite to the group",

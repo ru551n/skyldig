@@ -17,7 +17,8 @@ import {
   getDb,
   mutationGuard,
 } from "~/lib/session-context.server.ts";
-import { localeFromMatches, t, useT } from "~/i18n";
+import { useT } from "~/i18n";
+import { seoMeta } from "~/lib/seo.ts";
 
 import type { Route } from "./+types/join";
 
@@ -28,7 +29,7 @@ interface JoinFailure {
 }
 
 export function meta({ matches }: Route.MetaArgs) {
-  return [{ title: `${t(localeFromMatches(matches), "join.title")} — Skyldig` }];
+  return seoMeta(matches, { path: "/join", titleKey: "seo.joinTitle", descriptionKey: "seo.joinDescription" });
 }
 
 /**

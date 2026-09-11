@@ -13,6 +13,7 @@ import {
 } from "react-router";
 
 import { requestContext } from "~/context.ts";
+import { getConfig } from "~/lib/session-context.server.ts";
 import { LocaleContext } from "~/i18n/LocaleContext.ts";
 import { t, type Locale } from "~/i18n/index.ts";
 
@@ -23,7 +24,12 @@ import "./app.css";
 
 export function loader({ context }: Route.LoaderArgs) {
   const ctx = context.get(requestContext);
-  return { cspNonce: ctx?.cspNonce ?? "", locale: ctx?.locale ?? ("sv" as Locale) };
+  return {
+    cspNonce: ctx?.cspNonce ?? "",
+    locale: ctx?.locale ?? ("sv" as Locale),
+    // Not a secret: it is the public address canonical links, sitemaps and share previews point at.
+    publicOrigin: getConfig().publicOrigin,
+  };
 }
 
 export const links: LinksFunction = () => {
@@ -31,6 +37,7 @@ export const links: LinksFunction = () => {
     { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
     { rel: "icon", href: "/favicon-32x32.png", type: "image/png", sizes: "32x32" },
     { rel: "apple-touch-icon", href: "/apple-touch-icon.png", sizes: "180x180" },
+    { rel: "manifest", href: "/site.webmanifest" },
   ];
 };
 

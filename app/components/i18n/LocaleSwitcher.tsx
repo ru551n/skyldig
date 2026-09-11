@@ -25,7 +25,11 @@ export function LocaleSwitcher({ className, size = "md" }: LocaleSwitcherProps) 
   const location = useLocation();
   const locale = useLocale();
   const t = useT();
-  const redirectTo = `${location.pathname}${location.search}`;
+  // Drop ?lang=: it outranks the cookie this form sets, so keeping it would undo the switch.
+  const search = new URLSearchParams(location.search);
+  search.delete("lang");
+  const query = search.toString();
+  const redirectTo = `${location.pathname}${query ? `?${query}` : ""}`;
 
   return (
     <form method="post" action="/lang" className={className}>

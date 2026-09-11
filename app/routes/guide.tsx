@@ -1,15 +1,12 @@
 import { GuideStep } from "~/components/guide/GuideStep.tsx";
 import { ButtonLink, EmptyState, PageHeader } from "~/components/ui/index.ts";
-import { localeFromMatches, t, useLocale, useT } from "~/i18n";
+import { useLocale, useT } from "~/i18n";
+import { seoMeta } from "~/lib/seo.ts";
 
 import type { Route } from "./+types/guide";
 
 export function meta({ matches }: Route.MetaArgs) {
-  const locale = localeFromMatches(matches);
-  return [
-    { title: `${t(locale, "guide.title")} – Skyldig` },
-    { name: "description", content: t(locale, "guide.lead") },
-  ];
+  return seoMeta(matches, { path: "/guide", titleKey: "seo.guideTitle", descriptionKey: "seo.guideDescription" });
 }
 
 /** Static "Så funkar det" usage guide — teaches the whole flow with real screenshots. */

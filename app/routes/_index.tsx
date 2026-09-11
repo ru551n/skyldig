@@ -6,6 +6,7 @@ import { resolveBrowserSession } from "@server/modules/auth/session-auth.ts";
 import { ButtonLink, Card, Logo } from "~/components/ui/index.ts";
 import { LocaleSwitcher } from "~/components/i18n/LocaleSwitcher.tsx";
 import { GroupList, type GroupSummary } from "~/components/session/GroupList.tsx";
+import { publicUrl, seoMeta } from "~/lib/seo.ts";
 import { getConfig, getDb } from "~/lib/session-context.server.ts";
 import { localeFromMatches, t, useT } from "~/i18n";
 
@@ -29,11 +30,44 @@ export async function loader({ request }: Route.LoaderArgs) {
   return { groups, left };
 }
 
+const FAQ_KEYS = [
+  ["faq.q1", "faq.a1"],
+  ["faq.q2", "faq.a2"],
+  ["faq.q3", "faq.a3"],
+  ["faq.q4", "faq.a4"],
+  ["faq.q5", "faq.a5"],
+] as const;
+
 export function meta({ matches }: Route.MetaArgs) {
   const locale = localeFromMatches(matches);
+  const tags = seoMeta(matches, { path: "/", titleKey: "seo.landingTitle", descriptionKey: "seo.landingDescription" });
+  // Structured data: what Skyldig is, and the FAQ shown on this page, for rich search results.
   return [
-    { title: t(locale, "landing.title") },
-    { name: "description", content: t(locale, "landing.lead") },
+    ...tags,
+    {
+      "script:ld+json": {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        name: "Skyldig",
+        url: publicUrl(matches, "/"),
+        description: t(locale, "seo.landingDescription"),
+        applicationCategory: "FinanceApplication",
+        operatingSystem: "Web",
+        inLanguage: ["sv", "en"],
+        offers: { "@type": "Offer", price: "0", priceCurrency: "SEK" },
+      },
+    },
+    {
+      "script:ld+json": {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        mainEntity: FAQ_KEYS.map(([q, a]) => ({
+          "@type": "Question",
+          name: t(locale, q),
+          acceptedAnswer: { "@type": "Answer", text: t(locale, a) },
+        })),
+      },
+    },
   ];
 }
 
@@ -109,6 +143,25 @@ export default function LandingPage({ loaderData }: Route.ComponentProps) {
           <GroupList groups={groups} />
         </section>
       )}
+
+      <section aria-labelledby="faq-title" className="flex flex-col gap-3">
+        <h2 id="faq-title" className="text-h2 text-pine font-semibold">
+          {t("faq.title")}
+        </h2>
+        <div className="border-line bg-paper rounded-card divide-line divide-y border">
+          {FAQ_KEYS.map(([q, a]) => (
+            <details key={q} className="group">
+              <summary className="text-body text-pine focus-visible:outline-pine flex min-h-12 cursor-pointer list-none items-center justify-between gap-4 px-4 py-3 font-medium focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 [&::-webkit-details-marker]:hidden">
+                {t(q)}
+                <span aria-hidden className="text-pine-soft transition-transform group-open:rotate-45">
+                  +
+                </span>
+              </summary>
+              <p className="text-body text-pine-soft px-4 pb-4">{t(a)}</p>
+            </details>
+          ))}
+        </div>
+      </section>
 
       <footer className="mt-auto flex justify-center pt-8">
         <LocaleSwitcher />

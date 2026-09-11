@@ -375,6 +375,32 @@ export const sv = {
     leaveConfirmTitle: (params: { name: string }) => `Lämna ${params.name}?`,
     leftNotice: "Du har lämnat gruppen.",
   },
+  seo: {
+    landingTitle: "Skyldig – dela utgifter i gruppen, utan konto",
+    landingDescription:
+      "Håll koll på vem som är skyldig vem på resan, i kollektivet eller efter middagen. Gratis, utan konto och utan app – skapa en grupp och dela nyckeln.",
+    guideTitle: "Så funkar Skyldig – dela utgifter steg för steg",
+    guideDescription:
+      "En snabb genomgång av hur du skapar en grupp, lägger in utgifter i olika valutor och gör upp med så få betalningar som möjligt.",
+    newTitle: "Skapa en grupp – Skyldig",
+    newDescription: "Skapa en grupp för resan, kollektivet eller middagen på några sekunder. Inget konto behövs.",
+    joinTitle: "Gå med i en grupp – Skyldig",
+    joinDescription: "Har du fått en gruppnyckel? Klistra in den och gå med direkt i webbläsaren.",
+    imageAlt: "Skyldig – dela utgifter med vänner",
+  },
+  faq: {
+    title: "Vanliga frågor",
+    q1: "Kostar det något?",
+    a1: "Nej. Skyldig är gratis att använda.",
+    q2: "Behöver alla skapa ett konto?",
+    a2: "Nej. Den som skapar gruppen får en gruppnyckel att dela. Alla som har nyckeln kan gå med direkt i webbläsaren – inget konto och ingen app.",
+    q3: "Går det att dela utgifter i olika valutor?",
+    a3: "Ja. Lägg in utgiften i till exempel euro eller yen – Skyldig föreslår dagens växelkurs och låser den för just den utgiften.",
+    q4: "Hur gör vi upp?",
+    a4: "Skyldig räknar ut hur ni gör upp med så få betalningar som möjligt. När någon har betalat markerar ni det, så stämmer saldot.",
+    q5: "Hur länge finns gruppen kvar?",
+    a5: "I 90 dagar. Sedan raderas gruppen och allt i den automatiskt.",
+  },
   invite: {
     action: "Bjud in",
     title: "Bjud in till gruppen",

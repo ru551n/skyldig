@@ -66,7 +66,9 @@ const enWords = wordsOf(enLiterals);
  * active locale — these are correct on the English page and must never be flagged. (In
  * practice both already appear verbatim in `en.ts` too, so the set-difference below excludes
  * them on its own; this is a defensive backstop.) */
-const ALLOWLIST = new Set(["svenska", "english"]);
+// Words shared by both languages that only look Swedish-only to the diff below: the language
+// endonyms, and currency names ("euro" appears in the Swedish FAQ; the English one says "euros").
+const ALLOWLIST = new Set(["svenska", "english", "euro"]);
 
 const swedishOnlyWords = [...svWords].filter((w) => !enWords.has(w) && !ALLOWLIST.has(w));
 

@@ -129,7 +129,7 @@ Read and validated in `server/config.ts`.
 | `DATABASE_URL` | Yes | — | Postgres connection string. |
 | `ACCESS_KEY_PEPPER` | Yes in production (≥ 32 chars); optional in dev/test | Fixed dev-only value (dev/test only) | Server-side secret keying every access-phrase and admin-key hash: the HMAC-SHA256 lookup index, the admin-key HMAC, and the scrypt verifier input (`scrypt2` format; verifiers from before that format hashed the bare phrase and are re-hashed on the next successful join). Never store this in the database or in a database backup — a backup taken without it is fine, but if the pepper itself is lost, every existing access phrase and admin key becomes unverifiable and every group becomes permanently inaccessible. |
 | `PORT` | No | `3000` | HTTP port the server listens on. |
-| `PUBLIC_ORIGIN` | No | `http://localhost:3000` | The externally-visible origin, used for CSRF origin checks. Must exactly match what users' browsers see in production. |
+| `PUBLIC_ORIGIN` | No | `http://localhost:3000` | The externally-visible origin, used for CSRF origin checks, invite links, and the canonical URLs, sitemap, `robots.txt` and link-share previews search engines and chat apps see. Must exactly match what users' browsers see in production. |
 | `TRUST_PROXY` | No | unset (not trusted) | How many reverse proxies in front of the app to trust for `X-Forwarded-For` (client IP for rate limiting). `1` (or `true`) for one proxy, `2` for e.g. CDN → nginx → app; or a comma-separated list of `loopback`, `linklocal`, `uniquelocal`, IPs or CIDRs (`loopback,10.0.0.0/8`). Never trusts every hop; an invalid value fails startup. |
 | `COOKIE_SECURE` | No | `true` if `NODE_ENV=production`, else `false` | Forces the `Secure` attribute on the session cookie on or off, overriding the `NODE_ENV`-based default. |
 | `ADMIN_ELEVATION_TTL_MINUTES` | No | `30` | How long an admin elevation (admin key entered on the group's admin page, or the creator's initial grant) stays effective before the browser session drops back to plain member and must re-enter the admin key. Integer 1–1440; membership is unaffected. |
@@ -340,6 +340,20 @@ This workflow has not been run, since publishing a release is a repository-owner
 Dockerfile itself has been reviewed and its runtime file set verified to boot (see Status
 above), but the actual `docker buildx build --platform linux/amd64,linux/arm64` has not been
 executed on this machine, which has no Docker installed.
+
+## Search engines and link previews
+
+Only the public pages are indexed: `/`, `/guide`, `/new` and `/join`, each in Swedish (the default
+URL) and English (`?lang=en`, which outranks the language cookie so each language has its own URL).
+They carry titles, descriptions, canonical URLs, `hreflang` alternates, Open Graph/Twitter share
+tags, and — on the landing page — `WebApplication` and `FAQPage` structured data matching the
+visible FAQ. `/robots.txt` and `/sitemap.xml` are generated from `PUBLIC_ORIGIN`. Everything that
+belongs to a group or a browser (`/s/`, `/i/`, `/mina-grupper`, `/lang`, `/dev/`) is disallowed in
+`robots.txt` and also sent with `X-Robots-Tag: noindex, nofollow`.
+
+The share preview images (`public/og-image.png`, `public/og-image-en.png`) and the web app manifest
+icons are drawn by `node scripts/brand-images.mjs` from the app's own font and colours; rerun it
+after changing the logo, tagline or palette.
 
 ## License
 

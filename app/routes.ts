@@ -6,6 +6,8 @@ export default [
   route("join", "routes/join.tsx"),
   route("guide", "routes/guide.tsx"),
   route("mina-grupper", "routes/my-groups.tsx"),
+  route("robots.txt", "routes/robots.ts"),
+  route("sitemap.xml", "routes/sitemap.ts"),
   route("i/:iid", "routes/invite.tsx"),
   route("lang", "routes/set-locale.tsx"),
 

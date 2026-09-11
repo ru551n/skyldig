@@ -27,7 +27,8 @@ import {
   toActionError,
   type ActionError,
 } from "~/lib/session-context.server.ts";
-import { localeFromMatches, t, toIntlLocale, useLocale, useT } from "~/i18n";
+import { t, toIntlLocale, useLocale, useT } from "~/i18n";
+import { seoMeta } from "~/lib/seo.ts";
 
 import type { Route } from "./+types/new";
 
@@ -66,7 +67,7 @@ export function headers({ actionHeaders, loaderHeaders }: Route.HeadersArgs) {
 }
 
 export function meta({ matches }: Route.MetaArgs) {
-  return [{ title: `${t(localeFromMatches(matches), "create.title")} — Skyldig` }];
+  return seoMeta(matches, { path: "/new", titleKey: "seo.newTitle", descriptionKey: "seo.newDescription" });
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
