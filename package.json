@@ -7,7 +7,7 @@
     "dev": "NODE_ENV=development node --conditions development server.js",
     "dev:db": "tsx scripts/dev-db.ts",
     "build:wordlist": "tsx scripts/build-wordlist.ts",
-    "build": "react-router build",
+    "build": "react-router build && vite build --config vite.admin.config.ts && node scripts/check-runtime-deps.mjs",
     "start": "node server.js",
     "typecheck": "react-router typegen && tsc -b",
     "lint": "eslint .",

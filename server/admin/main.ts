@@ -10,7 +10,13 @@ import { loadAdminConfig } from "./config.ts";
 
 const logger = pino({ level: process.env.LOG_LEVEL ?? "info", base: { service: "skyldig-admin" } });
 
-const config = loadAdminConfig();
+let config: ReturnType<typeof loadAdminConfig>;
+try {
+  config = loadAdminConfig();
+} catch (error) {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(1);
+}
 const pool = new pg.Pool({ connectionString: config.databaseUrl, max: 4 });
 pool.on("error", (err) => logger.error({ err }, "idle database client error"));
 

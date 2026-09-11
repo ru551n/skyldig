@@ -67,6 +67,10 @@ proxy layer, gating `/new` before it ever reaches the app; that requires no appl
 
 ## Smoke-test the production image in CI
 
+*Partly done:* `pnpm build` now runs `scripts/check-runtime-deps.mjs`, which fails the build (and so the
+image) when a server bundle imports a package that isn't a runtime dependency — the exact qrcode
+failure. A container-level check that `/` returns 200 is still worth adding.
+
 `qrcode` sat in `devDependencies` while the server bundle imported it at runtime, so the
 runtime stage's `pnpm install --prod` omitted it and every page render returned 500. The
 published v0.1.0, v0.1.1 and v0.2.0 images were all broken this way and nothing caught it:
