@@ -1,0 +1,38 @@
+# Optional: the operator admin app, merged on top of compose.yaml:
+#   docker compose -f compose.yaml -f compose.admin.yaml up -d
+# or, from a parent compose file:
+#   include:
+#     - path: [./skyldig/compose.yaml, ./skyldig/compose.admin.yaml]
+# It must sit behind a reverse proxy that signs operators in (the README's "Admin app" section
+# shows Caddy + Authentik). It only believes the proxy's identity headers on connections from
+# ADMIN_TRUSTED_PROXY, and its database role can read aggregates only.
+services:
+  skyldig-admin:
+    image: ru551n/skyldig:${SKYLDIG_TAG:-latest}
+    command: ["node", "build/admin/main.js"]
+    environment:
+      ADMIN_DATABASE_URL: postgres://skyldig_admin:${ADMIN_DB_PASSWORD:?ADMIN_DB_PASSWORD must be set for the admin app}@skyldig-db:5432/${POSTGRES_DB:-skyldig}
+      ADMIN_PUBLIC_ORIGIN: ${ADMIN_PUBLIC_ORIGIN:?ADMIN_PUBLIC_ORIGIN must be set, e.g. https://admin.example.com}
+      ADMIN_TRUSTED_PROXY: ${ADMIN_TRUSTED_PROXY:?ADMIN_TRUSTED_PROXY must be the reverse proxy's IP address}
+      ADMIN_REQUIRED_GROUP: ${ADMIN_REQUIRED_GROUP:-skyldig-admins}
+      ADMIN_TIMEZONE: ${ADMIN_TIMEZONE:-Europe/Stockholm}
+      APP_INTERNAL_URL: http://app:${PORT:-3000}
+      PORT: "3001"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      skyldig-db-setup:
+        condition: service_completed_successfully
+      app:
+        condition: service_started
+    ports:
+      - "${ADMIN_PORT:-3001}:3001"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/healthz"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    networks:
+      - skyldig-internal
+      - skyldig-edge
+    restart: unless-stopped

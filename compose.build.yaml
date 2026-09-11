@@ -5,3 +5,7 @@ services:
   app:
     build: .
     image: skyldig:local
+  # The setup tool ships in the same image, so it must use the local build too.
+  skyldig-db-setup:
+    build: .
+    image: skyldig:local

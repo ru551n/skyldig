@@ -16,6 +16,26 @@ services:
       - skyldig-internal
     restart: unless-stopped
 
+  skyldig-db-setup:
+    # One-shot, before the app on every `up`, with the database superuser: creates the app's own
+    # role (APP_DB_USER + APP_DB_PASSWORD) and hands the app's tables over to it, and creates the
+    # admin app's role (ADMIN_DB_PASSWORD). Does nothing when those are unset. Idempotent.
+    image: ru551n/skyldig:${SKYLDIG_TAG:-latest}
+    command: ["node", "build/admin/setup-db.js"]
+    environment:
+      SUPERUSER_DATABASE_URL: postgres://${POSTGRES_USER:-skyldig}:${POSTGRES_PASSWORD:-skyldig}@skyldig-db:5432/${POSTGRES_DB:-skyldig}
+      APP_DB_USER: ${APP_DB_USER:-}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:-}
+      ADMIN_DB_PASSWORD: ${ADMIN_DB_PASSWORD:-}
+    depends_on:
+      skyldig-db:
+        condition: service_healthy
+    healthcheck:
+      disable: true
+    networks:
+      - skyldig-internal
+    restart: "no"
+
   app:
     # Self-hosters run the published image. Pin a release with SKYLDIG_TAG (e.g.
     # SKYLDIG_TAG=v0.2.1) rather than tracking `latest`, if you prefer explicit
@@ -27,7 +47,9 @@ services:
         required: false
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgres://${POSTGRES_USER:-skyldig}:${POSTGRES_PASSWORD:-skyldig}@skyldig-db:5432/${POSTGRES_DB:-skyldig}
+      # The app's own role once APP_DB_USER and APP_DB_PASSWORD are set (see skyldig-db-setup);
+      # until then the superuser, as before, with a warning at startup.
+      DATABASE_URL: postgres://${APP_DB_USER:-${POSTGRES_USER:-skyldig}}:${APP_DB_PASSWORD:-${POSTGRES_PASSWORD:-skyldig}}@skyldig-db:5432/${POSTGRES_DB:-skyldig}
       PORT: ${PORT:-3000}
       PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-http://localhost:3000}
       ACCESS_KEY_PEPPER: ${ACCESS_KEY_PEPPER:?ACCESS_KEY_PEPPER must be set (min 32 chars) — export it or set it in .env}
@@ -37,6 +59,8 @@ services:
     depends_on:
       skyldig-db:
         condition: service_healthy
+      skyldig-db-setup:
+        condition: service_completed_successfully
     ports:
       - "${PORT:-3000}:${PORT:-3000}"
     healthcheck:

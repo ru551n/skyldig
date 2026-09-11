@@ -135,7 +135,10 @@ Read and validated in `server/config.ts`.
 | `ADMIN_ELEVATION_TTL_MINUTES` | No | `30` | How long an admin elevation (admin key entered on the group's admin page, or the creator's initial grant) stays effective before the browser session drops back to plain member and must re-enter the admin key. Integer 1–1440; membership is unaffected. |
 | `LOG_LEVEL` | No | `info` | pino log level (`fatal`\|`error`\|`warn`\|`info`\|`debug`\|`trace`\|`silent`). |
 | `NODE_ENV` | No | `development` | `development`\|`production`\|`test`. Also gates the `ACCESS_KEY_PEPPER` requirement and the `COOKIE_SECURE` default. |
-| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | No (Docker only) | `skyldig`/`skyldig`/`skyldig` | Used by `compose.yaml` to configure the `skyldig-db` service and to build the app's `DATABASE_URL`; not read by the application code itself. |
+| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | No (Docker only) | `skyldig`/`skyldig`/`skyldig` | Used by `compose.yaml` to configure the `skyldig-db` service and as the superuser for the `skyldig-db-setup` step (and for the app's `DATABASE_URL` until `APP_DB_*` are set); not read by the application code itself. |
+| `APP_DB_USER`, `APP_DB_PASSWORD` | No (Docker only), recommended | unset | A database role of the app's own, e.g. `skyldig_app`. Set both: `skyldig-db-setup` creates it and hands it the app's tables, and the app connects as it instead of the superuser. See [Database roles](#database-roles). |
+| `ADMIN_DB_PASSWORD` | Only for the admin app | unset | Password of the `skyldig_admin` database role, created by `skyldig-db-setup`. See [Admin app](#admin-app). |
+| `ADMIN_PUBLIC_ORIGIN`, `ADMIN_TRUSTED_PROXY`, `ADMIN_REQUIRED_GROUP`, `ADMIN_PORT`, `ADMIN_TIMEZONE` | Only for the admin app | —, —, `skyldig-admins`, `3001`, `Europe/Stockholm` | See [Admin app](#admin-app). |
 
 ## Scripts
 
@@ -340,6 +343,72 @@ This workflow has not been run, since publishing a release is a repository-owner
 Dockerfile itself has been reviewed and its runtime file set verified to boot (see Status
 above), but the actual `docker buildx build --platform linux/amd64,linux/arm64` has not been
 executed on this machine, which has no Docker installed.
+
+## Database roles
+
+By default the official Postgres image makes `POSTGRES_USER` a superuser, and the app connected as
+it. The app needs none of a superuser's powers (reading other databases, `COPY … TO PROGRAM`,
+creating roles), so it can run as a role of its own: set `APP_DB_USER` (e.g. `skyldig_app`) and
+`APP_DB_PASSWORD` in `.env`. On the next `up`, the one-shot `skyldig-db-setup` service
+(`server/tools/setup-db.ts`, run with the superuser) creates that role, hands it everything the
+superuser owned in the app's schemas, and the app connects as it. It is safe to run on every `up`,
+never demotes a superuser, and never logs passwords. Until you set them, the app keeps using the
+superuser and warns about it at startup.
+
+## Admin app
+
+An optional operator dashboard, run as its own process on its own hostname behind a reverse proxy
+that signs operators in. Privacy first: it shows counts and dates only — active groups,
+participants, browsers, expenses and payments, 30-day activity, group sizes, currency mix,
+database size, the app's health and the cleanup history — and never a group's name or anything its
+members wrote. It can do three things: request a cleanup (the app's own scheduler runs it within a
+minute), look up one group by ID or pasted link (dates and counts only), and delete a group with a
+required reason. Every action is logged with the operator's name. In Swedish and English.
+
+Privacy is enforced by the database, not just the app: the `skyldig_admin` role has no access to
+any table, only to aggregate views and three narrow functions in the `admin` schema
+(`drizzle/0006_admin_schema.sql`). The app itself is server-rendered with no JavaScript
+(`default-src 'none'`), and rejects form posts from any other origin.
+
+**Running it.** Set `ADMIN_DB_PASSWORD`, `ADMIN_PUBLIC_ORIGIN` (e.g. `https://admin.example.com`) and
+`ADMIN_TRUSTED_PROXY` (the reverse proxy's IP address as the admin container sees it), then add
+`compose.admin.yaml`:
+
+```sh
+docker compose -f compose.yaml -f compose.admin.yaml up -d
+# or, from a parent compose file:
+#   include:
+#     - path: [./skyldig/compose.yaml, ./skyldig/compose.admin.yaml]
+```
+
+**Signing in (Caddy + Authentik).** In Authentik, create a *Proxy provider* in *Forward auth (single
+application)* mode with external host `https://admin.example.com`, an application using it, add the
+provider to your outpost, and bind the application to a group named `skyldig-admins` (or set
+`ADMIN_REQUIRED_GROUP`). In Caddy:
+
+```caddyfile
+admin.example.com {
+	route {
+		# Never let a client supply its own identity headers.
+		request_header -X-Authentik-Username
+		request_header -X-Authentik-Groups
+
+		reverse_proxy /outpost.goauthentik.io/* authentik.internal:9000
+		forward_auth authentik.internal:9000 {
+			uri /outpost.goauthentik.io/auth/caddy
+			copy_headers X-Authentik-Username X-Authentik-Groups
+			trusted_proxies private_ranges
+		}
+		reverse_proxy 192.168.1.129:3001
+	}
+}
+```
+
+The admin app believes `X-Authentik-*` headers **only on connections from `ADMIN_TRUSTED_PROXY`**
+and only for members of the required group; anything else gets 403. Still, keep its port closed to
+everyone but the proxy. Note that Docker's published ports bypass `ufw`; use the `DOCKER-USER`
+chain instead, e.g. `iptables -I DOCKER-USER -p tcp -m conntrack --ctorigdstport 3001 ! -s <proxy-ip> -j DROP`.
+Afterwards, check that a request with forged headers from anywhere but the proxy is refused.
 
 ## Search engines and link previews
 
