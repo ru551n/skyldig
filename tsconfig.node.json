@@ -19,6 +19,7 @@
     "tests/integration/layout-loader.test.ts",
     "tests/integration/my-groups.test.ts",
     "tests/integration/admin-db.test.ts",
+    "tests/integration/admin-app.test.ts",
     "tests/integration/fx-rate-loader.test.ts"
   ],
   "compilerOptions": {
