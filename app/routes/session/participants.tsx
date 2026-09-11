@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { data, Form, useFetcher, useNavigation } from "react-router";
 import { z } from "zod";
 
@@ -198,27 +198,18 @@ function ParticipantRow({ participant, position, currency, balance }: RowProps) 
   const [renameOpen, setRenameOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  useEffect(() => {
-    if (
-      renameFetcher.state === "idle" &&
-      renameFetcher.data &&
-      "ok" in renameFetcher.data &&
-      renameFetcher.data.ok
-    ) {
-      setRenameOpen(false);
-    }
-  }, [renameFetcher.state, renameFetcher.data]);
-
-  useEffect(() => {
-    if (
-      deleteFetcher.state === "idle" &&
-      deleteFetcher.data &&
-      "ok" in deleteFetcher.data &&
-      deleteFetcher.data.ok
-    ) {
-      setDeleteOpen(false);
-    }
-  }, [deleteFetcher.state, deleteFetcher.data]);
+  // Close a dialog once its submission comes back successful — checked during render against the
+  // last result already handled, so reopening the dialog later doesn't close it again.
+  const [handledRename, setHandledRename] = useState(renameFetcher.data);
+  if (renameFetcher.state === "idle" && renameFetcher.data !== handledRename) {
+    setHandledRename(renameFetcher.data);
+    if (renameFetcher.data && "ok" in renameFetcher.data && renameFetcher.data.ok) setRenameOpen(false);
+  }
+  const [handledDelete, setHandledDelete] = useState(deleteFetcher.data);
+  if (deleteFetcher.state === "idle" && deleteFetcher.data !== handledDelete) {
+    setHandledDelete(deleteFetcher.data);
+    if (deleteFetcher.data && "ok" in deleteFetcher.data && deleteFetcher.data.ok) setDeleteOpen(false);
+  }
 
   const renameError =
     renameFetcher.data &&

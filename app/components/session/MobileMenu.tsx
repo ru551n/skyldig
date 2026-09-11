@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { NavLink } from "react-router";
 
 import { Button, Dialog, Pill } from "~/components/ui/index.ts";
@@ -37,9 +37,11 @@ export function MobileMenu({
   const locale = useLocale();
   const [confirmingLeave, setConfirmingLeave] = useState(false);
 
-  useEffect(() => {
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
     if (open) setConfirmingLeave(false);
-  }, [open]);
+  }
 
   if (confirmingLeave) {
     return (

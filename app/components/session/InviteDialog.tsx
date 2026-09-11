@@ -34,9 +34,11 @@ export function InviteDialog({ open, onOpenChange, action }: InviteDialogProps) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  useEffect(() => {
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
     if (!open) setCopied(false);
-  }, [open]);
+  }
 
   const result = fetcher.data;
   const url = result?.ok ? result.url : undefined;

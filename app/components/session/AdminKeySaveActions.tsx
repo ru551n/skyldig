@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 import { Button } from "~/components/ui/index.ts";
 import { useT } from "~/i18n";
@@ -11,6 +11,12 @@ import { useT } from "~/i18n";
  */
 export function adminKeyCredentialId(groupName: string, publicId: string): string {
   return `${groupName} (${publicId})`;
+}
+
+/** A browser feature check: false on the server and during hydration, the real answer after. */
+const noSubscription = () => () => {};
+function useBrowserSupport(check: () => boolean): boolean {
+  return useSyncExternalStore(noSubscription, check, () => false);
 }
 
 type PasswordCredentialCtor = new (data: { id: string; password: string; name?: string }) => Credential;
@@ -30,13 +36,10 @@ export interface AdminKeySaveActionsProps {
  */
 export function AdminKeySaveActions({ groupName, publicId, adminKey }: AdminKeySaveActionsProps) {
   const t = useT();
-  const [canStore, setCanStore] = useState(false);
-  const [canShare, setCanShare] = useState(false);
-
-  useEffect(() => {
-    setCanStore("PasswordCredential" in window && typeof navigator.credentials?.store === "function");
-    setCanShare(typeof navigator.share === "function");
-  }, []);
+  const canStore = useBrowserSupport(
+    () => "PasswordCredential" in window && typeof navigator.credentials?.store === "function",
+  );
+  const canShare = useBrowserSupport(() => typeof navigator.share === "function");
 
   if (!canStore && !canShare) return null;
 

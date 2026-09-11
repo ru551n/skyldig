@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Form, useNavigation } from "react-router";
 
 import { listGrants } from "@server/modules/auth/browser-session.ts";
@@ -38,9 +38,11 @@ export default function MyGroups({ loaderData }: Route.ComponentProps) {
 
   // Leaving redirects back to this same route, so the component (and this state) survives;
   // close the dialog once fresh data arrives rather than leaving it open over the new list.
-  useEffect(() => {
+  const [shownData, setShownData] = useState(loaderData);
+  if (loaderData !== shownData) {
+    setShownData(loaderData);
     setLeaving(null);
-  }, [loaderData]);
+  }
 
   return (
     <main id="main" tabIndex={-1} className="mx-auto flex min-h-screen max-w-[65ch] flex-col gap-6 p-6 pb-16">
