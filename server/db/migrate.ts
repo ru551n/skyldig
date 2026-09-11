@@ -20,6 +20,16 @@ export async function runMigrations(connectionString: string = config.databaseUr
     logger.info({ migrationsFolder }, "running database migrations");
     await migrate(db, { migrationsFolder });
     logger.info("database migrations complete");
+    const { rows } = await pool.query<{ rolsuper: boolean }>(
+      "SELECT rolsuper FROM pg_roles WHERE rolname = current_user",
+    );
+    if (rows[0]?.rolsuper) {
+      // A superuser can read other databases, run COPY ... TO PROGRAM and more; the app needs
+      // none of that. See the README's "Database roles" section for switching to its own role.
+      logger.warn(
+        "the app is connected to PostgreSQL as a superuser; set APP_DB_USER and APP_DB_PASSWORD so it runs with its own limited role",
+      );
+    }
   } finally {
     await pool.end();
   }

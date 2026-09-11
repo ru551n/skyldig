@@ -68,7 +68,49 @@ async function deleteOneBatch(db: Database): Promise<BatchOutcome> {
  * rows remain (e.g. they're momentarily locked by something else), so a short batch must not be
  * treated as "done".
  */
-export async function runCleanup(db: Database): Promise<CleanupResult> {
+export interface CleanupTrigger {
+  /** `schedule` for the hourly run, `admin` when the operator asked for it from the admin app. */
+  trigger: "schedule" | "admin";
+  /** The operator who asked, for admin-triggered runs. */
+  actor?: string | null;
+}
+
+export async function runCleanup(
+  db: Database,
+  { trigger, actor = null }: CleanupTrigger = { trigger: "schedule" },
+): Promise<CleanupResult> {
+  const startedAt = new Date();
+  const result = await purge(db);
+  await recordRun(db, startedAt, trigger, actor, result);
+  return result;
+}
+
+/**
+ * Records the run for the admin app's maintenance history and keeps the admin tables bounded.
+ * Best effort: a failure here must never fail the cleanup itself.
+ */
+async function recordRun(
+  db: Database,
+  startedAt: Date,
+  trigger: CleanupTrigger["trigger"],
+  actor: string | null,
+  result: CleanupResult,
+): Promise<void> {
+  try {
+    await db.execute(sql`
+      INSERT INTO admin.maintenance_runs
+        (started_at, trigger, actor, sessions_deleted, browser_sessions_deleted, invites_deleted, skipped)
+      VALUES (${startedAt}, ${trigger}, ${actor}, ${result.sessionsDeleted}, ${result.browserSessionsDeleted},
+              ${result.invitesDeleted}, ${result.skipped})`);
+    await db.execute(sql`DELETE FROM admin.maintenance_runs WHERE started_at < now() - interval '180 days'`);
+    await db.execute(sql`DELETE FROM admin.audit_log WHERE at < now() - interval '365 days'`);
+    await db.execute(sql`DELETE FROM admin.cleanup_requests WHERE handled_at < now() - interval '30 days'`);
+  } catch (error) {
+    expirationLogger.error({ error }, "cleanup: could not record the run");
+  }
+}
+
+async function purge(db: Database): Promise<CleanupResult> {
   let sessionsDeleted = 0;
   let firstBatch = true;
 
@@ -113,26 +155,48 @@ export async function runCleanup(db: Database): Promise<CleanupResult> {
 }
 
 interface SchedulerOptions {
+  /** How often the regular cleanup runs. */
   intervalMs?: number;
+  /** How often to check whether the operator asked for a cleanup from the admin app. */
+  pollMs?: number;
 }
 
 interface Scheduler {
   stop(): void;
 }
 
+/** The oldest outstanding "run cleanup now" request from the admin app, if any. */
+async function pendingRequest(db: Database): Promise<string | null> {
+  const result = (await db.execute(
+    sql`SELECT requested_by FROM admin.cleanup_requests WHERE handled_at IS NULL ORDER BY requested_at LIMIT 1`,
+  )) as unknown as { rows?: { requested_by: string }[] };
+  return result.rows?.[0]?.requested_by ?? null;
+}
+
 /**
- * Starts a cleanup scheduler that runs immediately and then on a recurring interval.
- * The timer is unreferenced so it doesn't prevent process shutdown.
+ * Starts a cleanup scheduler that runs immediately and then every `intervalMs`, and checks every
+ * `pollMs` for a "run cleanup now" request from the admin app, which it serves with the same
+ * cleanup. The timer is unreferenced so it doesn't prevent process shutdown.
  */
 export function startCleanupScheduler(db: Database, options: SchedulerOptions = {}): Scheduler {
-  const { intervalMs = 60 * 60 * 1000 } = options;
+  const { intervalMs = 60 * 60 * 1000, pollMs = 60 * 1000 } = options;
   let running = false;
+  let lastScheduledRun = 0;
 
-  async function runSafely() {
+  async function tick() {
     if (running) return;
     running = true;
     try {
-      await runCleanup(db);
+      const requestedBy = await pendingRequest(db).catch(() => null);
+      if (requestedBy !== null) {
+        const result = await runCleanup(db, { trigger: "admin", actor: requestedBy });
+        if (!result.skipped) {
+          await db.execute(sql`UPDATE admin.cleanup_requests SET handled_at = now() WHERE handled_at IS NULL`);
+        }
+      } else if (Date.now() - lastScheduledRun >= intervalMs) {
+        lastScheduledRun = Date.now();
+        await runCleanup(db, { trigger: "schedule" });
+      }
     } catch (error) {
       expirationLogger.error({ error }, "cleanup failed");
     } finally {
@@ -140,11 +204,9 @@ export function startCleanupScheduler(db: Database, options: SchedulerOptions = 
     }
   }
 
-  // Run immediately
-  void runSafely();
-
-  // Schedule recurring runs
-  const timer = setInterval(runSafely, intervalMs);
+  // Run immediately, then keep checking.
+  void tick();
+  const timer = setInterval(tick, Math.min(pollMs, intervalMs));
   timer.unref();
 
   return {

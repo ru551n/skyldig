@@ -43,6 +43,13 @@
       "when": 1788992220513,
       "tag": "0005_admin_elevation_ttl",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789156096003,
+      "tag": "0006_admin_schema",
+      "breakpoints": true
     }
   ]
 }
